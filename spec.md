@@ -1311,6 +1311,57 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 
 ---
 
+### Mapeo WBS → issues de GitHub
+
+Los numeros del WBS de arriba (WBS-N) son la referencia estable. Los numeros
+de issue en GitHub se asignan por repositorio y no coinciden con el WBS. En
+commits y PRs se usan ambos: `WBS-N` en el cuerpo y `Refs: #<numero real>`.
+
+**Repo `securepassb`** (creado en batch del 2026-08-18):
+
+| WBS | Issue GitHub | Titulo |
+|-----|--------------|--------|
+| WBS-1  | securepassb#1  | Bootstrap del backend |
+| WBS-3  | securepassb#2  | CI y proteccion de ramas |
+| WBS-5  | securepassb#3  | Esquema de base de datos |
+| WBS-6  | securepassb#4  | Dominio de identidad |
+| WBS-7  | securepassb#5  | Login y JWT |
+| WBS-8  | securepassb#6  | Refresh con rotacion |
+| WBS-9  | securepassb#7  | Rate limiting |
+| WBS-10 | securepassb#8  | Autorizacion por rol y barrio |
+| WBS-11 | securepassb#9  | Gestion de lotes |
+| WBS-12 | securepassb#10 | Permisos de unidad familiar |
+| WBS-13 | securepassb#11 | Manejo global de errores |
+| WBS-14 | securepassb#12 | Contratos OpenAPI |
+| WBS-15 | securepassb#13 | Criptografia Ed25519 |
+| WBS-16 | securepassb#14 | Emision de token QR |
+| WBS-17 | securepassb#15 | Dominio de invitacion |
+| WBS-18 | securepassb#16 | API de invitaciones |
+| WBS-19 | securepassb#17 | Revocacion |
+| WBS-20 | securepassb#18 | Expiracion programada |
+| WBS-21 | securepassb#19 | QR personal de residente |
+| WBS-22 | securepassb#20 | Caso de uso de validacion |
+| WBS-23 | securepassb#21 | Anti-replay con Redis |
+| WBS-24 | securepassb#22 | Endpoint de validacion |
+| WBS-25 | securepassb#23 | Sync de eventos offline |
+| WBS-26 | securepassb#24 | Ingreso manual |
+| WBS-27 | securepassb#25 | Turnos de guardia |
+| WBS-28 | securepassb#26 | Bitacora consultable |
+| WBS-43 | securepassb#27 | Push de ingreso |
+| WBS-47 | securepassb#28 | Metricas de ocupacion |
+| WBS-48 | securepassb#29 | Afluencia por hora |
+| WBS-50 | securepassb#30 | Alertas de permanencia |
+| WBS-52 | securepassb#31 | Export de bitacora |
+| WBS-53 | securepassb#32 | Bitacora de turnos |
+| WBS-54 | securepassb#33 | Auditoria de seguridad |
+| WBS-55 | securepassb#34 | Indices y performance |
+| WBS-57 | securepassb#35 | Observabilidad |
+| WBS-58 | securepassb#36 | Import de padron |
+
+**Repo `securepassf`**: pendiente, se completara cuando se creen los issues del frontend.
+
+---
+
 ## 14. Criterios de aceptación del MVP
 
 El sistema está listo para operar en un barrio real cuando:
