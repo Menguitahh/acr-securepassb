@@ -20,24 +20,27 @@ Orden pedido: 6, 7, 8, 10, 13, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25.
 - [x] WBS-14 · Contratos OpenAPI + snapshot `openapi.json` en CI (#45)
 - [x] WBS-15 · Cripto Ed25519, AES-GCM con IV random, master key en env (#46)
 - [x] WBS-16 · Emision de token QR SP1 con firma Ed25519 (#47)
+- [x] WBS-17 · Dominio Invitation con maquina de estados (#49)
 
 ## Que sigue
 
-Proximo: **WBS-17 Dominio invitacion** (`securepassb#15`, rama
-`feature/invitation-domain`). Cubre spec 6.
+Proximo: **WBS-18 API de invitaciones** (`securepassb`, rama
+`feature/invitation-api`). Cubre spec 7.2 y US-10/12/13/15.
 
 Criterios del issue:
-- Maquina de estados con transiciones prohibidas testeadas.
-- BR-04 (ventana <= 30 dias SINGLE/EVENT, <= 365 RECURRING) cubierta.
-- BR-05 (max_uses EVENT <= 200) cubierta.
-- BR-06 (used_count solo incrementa en IN + ALLOWED) cubierta.
-- BR-10 (QR personal de residente, no consume cupo) cubierta.
+- Endpoints de 7.2 (POST crear, GET listar, GET detalle, POST revoke).
+- BR-01 (solo miembros con can_invite) y BR-02 (owner puede revocar de
+  cualquiera del lote) aplicadas.
+- Los tres tipos validados (SINGLE/EVENT/RECURRING).
+- 422 con detalle ante violacion de regla (usar handler global de WBS-13).
 
-Ya existe `InvitationType` enum en `modules/invitation/domain` (agregado
-en WBS-16). WBS-17 agrega la entidad `Invitation` con invariantes en el
-constructor y transiciones sealed.
+Ya existe entidad `Invitation` (WBS-17), emision QR (WBS-16), guardas de
+rol/barrio (WBS-10).
 
-Despues siguen: 18, 19, 22 (pausa antes de mergear), 23 (pausa antes de
+Recordatorio: `/ponytail-review` toca correr sobre el acumulado tras el
+proximo issue (18 sera el 4to desde WBS-13). Confirmar antes.
+
+Despues siguen: 19, 22 (pausa antes de mergear), 23 (pausa antes de
 mergear), 24, 25.
 
 ## Reglas de sesion (mantener vigentes)
