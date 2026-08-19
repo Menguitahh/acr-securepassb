@@ -932,9 +932,22 @@ export const validateOffline = (
   }
   if (ctx.localUses(parsed.payload.j) >= parsed.payload.m) return denied('ALREADY_USED')
 
-  return allowed(parsed.payload)
+  // Allowed explicito: espeja las condiciones de los guards.
+  if (noRevocado && dentroDeVentana && enFranja && cupoDisponible) {
+    return allowed(parsed.payload)
+  }
+
+  // Fail-closed: el default es denegar.
+  return denied('UNKNOWN')
 }
 ```
+
+**Default fail-closed.** La última línea es `denied('UNKNOWN')`, no un
+fall-through a `allowed`: si una condición nueva se agrega al token y
+falta su guard clause, el pase se deniega. El costo de un falso
+permitido (un desconocido adentro) es mayor que el de un falso denegado
+(un registro manual en garita). `UNKNOWN` se agrega a los motivos
+producibles offline.
 
 ### 8.3 Limitaciones aceptadas del modo offline
 
