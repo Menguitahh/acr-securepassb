@@ -1,6 +1,7 @@
 package com.securepass.shared.security;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securepass.modules.identity.domain.Role;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,11 +11,14 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -62,6 +66,30 @@ public class JwtService {
         }
     }
 
+    public Optional<Claims> parse(String token) {
+        if (token == null || token.isBlank()) return Optional.empty();
+        String[] parts = token.split("\\.");
+        if (parts.length != 3) return Optional.empty();
+        try {
+            byte[] expected = hmac((parts[0] + "." + parts[1]).getBytes(StandardCharsets.UTF_8));
+            byte[] actual = Base64.getUrlDecoder().decode(parts[2]);
+            if (!MessageDigest.isEqual(expected, actual)) return Optional.empty();
+            JsonNode payload = mapper.readTree(Base64.getUrlDecoder().decode(parts[1]));
+            long exp = payload.path("exp").asLong(-1);
+            if (exp <= 0 || Instant.now().getEpochSecond() >= exp) return Optional.empty();
+            UUID sub = UUID.fromString(payload.path("sub").asText());
+            UUID nid = payload.hasNonNull("nid") && !payload.get("nid").asText().isBlank()
+                    ? UUID.fromString(payload.get("nid").asText()) : null;
+            List<Role> roles = new ArrayList<>();
+            payload.path("roles").forEach(n -> roles.add(Role.valueOf(n.asText())));
+            List<UUID> lots = new ArrayList<>();
+            payload.path("lots").forEach(n -> lots.add(UUID.fromString(n.asText())));
+            return Optional.of(new Claims(sub, nid, List.copyOf(roles), List.copyOf(lots), exp));
+        } catch (RuntimeException | java.io.IOException e) {
+            return Optional.empty();
+        }
+    }
+
     private byte[] hmac(byte[] data) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
@@ -77,4 +105,6 @@ public class JwtService {
     }
 
     public record IssuedAccessToken(String token, long expiresIn) {}
+
+    public record Claims(UUID sub, UUID neighborhoodId, List<Role> roles, List<UUID> lots, long exp) {}
 }
