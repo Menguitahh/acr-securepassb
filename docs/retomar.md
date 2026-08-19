@@ -23,34 +23,38 @@ Orden pedido: 6, 7, 8, 10, 13, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25.
 - [x] WBS-17 · Dominio Invitation con maquina de estados (#49)
 - [x] WBS-18 · API de invitaciones CRUD + revoke (#50)
 - [x] WBS-19 · Revocacion: jti estable + `/access/revoked` (#51)
+- [x] WBS-22 · Caso de uso de validacion + AccessDecision sealed (#52)
+- [x] WBS-23 · Anti-replay Redis + consumo transaccional (#53)
+- [x] WBS-24 · Endpoint POST /access/validate con log e idempotencia (#54)
 
 ## Que sigue
 
-Proximo: **WBS-22 Caso de uso de validacion** (`securepassb`, rama
-`feature/access-validation-usecase`). Cubre US-17, US-20 y spec 6.
+Proximo: **WBS-25 Sync de eventos offline** (`securepassb`, rama
+`feature/access-offline-sync`). Cubre US-19 y spec 8.4.
 
 Criterios del issue:
-- `AccessDecision` sealed de spec 6 (`Allowed`, `Denied`).
-- Los 8 `denial_reason` producidos por su condicion (ver `DenialReason`
-  a definir).
-- Early returns segun spec 10.1.
+- `POST /access/sync` idempotente por `clientEventId`.
+- Batch de max 50 eventos.
+- Conflictos resueltos first-captured-wins (usa `captured_at`).
+- Duplicados persistidos como `REPLAY` en `access_logs`.
+- Desvio de reloj > 5 min se marca en auditoria.
 
 Notas para arrancar:
-- Invitation ya expone `jti`, `type`, `validFrom/Until`, `weekdays`,
-  `dailyFrom/Until`, `maxUses`, `usedCount`, `status`. Falta modelar
-  la maquina de decision de acceso pura (sin Redis/DB) para reusar
-  entre validacion online y sync offline.
-- QR ya parseable via `QrTokenCodec`, verificacion via
-  `Ed25519Verifier` + `SigningKeyRepository`.
-- Rate-limit y anti-replay quedan para WBS-23, no encararlos aca.
+- `RecordAccessAttemptUseCase` ya maneja idempotencia por
+  `clientEventId` via `saveIdempotent`. Reusar.
+- `ConsumeAccessUseCase` + anti-replay Redis ya existen; el sync
+  itera eventos y los pasa por el mismo pipeline.
+- La respuesta del sync es `{ accepted, conflicts[] }` (spec 7.3).
+- Este es el ULTIMO issue antes del `/ponytail-review` acumulado.
 
 Recordatorio del usuario: `/ponytail-review` NO se corre por issue en
-esta tanda. Los ultimos dos dieron solo falsos positivos sobre dominio
-que el spec define. Retomarlo recien tras cerrar WBS-25, sobre el
-acumulado completo.
+esta tanda. Los tres ultimos dieron solo falsos positivos sobre
+dominio que el spec define. Retomarlo recien tras cerrar WBS-25,
+sobre el acumulado completo.
 
-Despues siguen: 23 (pausa antes de mergear), 24, 25. Luego revisar
-acumulado con `/ponytail-review`.
+Follow-ups pendientes (no urgentes):
+- `lot.ownerName` en la respuesta ALLOWED de `/access/validate`.
+- Load test de p95 < 200 ms para `/access/validate` (WBS-24).
 
 ## Reglas de sesion (mantener vigentes)
 
