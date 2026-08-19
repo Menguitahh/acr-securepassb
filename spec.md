@@ -804,6 +804,7 @@ POST /api/v1/access/sync
 | POST | `/access/sync` | GUARD | Batch offline, idempotente por `clientEventId` |
 | POST | `/access/manual` | GUARD | Ingreso sin QR (proveedor, visita imprevista) |
 | GET | `/access/keys` | GUARD | Claves públicas Ed25519 activas del barrio |
+| GET | `/access/revoked?since=` | GUARD | `jti` revocados desde `since` (alimenta `revoked_cache` de §8.1) |
 | GET | `/access-logs?from=&to=&lotId=&result=&page=` | ADMIN, RESIDENT (solo su lote) | Bitácora |
 
 ### 7.4 Turnos
