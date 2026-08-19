@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,7 +26,8 @@ import static org.mockito.Mockito.when;
 class QrTokenIssuerTest {
 
     private static final String TEST_MASTER_KEY = "REVWX09OTFlfS0VZXzMyX0JZVEVTX1hYWFhYWFhYWFg=";
-    private static final List<String> ALLOWED_KEYS = List.of("v", "k", "j", "n", "l", "i", "t", "f", "u", "m");
+    private static final List<String> BASE_KEYS = List.of("v", "k", "j", "n", "l", "i", "t", "f", "u", "m");
+    private static final List<String> RECURRING_KEYS = List.of("v", "k", "j", "n", "l", "i", "t", "f", "u", "m", "w", "df", "du");
 
     private SigningKeyRepository repo;
     private AesGcmCipher cipher;
@@ -98,7 +100,7 @@ class QrTokenIssuerTest {
                 .stream(java.util.Spliterators.spliteratorUnknownSize(json.fieldNames(), 0), false)
                 .toList();
 
-        assertThat(keys).containsExactlyInAnyOrderElementsOf(ALLOWED_KEYS);
+        assertThat(keys).containsExactlyInAnyOrderElementsOf(BASE_KEYS);
         String raw = json.toString().toLowerCase();
         assertThat(raw).doesNotContain("name");
         assertThat(raw).doesNotContain("document");
@@ -114,7 +116,7 @@ class QrTokenIssuerTest {
 
         assertThatThrownBy(() -> issuer.issue(new QrTokenIssuer.IssueCommand(
                 otro, lotId, invitationId, jti, InvitationType.SINGLE,
-                Instant.now(), Instant.now().plusSeconds(3600), 1)))
+                Instant.now(), Instant.now().plusSeconds(3600), 1, null, null, null)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("signing key");
     }
@@ -134,7 +136,28 @@ class QrTokenIssuerTest {
 
     private QrTokenIssuer.IssueCommand cmd(InvitationType type, int maxUses) {
         Instant from = Instant.now();
+        boolean r = type == InvitationType.RECURRING;
         return new QrTokenIssuer.IssueCommand(
-                nid, lotId, invitationId, jti, type, from, from.plusSeconds(3600), maxUses);
+                nid, lotId, invitationId, jti, type, from, from.plusSeconds(3600), maxUses,
+                r ? List.of(1, 2, 3, 4, 5) : null,
+                r ? LocalTime.of(8, 0) : null,
+                r ? LocalTime.of(18, 0) : null);
+    }
+
+    @Test
+    void recurringIncluyeFranjaHorariaEnPayload() throws Exception {
+        String token = issuer.issue(cmd(InvitationType.RECURRING, 200));
+
+        ParsedQrToken parsed = codec.parse(token).orElseThrow();
+        JsonNode json = mapper.readTree(parsed.payloadBytes());
+        List<String> keys = java.util.stream.StreamSupport
+                .stream(java.util.Spliterators.spliteratorUnknownSize(json.fieldNames(), 0), false)
+                .toList();
+
+        assertThat(keys).containsExactlyInAnyOrderElementsOf(RECURRING_KEYS);
+        assertThat(json.get("w").asInt()).isEqualTo(0b0011111);
+        assertThat(json.get("df").asInt()).isEqualTo(8 * 60);
+        assertThat(json.get("du").asInt()).isEqualTo(18 * 60);
+        assertThat(parsed.payloadBytes().length).isLessThan(300);
     }
 }

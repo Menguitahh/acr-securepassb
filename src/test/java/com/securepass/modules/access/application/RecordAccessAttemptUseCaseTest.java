@@ -67,7 +67,7 @@ class RecordAccessAttemptUseCaseTest {
     private RecordAccessAttemptUseCase.Command cmd(Direction dir) {
         return new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, gateId, guardId, "SP1.token",
-                dir, 2, NOW, clientEventId);
+                dir, 2, NOW, clientEventId, false);
     }
 
     private Invitation invitation() {

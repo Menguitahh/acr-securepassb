@@ -22,6 +22,6 @@ public record ValidateAccessRequest(
     public RecordAccessAttemptUseCase.Command toCommand(UUID neighborhoodId, UUID guardId) {
         return new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, gateId, guardId, token, direction,
-                companions, capturedAt, clientEventId);
+                companions, capturedAt, clientEventId, false);
     }
 }

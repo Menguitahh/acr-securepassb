@@ -20,6 +20,7 @@ public record AccessLog(
         UUID tokenJti,
         Instant capturedAt,
         boolean syncedOffline,
+        boolean clockSkew,
         UUID clientEventId
 ) {
     public AccessLog {

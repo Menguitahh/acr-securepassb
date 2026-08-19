@@ -75,7 +75,8 @@ public class CreateInvitationUseCase {
         String qrToken = qrTokenIssuer.issue(new QrTokenIssuer.IssueCommand(
                 actorNeighborhoodId, cmd.lotId(), invitation.id(), invitation.jti(),
                 invitation.type(), invitation.validFrom(), invitation.validUntil(),
-                invitation.maxUses()));
+                invitation.maxUses(),
+                invitation.weekdays(), invitation.dailyFrom(), invitation.dailyUntil()));
 
         String shareUrl = shareUrlBase + "/" + shortCode(invitation.id());
         return new IssuedInvitation(invitation, qrToken, shareUrl);

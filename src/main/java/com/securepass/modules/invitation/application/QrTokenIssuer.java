@@ -7,6 +7,8 @@ import com.securepass.shared.crypto.Ed25519Signer;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -31,12 +33,18 @@ public class QrTokenIssuer {
                 .orElseThrow(() -> new IllegalStateException(
                         "no hay signing key activa para el barrio " + cmd.neighborhoodId()));
 
+        boolean recurring = cmd.type() == InvitationType.RECURRING;
+        Integer weekdaysMask = recurring ? weekdaysMask(cmd.weekdays()) : null;
+        Integer dailyFromMin = recurring ? toMinutes(cmd.dailyFrom(), "dailyFrom") : null;
+        Integer dailyUntilMin = recurring ? toMinutes(cmd.dailyUntil(), "dailyUntil") : null;
+
         QrTokenPayload payload = new QrTokenPayload(
                 PAYLOAD_VERSION, key.kid(), cmd.jti(),
                 cmd.neighborhoodId(), cmd.lotId(), cmd.invitationId(),
                 cmd.type().code(),
                 cmd.validFrom().getEpochSecond(), cmd.validUntil().getEpochSecond(),
-                cmd.maxUses());
+                cmd.maxUses(),
+                weekdaysMask, dailyFromMin, dailyUntilMin);
 
         byte[] payloadBytes = codec.serialize(payload);
         if (payloadBytes.length > MAX_PAYLOAD_BYTES) {
@@ -49,6 +57,23 @@ public class QrTokenIssuer {
         return codec.encode(payload, signature);
     }
 
+    private static int weekdaysMask(List<Integer> weekdays) {
+        if (weekdays == null || weekdays.isEmpty()) {
+            throw new IllegalArgumentException("RECURRING requiere weekdays");
+        }
+        int mask = 0;
+        for (Integer d : weekdays) {
+            if (d == null || d < 1 || d > 7) throw new IllegalArgumentException("weekday fuera de 1..7");
+            mask |= 1 << (d - 1);
+        }
+        return mask;
+    }
+
+    private static int toMinutes(LocalTime t, String name) {
+        if (t == null) throw new IllegalArgumentException("RECURRING requiere " + name);
+        return t.getHour() * 60 + t.getMinute();
+    }
+
     public record IssueCommand(
             UUID neighborhoodId,
             UUID lotId,
@@ -57,7 +82,10 @@ public class QrTokenIssuer {
             InvitationType type,
             Instant validFrom,
             Instant validUntil,
-            int maxUses
+            int maxUses,
+            List<Integer> weekdays,
+            LocalTime dailyFrom,
+            LocalTime dailyUntil
     ) {
         public IssueCommand {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

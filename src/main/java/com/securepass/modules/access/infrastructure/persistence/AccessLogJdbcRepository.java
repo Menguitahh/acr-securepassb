@@ -32,12 +32,12 @@ public class AccessLogJdbcRepository implements AccessLogRepository {
                         id, neighborhood_id, gate_id, guard_id, invitation_id, lot_id,
                         direction, subject_type, result, denial_reason,
                         subject_name, subject_document, companions,
-                        token_jti, captured_at, synced_offline, client_event_id
+                        token_jti, captured_at, synced_offline, clock_skew, client_event_id
                     ) VALUES (
                         :id, :nid, :gate, :guard, :inv, :lot,
                         :direction, :subject, :result, :reason,
                         :name, :doc, :comp,
-                        :jti, :captured, :synced, :evt
+                        :jti, :captured, :synced, :skew, :evt
                     )
                     """)
                     .param("id", log.id())
@@ -56,6 +56,7 @@ public class AccessLogJdbcRepository implements AccessLogRepository {
                     .param("jti", log.tokenJti())
                     .param("captured", Timestamp.from(log.capturedAt()))
                     .param("synced", log.syncedOffline())
+                    .param("skew", log.clockSkew())
                     .param("evt", log.clientEventId())
                     .update();
             return log;
@@ -72,7 +73,7 @@ public class AccessLogJdbcRepository implements AccessLogRepository {
                 SELECT id, neighborhood_id, gate_id, guard_id, invitation_id, lot_id,
                        direction, subject_type, result, denial_reason,
                        subject_name, subject_document, companions,
-                       token_jti, captured_at, synced_offline, client_event_id
+                       token_jti, captured_at, synced_offline, clock_skew, client_event_id
                   FROM access_logs
                  WHERE client_event_id = :evt
                 """)
@@ -100,6 +101,7 @@ public class AccessLogJdbcRepository implements AccessLogRepository {
                 rs.getObject("token_jti", UUID.class),
                 rs.getTimestamp("captured_at").toInstant(),
                 rs.getBoolean("synced_offline"),
+                rs.getBoolean("clock_skew"),
                 rs.getObject("client_event_id", UUID.class));
     }
 }

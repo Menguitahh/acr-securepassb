@@ -237,6 +237,36 @@
         }
       }
     },
+    "/api/v1/access/sync" : {
+      "post" : {
+        "tags" : [
+          "access-sync-controller"
+        ],
+        "operationId" : "sync",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SyncAccessRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SyncAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations/{id}" : {
       "get" : {
         "tags" : [
@@ -707,6 +737,107 @@
           },
           "invitation" : {
             "$ref" : "#/components/schemas/InvitationDetail"
+          }
+        }
+      },
+      "Event" : {
+        "required" : [
+          "capturedAt",
+          "clientEventId",
+          "direction",
+          "gateId",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "token" : {
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "direction" : {
+            "type" : "string",
+            "enum" : [
+              "IN",
+              "OUT"
+            ]
+          },
+          "companions" : {
+            "maximum" : 20,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "localDecision" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SyncAccessRequest" : {
+        "required" : [
+          "deviceId",
+          "events"
+        ],
+        "type" : "object",
+        "properties" : {
+          "deviceId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "events" : {
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Event"
+            }
+          }
+        }
+      },
+      "Conflict" : {
+        "type" : "object",
+        "properties" : {
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "serverResult" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clockSkew" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "SyncAccessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "accepted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "conflicts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Conflict"
+            }
           }
         }
       },

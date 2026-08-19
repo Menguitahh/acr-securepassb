@@ -76,7 +76,8 @@ public class InvitationController {
         Invitation invitation = getUseCase.get(actor, id);
         String qrToken = qrTokenIssuer.issue(new QrTokenIssuer.IssueCommand(
                 invitation.neighborhoodId(), invitation.lotId(), invitation.id(), invitation.jti(),
-                invitation.type(), invitation.validFrom(), invitation.validUntil(), invitation.maxUses()));
+                invitation.type(), invitation.validFrom(), invitation.validUntil(), invitation.maxUses(),
+                invitation.weekdays(), invitation.dailyFrom(), invitation.dailyUntil()));
         return InvitationResponse.from(invitation, qrToken, shareUrlFor(invitation.id()));
     }
 

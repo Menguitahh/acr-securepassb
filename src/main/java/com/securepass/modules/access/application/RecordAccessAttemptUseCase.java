@@ -9,12 +9,15 @@ import com.securepass.modules.invitation.application.InvitationRepository;
 import com.securepass.modules.invitation.domain.Invitation;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class RecordAccessAttemptUseCase {
+
+    static final Duration CLOCK_SKEW_THRESHOLD = Duration.ofMinutes(5);
 
     private final ConsumeAccessUseCase consumeUseCase;
     private final ValidateAccessUseCase validateUseCase;
@@ -66,10 +69,15 @@ public class RecordAccessAttemptUseCase {
     }
 
     private AccessDecision decide(Command cmd) {
-        if (cmd.direction() == Direction.IN) {
-            return consumeUseCase.consume(cmd.token(), cmd.capturedAt(), cmd.clientEventId().toString());
+        AccessDecision decision = cmd.direction() == Direction.IN
+                ? consumeUseCase.consume(cmd.token(), cmd.capturedAt(), cmd.clientEventId().toString())
+                : validateUseCase.validate(cmd.token(), cmd.capturedAt(), Direction.OUT);
+        if (cmd.syncedOffline()
+                && decision instanceof AccessDecision.Denied denied
+                && denied.reason() == DenialReason.ALREADY_USED) {
+            return AccessDecision.Denied.of(DenialReason.REPLAY);
         }
-        return validateUseCase.validate(cmd.token(), cmd.capturedAt(), Direction.OUT);
+        return decision;
     }
 
     private Optional<Invitation> invitationFor(AccessDecision decision) {
@@ -88,6 +96,8 @@ public class RecordAccessAttemptUseCase {
         UUID lotId = inv.map(Invitation::lotId).orElse(null);
         String subjectName = allowed && inv.isPresent() ? inv.get().guestName() : null;
         String subjectDocument = allowed && inv.isPresent() ? inv.get().guestDocument() : null;
+        boolean clockSkew = cmd.syncedOffline()
+                && Duration.between(cmd.capturedAt(), Instant.now()).abs().compareTo(CLOCK_SKEW_THRESHOLD) > 0;
 
         return new AccessLog(
                 UUID.randomUUID(),
@@ -105,7 +115,8 @@ public class RecordAccessAttemptUseCase {
                 cmd.companions(),
                 tokenJti,
                 cmd.capturedAt(),
-                false,
+                cmd.syncedOffline(),
+                clockSkew,
                 cmd.clientEventId());
     }
 
@@ -117,7 +128,8 @@ public class RecordAccessAttemptUseCase {
             Direction direction,
             int companions,
             Instant capturedAt,
-            UUID clientEventId
+            UUID clientEventId,
+            boolean syncedOffline
     ) {
         public Command {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

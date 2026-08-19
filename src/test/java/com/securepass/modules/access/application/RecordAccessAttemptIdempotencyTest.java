@@ -97,7 +97,7 @@ class RecordAccessAttemptIdempotencyTest {
     void reintentoConMismoClientEventIdDevuelveMismoLogSinDuplicar() {
         RecordAccessAttemptUseCase.Command cmd = new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, gateId, guardId, "SP1.token", Direction.IN,
-                0, Instant.now(), clientEventId);
+                0, Instant.now(), clientEventId, false);
 
         RecordAccessAttemptUseCase.Result first = useCase.record(cmd);
         RecordAccessAttemptUseCase.Result retry = useCase.record(cmd);
