@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.application.CreateInvitationUseCase;
 import com.securepass.modules.invitation.application.GetInvitationUseCase;
 import com.securepass.modules.invitation.application.IssuedInvitation;
 import com.securepass.modules.invitation.application.ListInvitationsUseCase;
+import com.securepass.modules.invitation.application.NeighborhoodNameQuery;
 import com.securepass.modules.invitation.application.QrTokenIssuer;
 import com.securepass.modules.invitation.application.RevokeInvitationUseCase;
 import com.securepass.modules.invitation.domain.Invitation;
@@ -22,7 +23,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 @RestController
 @RequestMapping("/api/v1/invitations")
@@ -33,6 +37,7 @@ public class InvitationController {
     private final GetInvitationUseCase getUseCase;
     private final RevokeInvitationUseCase revokeUseCase;
     private final QrTokenIssuer qrTokenIssuer;
+    private final NeighborhoodNameQuery neighborhoodNames;
     private final AccessGuard accessGuard;
     private final String shareUrlBase;
 
@@ -42,6 +47,7 @@ public class InvitationController {
             GetInvitationUseCase getUseCase,
             RevokeInvitationUseCase revokeUseCase,
             QrTokenIssuer qrTokenIssuer,
+            NeighborhoodNameQuery neighborhoodNames,
             AccessGuard accessGuard,
             @Value("${securepass.share-url-base:https://securepass.app/i}") String shareUrlBase) {
         this.createUseCase = createUseCase;
@@ -49,6 +55,7 @@ public class InvitationController {
         this.getUseCase = getUseCase;
         this.revokeUseCase = revokeUseCase;
         this.qrTokenIssuer = qrTokenIssuer;
+        this.neighborhoodNames = neighborhoodNames;
         this.accessGuard = accessGuard;
         this.shareUrlBase = shareUrlBase;
     }
@@ -57,8 +64,9 @@ public class InvitationController {
     public ResponseEntity<InvitationResponse> create(@Valid @RequestBody CreateInvitationRequest request) {
         CurrentUser actor = accessGuard.require();
         IssuedInvitation issued = createUseCase.create(actor.userId(), actor.neighborhoodId(), request.toCommand());
+        String name = neighborhoodNames.findName(issued.invitation().neighborhoodId());
         return ResponseEntity.created(URI.create("/api/v1/invitations/" + issued.invitation().id()))
-                .body(InvitationResponse.from(issued));
+                .body(InvitationResponse.from(issued, name));
     }
 
     @GetMapping
@@ -67,7 +75,7 @@ public class InvitationController {
             @RequestParam(required = false) InvitationStatus status,
             @RequestParam(defaultValue = "0") int page) {
         CurrentUser actor = accessGuard.require();
-        return PagedInvitationsResponse.from(listUseCase.list(actor, lotId, status, page));
+        return PagedInvitationsResponse.from(listUseCase.list(actor, lotId, status, page), nameResolver());
     }
 
     @GetMapping("/{id}")
@@ -78,14 +86,21 @@ public class InvitationController {
                 invitation.neighborhoodId(), invitation.lotId(), invitation.id(), invitation.jti(),
                 invitation.type(), invitation.validFrom(), invitation.validUntil(), invitation.maxUses(),
                 invitation.weekdays(), invitation.dailyFrom(), invitation.dailyUntil()));
-        return InvitationResponse.from(invitation, qrToken, shareUrlFor(invitation.id()));
+        String name = neighborhoodNames.findName(invitation.neighborhoodId());
+        return InvitationResponse.from(invitation, name, qrToken, shareUrlFor(invitation.id()));
     }
 
     @PostMapping("/{id}/revoke")
     public InvitationResponse revoke(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         Invitation revoked = revokeUseCase.revoke(actor, id);
-        return InvitationResponse.withoutQr(revoked);
+        String name = neighborhoodNames.findName(revoked.neighborhoodId());
+        return InvitationResponse.withoutQr(revoked, name);
+    }
+
+    private Function<UUID, String> nameResolver() {
+        Map<UUID, String> cache = new HashMap<>();
+        return id -> cache.computeIfAbsent(id, neighborhoodNames::findName);
     }
 
     private String shareUrlFor(UUID id) {

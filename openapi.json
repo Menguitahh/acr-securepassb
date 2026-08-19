@@ -461,6 +461,13 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodName" : {
+            "type" : "string"
+          },
           "type" : {
             "type" : "string",
             "enum" : [
