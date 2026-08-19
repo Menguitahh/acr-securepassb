@@ -8,3 +8,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+
+securepass:
+  jwt:
+    secret: ${SECUREPASS_JWT_SECRET}
+    ttl-seconds: ${SECUREPASS_JWT_TTL_SECONDS:900}

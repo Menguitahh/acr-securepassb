@@ -1,0 +1,4 @@
+securepass:
+  jwt:
+    secret: test-secret-that-is-long-enough-to-pass-hmac-32-byte-check
+    ttl-seconds: 900
