@@ -207,6 +207,36 @@
         }
       }
     },
+    "/api/v1/access/validate" : {
+      "post" : {
+        "tags" : [
+          "access-validate-controller"
+        ],
+        "operationId" : "validate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ValidateAccessRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ValidateAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations/{id}" : {
       "get" : {
         "tags" : [
@@ -570,6 +600,113 @@
             "items" : {
               "$ref" : "#/components/schemas/LotPayload"
             }
+          }
+        }
+      },
+      "ValidateAccessRequest" : {
+        "required" : [
+          "capturedAt",
+          "clientEventId",
+          "direction",
+          "gateId",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "direction" : {
+            "type" : "string",
+            "enum" : [
+              "IN",
+              "OUT"
+            ]
+          },
+          "companions" : {
+            "maximum" : 20,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "GuestDetail" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "document" : {
+            "type" : "string"
+          },
+          "companions" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "InvitationDetail" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "usedCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "maxUses" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "remaining" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "LotDetail" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ValidateAccessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "result" : {
+            "type" : "string"
+          },
+          "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "guest" : {
+            "$ref" : "#/components/schemas/GuestDetail"
+          },
+          "lot" : {
+            "$ref" : "#/components/schemas/LotDetail"
+          },
+          "invitation" : {
+            "$ref" : "#/components/schemas/InvitationDetail"
           }
         }
       },

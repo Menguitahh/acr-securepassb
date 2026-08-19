@@ -307,6 +307,30 @@ class ValidateAccessUseCaseTest {
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED));
     }
 
+    @Test
+    void outAllowedAunConInvitacionYaUsada() {
+        // BR-06: egresos no consumen cupo. Un pase con usedCount == maxUses
+        // sigue permitiendo el egreso.
+        Invitation inv = singleInvitation(InvitationStatus.USED, 1);
+        stubHappyPath(inv);
+        String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
+
+        AccessDecision decision = useCase.validate(token, NOW, com.securepass.modules.access.domain.Direction.OUT);
+
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
+    }
+
+    @Test
+    void outDeniedSiRevocada() {
+        Invitation inv = singleInvitation(InvitationStatus.REVOKED, 0);
+        stubHappyPath(inv);
+        String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
+
+        AccessDecision decision = useCase.validate(token, NOW, com.securepass.modules.access.domain.Direction.OUT);
+
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
+    }
+
     // Fail-closed: si un status inconsistente esquiva todas las guardas
     // especificas, el default es Denied(UNKNOWN), nunca Allowed.
     @Test

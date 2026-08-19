@@ -2,6 +2,7 @@ package com.securepass.modules.access.application;
 
 import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.access.domain.DenialReason;
+import com.securepass.modules.access.domain.Direction;
 import com.securepass.modules.access.domain.LotStatus;
 import com.securepass.modules.invitation.application.InvitationRepository;
 import com.securepass.modules.invitation.application.ParsedQrToken;
@@ -39,7 +40,12 @@ public class ValidateAccessUseCase {
     }
 
     public AccessDecision validate(String token, Instant capturedAt) {
+        return validate(token, capturedAt, Direction.IN);
+    }
+
+    public AccessDecision validate(String token, Instant capturedAt, Direction direction) {
         if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
+        if (direction == null) throw new IllegalArgumentException("direction requerido");
 
         Optional<ParsedQrToken> parsedOpt = codec.parse(token);
         if (parsedOpt.isEmpty()) return AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE);
@@ -72,8 +78,10 @@ public class ValidateAccessUseCase {
         if (inv.type() == InvitationType.RECURRING && !withinDailySlot(inv, capturedAt, lot.neighborhoodTimezone())) {
             return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
         }
-        if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
-        if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
+        if (direction == Direction.IN) {
+            if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
+            if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
+        }
 
         return new AccessDecision.Allowed(inv.id(), inv.jti(), inv.guestName(), lot.code(), inv.companions());
     }
