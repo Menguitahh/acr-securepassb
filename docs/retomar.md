@@ -22,30 +22,35 @@ Orden pedido: 6, 7, 8, 10, 13, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25.
 - [x] WBS-16 · Emision de token QR SP1 con firma Ed25519 (#47)
 - [x] WBS-17 · Dominio Invitation con maquina de estados (#49)
 - [x] WBS-18 · API de invitaciones CRUD + revoke (#50)
+- [x] WBS-19 · Revocacion: jti estable + `/access/revoked` (#51)
 
 ## Que sigue
 
-Momento sugerido para correr `/ponytail-review` sobre el acumulado
-(WBS-13 a WBS-18, 4to issue desde el ultimo review). Confirmar antes.
-
-Proximo: **WBS-19 QR personal de residente** (`securepassb`, rama
-`feature/invitation-resident-pass`). Cubre US-16.
+Proximo: **WBS-22 Caso de uso de validacion** (`securepassb`, rama
+`feature/access-validation-usecase`). Cubre US-17, US-20 y spec 6.
 
 Criterios del issue:
-- Token permanente por membresia.
-- No incrementa `used_count` (BR-10 ya modelada en `Invitation` via
-  `residentPass`).
-- Se invalida al desactivar la membresia (family_member.active=false o
-  membership.active=false).
+- `AccessDecision` sealed de spec 6 (`Allowed`, `Denied`).
+- Los 8 `denial_reason` producidos por su condicion (ver `DenialReason`
+  a definir).
+- Early returns segun spec 10.1.
 
-Notas de implementacion:
-- El dominio ya soporta `residentPass=true` como `RECURRING` implicito.
-- La emision del QR usa `QrTokenIssuer` con la signing key activa.
-- Endpoint plausible: `GET /api/v1/me/resident-pass?lotId=...` o
-  similar; revisar seccion 7 del spec al empezar.
+Notas para arrancar:
+- Invitation ya expone `jti`, `type`, `validFrom/Until`, `weekdays`,
+  `dailyFrom/Until`, `maxUses`, `usedCount`, `status`. Falta modelar
+  la maquina de decision de acceso pura (sin Redis/DB) para reusar
+  entre validacion online y sync offline.
+- QR ya parseable via `QrTokenCodec`, verificacion via
+  `Ed25519Verifier` + `SigningKeyRepository`.
+- Rate-limit y anti-replay quedan para WBS-23, no encararlos aca.
 
-Despues siguen: 22 (pausa antes de mergear), 23 (pausa antes de
-mergear), 24, 25.
+Recordatorio del usuario: `/ponytail-review` NO se corre por issue en
+esta tanda. Los ultimos dos dieron solo falsos positivos sobre dominio
+que el spec define. Retomarlo recien tras cerrar WBS-25, sobre el
+acumulado completo.
+
+Despues siguen: 23 (pausa antes de mergear), 24, 25. Luego revisar
+acumulado con `/ponytail-review`.
 
 ## Reglas de sesion (mantener vigentes)
 
