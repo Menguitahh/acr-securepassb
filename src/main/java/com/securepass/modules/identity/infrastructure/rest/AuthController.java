@@ -3,14 +3,13 @@ package com.securepass.modules.identity.infrastructure.rest;
 import com.securepass.modules.identity.application.LoginUseCase;
 import com.securepass.modules.identity.application.LogoutUseCase;
 import com.securepass.modules.identity.application.RefreshTokenUseCase;
+import com.securepass.shared.exception.InvalidCredentialsException;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -33,14 +32,14 @@ public class AuthController {
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         LoginUseCase.Result result = loginUseCase.login(request.identifier(), request.password());
         if (result instanceof LoginUseCase.Success success) return LoginResponse.from(success);
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid-credentials");
+        throw new InvalidCredentialsException();
     }
 
     @PostMapping("/refresh")
     public RefreshResponse refresh(@Valid @RequestBody RefreshRequest request) {
         RefreshTokenUseCase.Result result = refreshUseCase.refresh(request.refreshToken());
         if (result instanceof RefreshTokenUseCase.Success success) return RefreshResponse.from(success);
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid-refresh");
+        throw new InvalidCredentialsException();
     }
 
     @PostMapping("/logout")
