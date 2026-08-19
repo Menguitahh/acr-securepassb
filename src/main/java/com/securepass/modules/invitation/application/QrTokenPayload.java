@@ -3,7 +3,9 @@ package com.securepass.modules.invitation.application;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record QrTokenPayload(
@@ -17,10 +19,12 @@ public record QrTokenPayload(
         @JsonProperty("f") long validFrom,
         @JsonProperty("u") long validUntil,
         @JsonProperty("m") int maxUses,
-        @JsonProperty("w") Integer weekdaysMask,
-        @JsonProperty("df") Integer dailyFromMin,
-        @JsonProperty("du") Integer dailyUntilMin
+        @JsonProperty("w") List<Integer> weekdays,
+        @JsonProperty("df") String dailyFrom,
+        @JsonProperty("du") String dailyUntil
 ) {
+    private static final Pattern HHMM = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
+
     public QrTokenPayload {
         if (version <= 0) throw new IllegalArgumentException("version debe ser > 0");
         if (kid == null || kid.isBlank()) throw new IllegalArgumentException("kid requerido");
@@ -32,17 +36,21 @@ public record QrTokenPayload(
         if (validUntil <= validFrom) throw new IllegalArgumentException("validUntil > validFrom");
         if (maxUses <= 0) throw new IllegalArgumentException("maxUses > 0");
         boolean recurring = "R".equals(type);
-        boolean anyRecurringField = weekdaysMask != null || dailyFromMin != null || dailyUntilMin != null;
+        boolean anyRecurringField = weekdays != null || dailyFrom != null || dailyUntil != null;
         if (recurring) {
-            if (weekdaysMask == null || dailyFromMin == null || dailyUntilMin == null) {
+            if (weekdays == null || weekdays.isEmpty() || dailyFrom == null || dailyUntil == null) {
                 throw new IllegalArgumentException("RECURRING requiere w, df y du");
             }
-            if (weekdaysMask <= 0 || weekdaysMask > 0b1111111) {
-                throw new IllegalArgumentException("w debe ser bitmask 1..127");
+            for (Integer d : weekdays) {
+                if (d == null || d < 1 || d > 7) throw new IllegalArgumentException("weekday fuera de 1..7");
             }
-            if (dailyFromMin < 0 || dailyUntilMin > 1440 || dailyUntilMin <= dailyFromMin) {
-                throw new IllegalArgumentException("df/du fuera de rango o invertidos");
+            if (!HHMM.matcher(dailyFrom).matches() || !HHMM.matcher(dailyUntil).matches()) {
+                throw new IllegalArgumentException("df/du deben ser HH:mm");
             }
+            if (dailyUntil.compareTo(dailyFrom) <= 0) {
+                throw new IllegalArgumentException("du debe ser posterior a df");
+            }
+            weekdays = List.copyOf(weekdays);
         } else if (anyRecurringField) {
             throw new IllegalArgumentException("w, df y du solo aplican a tipo R");
         }

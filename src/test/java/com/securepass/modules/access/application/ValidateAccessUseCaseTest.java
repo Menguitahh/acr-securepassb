@@ -78,7 +78,8 @@ class ValidateAccessUseCaseTest {
         boolean r = type == InvitationType.RECURRING;
         return new QrTokenPayload(1, "kid-1", jti, neighborhoodId, lotId, invitationId,
                 type.code(), validFrom.getEpochSecond(), validUntil.getEpochSecond(), maxUses,
-                r ? 0b1111111 : null, r ? 0 : null, r ? 1440 : null);
+                r ? java.util.List.of(1, 2, 3, 4, 5, 6, 7) : null,
+                r ? "00:00" : null, r ? "23:59" : null);
     }
 
     private Invitation singleInvitation(InvitationStatus status, int usedCount) {

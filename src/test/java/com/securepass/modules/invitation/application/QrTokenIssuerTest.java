@@ -145,6 +145,17 @@ class QrTokenIssuerTest {
     }
 
     @Test
+    void payloadRecurringCoincideConSpec5_1() throws Exception {
+        String token = issuer.issue(cmd(InvitationType.RECURRING, 200));
+        ParsedQrToken parsed = codec.parse(token).orElseThrow();
+        JsonNode json = mapper.readTree(parsed.payloadBytes());
+
+        assertThat(json.get("w").toString()).isEqualTo("[1,2,3,4,5]");
+        assertThat(json.get("df").asText()).isEqualTo("08:00");
+        assertThat(json.get("du").asText()).isEqualTo("18:00");
+    }
+
+    @Test
     void recurringIncluyeFranjaHorariaEnPayload() throws Exception {
         String token = issuer.issue(cmd(InvitationType.RECURRING, 200));
 
@@ -155,9 +166,12 @@ class QrTokenIssuerTest {
                 .toList();
 
         assertThat(keys).containsExactlyInAnyOrderElementsOf(RECURRING_KEYS);
-        assertThat(json.get("w").asInt()).isEqualTo(0b0011111);
-        assertThat(json.get("df").asInt()).isEqualTo(8 * 60);
-        assertThat(json.get("du").asInt()).isEqualTo(18 * 60);
+        assertThat(json.get("w").isArray()).isTrue();
+        List<Integer> w = new java.util.ArrayList<>();
+        json.get("w").forEach(n -> w.add(n.asInt()));
+        assertThat(w).containsExactly(1, 2, 3, 4, 5);
+        assertThat(json.get("df").asText()).isEqualTo("08:00");
+        assertThat(json.get("du").asText()).isEqualTo("18:00");
         assertThat(parsed.payloadBytes().length).isLessThan(300);
     }
 }

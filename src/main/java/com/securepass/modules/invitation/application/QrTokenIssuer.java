@@ -34,9 +34,9 @@ public class QrTokenIssuer {
                         "no hay signing key activa para el barrio " + cmd.neighborhoodId()));
 
         boolean recurring = cmd.type() == InvitationType.RECURRING;
-        Integer weekdaysMask = recurring ? weekdaysMask(cmd.weekdays()) : null;
-        Integer dailyFromMin = recurring ? toMinutes(cmd.dailyFrom(), "dailyFrom") : null;
-        Integer dailyUntilMin = recurring ? toMinutes(cmd.dailyUntil(), "dailyUntil") : null;
+        List<Integer> weekdays = recurring ? validateWeekdays(cmd.weekdays()) : null;
+        String dailyFrom = recurring ? formatHhmm(cmd.dailyFrom(), "dailyFrom") : null;
+        String dailyUntil = recurring ? formatHhmm(cmd.dailyUntil(), "dailyUntil") : null;
 
         QrTokenPayload payload = new QrTokenPayload(
                 PAYLOAD_VERSION, key.kid(), cmd.jti(),
@@ -44,7 +44,7 @@ public class QrTokenIssuer {
                 cmd.type().code(),
                 cmd.validFrom().getEpochSecond(), cmd.validUntil().getEpochSecond(),
                 cmd.maxUses(),
-                weekdaysMask, dailyFromMin, dailyUntilMin);
+                weekdays, dailyFrom, dailyUntil);
 
         byte[] payloadBytes = codec.serialize(payload);
         if (payloadBytes.length > MAX_PAYLOAD_BYTES) {
@@ -57,21 +57,19 @@ public class QrTokenIssuer {
         return codec.encode(payload, signature);
     }
 
-    private static int weekdaysMask(List<Integer> weekdays) {
+    private static List<Integer> validateWeekdays(List<Integer> weekdays) {
         if (weekdays == null || weekdays.isEmpty()) {
             throw new IllegalArgumentException("RECURRING requiere weekdays");
         }
-        int mask = 0;
         for (Integer d : weekdays) {
             if (d == null || d < 1 || d > 7) throw new IllegalArgumentException("weekday fuera de 1..7");
-            mask |= 1 << (d - 1);
         }
-        return mask;
+        return List.copyOf(weekdays);
     }
 
-    private static int toMinutes(LocalTime t, String name) {
+    private static String formatHhmm(LocalTime t, String name) {
         if (t == null) throw new IllegalArgumentException("RECURRING requiere " + name);
-        return t.getHour() * 60 + t.getMinute();
+        return String.format("%02d:%02d", t.getHour(), t.getMinute());
     }
 
     public record IssueCommand(
