@@ -100,6 +100,35 @@ public class InvitationJdbcRepository implements InvitationRepository {
     }
 
     @Override
+    public Optional<Invitation> findByIdForUpdate(UUID id) {
+        return jdbc.sql("""
+                SELECT id, neighborhood_id, lot_id, created_by, type, status,
+                       guest_name, guest_document, companions, notes,
+                       valid_from, valid_until, weekdays, daily_from, daily_until,
+                       max_uses, used_count, token_kid, jti, created_at
+                  FROM invitations
+                 WHERE id = :id
+                 FOR UPDATE
+                """)
+                .param("id", id)
+                .query(this::mapRow)
+                .optional();
+    }
+
+    @Override
+    public void persistConsumption(Invitation inv) {
+        jdbc.sql("""
+                UPDATE invitations
+                   SET used_count = :used, status = :status, updated_at = now()
+                 WHERE id = :id
+                """)
+                .param("id", inv.id())
+                .param("used", inv.usedCount())
+                .param("status", inv.status().name())
+                .update();
+    }
+
+    @Override
     public InvitationPage list(ListQuery q) {
         StringBuilder where = new StringBuilder("WHERE neighborhood_id = :nid");
         if (!q.lotIdsAllowed().isEmpty()) where.append(" AND lot_id = ANY(:lots)");

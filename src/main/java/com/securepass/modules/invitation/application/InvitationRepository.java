@@ -15,6 +15,10 @@ public interface InvitationRepository {
 
     Optional<Invitation> findById(UUID id);
 
+    Optional<Invitation> findByIdForUpdate(UUID id);
+
+    void persistConsumption(Invitation invitation);
+
     InvitationPage list(ListQuery query);
 
     List<RevokedEntry> listRevoked(UUID neighborhoodId, java.time.Instant since, int limit);
