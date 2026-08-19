@@ -10,6 +10,120 @@
     }
   ],
   "paths" : {
+    "/api/v1/invitations" : {
+      "get" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "list",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "status",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "enum" : [
+                "ACTIVE",
+                "USED",
+                "EXPIRED",
+                "REVOKED"
+              ]
+            }
+          },
+          {
+            "name" : "page",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32",
+              "default" : 0
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedInvitationsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/{id}/revoke" : {
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "revoke",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh" : {
       "post" : {
         "tags" : [
@@ -93,6 +207,37 @@
         }
       }
     },
+    "/api/v1/invitations/{id}" : {
+      "get" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "detail",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access/keys" : {
       "get" : {
         "tags" : [
@@ -119,6 +264,176 @@
   },
   "components" : {
     "schemas" : {
+      "CreateInvitationRequest" : {
+        "required" : [
+          "guestName",
+          "lotId",
+          "type",
+          "validFrom",
+          "validUntil"
+        ],
+        "type" : "object",
+        "properties" : {
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [
+              "SINGLE",
+              "EVENT",
+              "RECURRING"
+            ]
+          },
+          "guestName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "guestDocument" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "companions" : {
+            "maximum" : 20,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notes" : {
+            "maxLength" : 280,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "validFrom" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "dailyUntil" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "maxUses" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "LocalTime" : {
+        "type" : "object",
+        "properties" : {
+          "hour" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minute" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "second" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nano" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "InvitationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [
+              "SINGLE",
+              "EVENT",
+              "RECURRING"
+            ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "USED",
+              "EXPIRED",
+              "REVOKED"
+            ]
+          },
+          "guestName" : {
+            "type" : "string"
+          },
+          "guestDocument" : {
+            "type" : "string"
+          },
+          "companions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notes" : {
+            "type" : "string"
+          },
+          "validFrom" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "dailyUntil" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "maxUses" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "usedCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "qrToken" : {
+            "type" : "string"
+          },
+          "shareUrl" : {
+            "type" : "string"
+          }
+        }
+      },
       "RefreshRequest" : {
         "required" : [
           "refreshToken"
@@ -221,6 +536,29 @@
             "items" : {
               "$ref" : "#/components/schemas/LotPayload"
             }
+          }
+        }
+      },
+      "PagedInvitationsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InvitationResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         }
       },
