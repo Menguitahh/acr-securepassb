@@ -571,6 +571,33 @@ SP1.<payload_b64url>.<signature_b64url>
 | `t` | tipo: `S` single, `E` event, `R` recurring |
 | `f` / `u` | `validFrom` / `validUntil` (epoch segundos, UTC) |
 | `m` | `maxUses` |
+| `w` | `weekdays` — días de semana (1=lunes). Solo `RECURRING`. |
+| `df` / `du` | `dailyFrom` / `dailyUntil` — franja horaria `HH:mm`. Solo `RECURRING`. |
+
+Ejemplo para `t == "R"`:
+
+```json
+{
+  "v": 1,
+  "k": "np_2026a",
+  "j": "8f3c...",
+  "n": "b1a2...",
+  "l": "c9d8...",
+  "i": "7e6f...",
+  "t": "R",
+  "f": 1755523200,
+  "u": 1787155200,
+  "m": 1,
+  "w": [1,2,3,4,5],
+  "df": "08:00",
+  "du": "18:00"
+}
+```
+
+`w`, `df` y `du` solo se emiten cuando `t == "R"`; en `SINGLE` y `EVENT`
+se omiten, no van en null. Sin estos campos en el token, la validación
+offline de pases recurrentes es imposible: el dispositivo no tiene acceso
+al horario persistido en `invitations`.
 
 Restricciones:
 
