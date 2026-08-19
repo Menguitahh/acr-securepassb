@@ -578,6 +578,14 @@ Restricciones:
 - El payload **no** lleva datos personales del invitado. El nombre se resuelve server-side. Un QR fotografiado y filtrado no expone identidad.
 - El token no es un JWT: se evita el header JSON de JWT que agrega ~40 bytes inútiles al QR.
 
+**Verificación del token en el server (orden estricto):**
+
+1. Parse del formato `SP1.<payload>.<sig>`.
+2. Lookup de la clave por `(neighborhoodId, kid)`.
+3. Verificación Ed25519 de la firma sobre los bytes del payload.
+4. **Coincidencia de `jti`**: el `jti` del payload debe ser igual al `jti` persistido en `invitations` para el `invitationId` del payload. Si no coincide, se rechaza como `INVALID_SIGNATURE` (un token firmado antes de una eventual rotación de `jti` no es válido). Esta comparación va **antes** que cualquier chequeo temporal.
+5. Recién después: revocación, lote, ventana, franja, cupo.
+
 ### 5.2 Anti-replay
 
 Dos capas:
