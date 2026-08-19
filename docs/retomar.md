@@ -21,26 +21,30 @@ Orden pedido: 6, 7, 8, 10, 13, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25.
 - [x] WBS-15 · Cripto Ed25519, AES-GCM con IV random, master key en env (#46)
 - [x] WBS-16 · Emision de token QR SP1 con firma Ed25519 (#47)
 - [x] WBS-17 · Dominio Invitation con maquina de estados (#49)
+- [x] WBS-18 · API de invitaciones CRUD + revoke (#50)
 
 ## Que sigue
 
-Proximo: **WBS-18 API de invitaciones** (`securepassb`, rama
-`feature/invitation-api`). Cubre spec 7.2 y US-10/12/13/15.
+Momento sugerido para correr `/ponytail-review` sobre el acumulado
+(WBS-13 a WBS-18, 4to issue desde el ultimo review). Confirmar antes.
+
+Proximo: **WBS-19 QR personal de residente** (`securepassb`, rama
+`feature/invitation-resident-pass`). Cubre US-16.
 
 Criterios del issue:
-- Endpoints de 7.2 (POST crear, GET listar, GET detalle, POST revoke).
-- BR-01 (solo miembros con can_invite) y BR-02 (owner puede revocar de
-  cualquiera del lote) aplicadas.
-- Los tres tipos validados (SINGLE/EVENT/RECURRING).
-- 422 con detalle ante violacion de regla (usar handler global de WBS-13).
+- Token permanente por membresia.
+- No incrementa `used_count` (BR-10 ya modelada en `Invitation` via
+  `residentPass`).
+- Se invalida al desactivar la membresia (family_member.active=false o
+  membership.active=false).
 
-Ya existe entidad `Invitation` (WBS-17), emision QR (WBS-16), guardas de
-rol/barrio (WBS-10).
+Notas de implementacion:
+- El dominio ya soporta `residentPass=true` como `RECURRING` implicito.
+- La emision del QR usa `QrTokenIssuer` con la signing key activa.
+- Endpoint plausible: `GET /api/v1/me/resident-pass?lotId=...` o
+  similar; revisar seccion 7 del spec al empezar.
 
-Recordatorio: `/ponytail-review` toca correr sobre el acumulado tras el
-proximo issue (18 sera el 4to desde WBS-13). Confirmar antes.
-
-Despues siguen: 19, 22 (pausa antes de mergear), 23 (pausa antes de
+Despues siguen: 22 (pausa antes de mergear), 23 (pausa antes de
 mergear), 24, 25.
 
 ## Reglas de sesion (mantener vigentes)
