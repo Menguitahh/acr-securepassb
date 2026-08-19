@@ -9,3 +9,4 @@ securepass:
     ttl-seconds: 900
   refresh:
     ttl-days: 30
+  master-key: REVWX09OTFlfS0VZXzMyX0JZVEVTX1hYWFhYWFhYWFg=

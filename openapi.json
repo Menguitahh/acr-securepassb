@@ -92,6 +92,29 @@
           }
         }
       }
+    },
+    "/api/v1/access/keys" : {
+      "get" : {
+        "tags" : [
+          "access-keys-controller"
+        ],
+        "operationId" : "keys",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PublicKeyResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components" : {
@@ -198,6 +221,17 @@
             "items" : {
               "$ref" : "#/components/schemas/LotPayload"
             }
+          }
+        }
+      },
+      "PublicKeyResponse" : {
+        "type" : "object",
+        "properties" : {
+          "kid" : {
+            "type" : "string"
+          },
+          "publicKey" : {
+            "type" : "string"
           }
         }
       }
