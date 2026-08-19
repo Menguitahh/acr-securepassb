@@ -19,18 +19,21 @@ public class LoginUseCase {
     private final JwtService jwt;
     private final RefreshTokenGenerator refresh;
     private final UserProfileQuery profiles;
+    private final RefreshTokenStore refreshStore;
 
     public LoginUseCase(
             UserRepository users,
             PasswordEncoder encoder,
             JwtService jwt,
             RefreshTokenGenerator refresh,
-            UserProfileQuery profiles) {
+            UserProfileQuery profiles,
+            RefreshTokenStore refreshStore) {
         this.users = users;
         this.encoder = encoder;
         this.jwt = jwt;
         this.refresh = refresh;
         this.profiles = profiles;
+        this.refreshStore = refreshStore;
     }
 
     public Result login(String identifier, String rawPassword) {
@@ -48,6 +51,8 @@ public class LoginUseCase {
         List<UUID> lotIds = summary.lots().stream().map(LotSummary::id).toList();
         JwtService.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
         String refreshToken = refresh.generate();
+        UUID familyId = UUID.randomUUID();
+        refreshStore.save(refreshToken, familyId, user.id());
 
         return new Success(
                 access.token(),

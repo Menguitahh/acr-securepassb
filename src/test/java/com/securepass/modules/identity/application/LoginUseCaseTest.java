@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -32,6 +33,7 @@ class LoginUseCaseTest {
     private PasswordEncoder encoder;
     private JwtService jwt;
     private RefreshTokenGenerator refresh;
+    private RefreshTokenStore refreshStore;
     private LoginUseCase useCase;
     private UUID userId;
     private UUID neighborhoodId;
@@ -44,7 +46,8 @@ class LoginUseCaseTest {
         encoder = new BCryptPasswordEncoder(4);
         jwt = new JwtService(TEST_SECRET, 900, new ObjectMapper());
         refresh = new RefreshTokenGenerator();
-        useCase = new LoginUseCase(users, encoder, jwt, refresh, profiles);
+        refreshStore = mock(RefreshTokenStore.class);
+        useCase = new LoginUseCase(users, encoder, jwt, refresh, profiles, refreshStore);
         userId = UUID.randomUUID();
         neighborhoodId = UUID.randomUUID();
         activeUser = new User(userId, "juan@mail.com", null, encoder.encode(RAW_PASSWORD),
@@ -68,6 +71,7 @@ class LoginUseCaseTest {
         assertThat(success.accessToken().split("\\.")).hasSize(3);
         assertThat(success.refreshToken()).isNotBlank();
         assertThat(success.expiresIn()).isEqualTo(900);
+        verify(refreshStore).save(eq(success.refreshToken()), any(UUID.class), eq(userId));
     }
 
     @Test

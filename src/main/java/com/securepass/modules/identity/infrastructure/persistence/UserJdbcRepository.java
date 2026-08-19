@@ -27,14 +27,30 @@ public class UserJdbcRepository implements UserRepository {
                  LIMIT 1
                 """)
                 .param("id", identifier)
-                .query((rs, i) -> new User(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("email"),
-                        rs.getString("phone"),
-                        rs.getString("password_hash"),
-                        rs.getString("full_name"),
-                        rs.getString("document_number"),
-                        UserStatus.valueOf(rs.getString("status"))))
+                .query(this::mapUser)
                 .optional();
+    }
+
+    @Override
+    public Optional<User> findById(UUID id) {
+        return jdbc.sql("""
+                SELECT id, email, phone, password_hash, full_name, document_number, status
+                  FROM users
+                 WHERE id = :id
+                """)
+                .param("id", id)
+                .query(this::mapUser)
+                .optional();
+    }
+
+    private User mapUser(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+        return new User(
+                rs.getObject("id", UUID.class),
+                rs.getString("email"),
+                rs.getString("phone"),
+                rs.getString("password_hash"),
+                rs.getString("full_name"),
+                rs.getString("document_number"),
+                UserStatus.valueOf(rs.getString("status")));
     }
 }

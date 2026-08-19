@@ -11,8 +11,14 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 securepass:
   jwt:
     secret: ${SECUREPASS_JWT_SECRET}
     ttl-seconds: ${SECUREPASS_JWT_TTL_SECONDS:900}
+  refresh:
+    ttl-days: ${SECUREPASS_REFRESH_TTL_DAYS:30}
