@@ -2,6 +2,7 @@ package com.securepass.modules.invitation.infrastructure.persistence;
 
 import com.securepass.modules.invitation.application.InvitationPage;
 import com.securepass.modules.invitation.application.InvitationRepository;
+import com.securepass.modules.invitation.application.RevokedEntry;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
@@ -13,6 +14,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -35,12 +37,12 @@ public class InvitationJdbcRepository implements InvitationRepository {
                     id, neighborhood_id, lot_id, created_by, type, status,
                     guest_name, guest_document, companions, notes,
                     valid_from, valid_until, weekdays, daily_from, daily_until,
-                    max_uses, used_count, token_kid, created_at, updated_at
+                    max_uses, used_count, token_kid, jti, created_at, updated_at
                 ) VALUES (
                     :id, :nid, :lid, :by, :type, :status,
                     :name, :doc, :comp, :notes,
                     :vfrom, :vuntil, CAST(:wdays AS SMALLINT[]), :dfrom, :duntil,
-                    :max, :used, :kid, :created, :created
+                    :max, :used, :kid, :jti, :created, :created
                 )
                 """)
                 .param("id", inv.id())
@@ -61,6 +63,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 .param("max", inv.maxUses())
                 .param("used", inv.usedCount())
                 .param("kid", inv.tokenKid())
+                .param("jti", inv.jti())
                 .param("created", Timestamp.from(inv.createdAt()))
                 .update();
     }
@@ -87,7 +90,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
                        valid_from, valid_until, weekdays, daily_from, daily_until,
-                       max_uses, used_count, token_kid, created_at
+                       max_uses, used_count, token_kid, jti, created_at
                   FROM invitations
                  WHERE id = :id
                 """)
@@ -107,7 +110,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
                        valid_from, valid_until, weekdays, daily_from, daily_until,
-                       max_uses, used_count, token_kid, created_at
+                       max_uses, used_count, token_kid, jti, created_at
                   FROM invitations
                 """ + where + """
                  ORDER BY created_at DESC
@@ -137,6 +140,27 @@ public class InvitationJdbcRepository implements InvitationRepository {
         return new InvitationPage(items, q.page(), q.size(), total);
     }
 
+    @Override
+    public List<RevokedEntry> listRevoked(UUID neighborhoodId, Instant since, int limit) {
+        String sinceClause = since == null ? "" : " AND revoked_at > :since";
+        var query = jdbc.sql("""
+                SELECT jti, revoked_at
+                  FROM invitations
+                 WHERE neighborhood_id = :nid
+                   AND status = 'REVOKED'
+                """ + sinceClause + """
+                 ORDER BY revoked_at ASC
+                 LIMIT :limit
+                """)
+                .param("nid", neighborhoodId)
+                .param("limit", limit);
+        if (since != null) query.param("since", Timestamp.from(since));
+        return query.query((rs, i) -> new RevokedEntry(
+                        rs.getObject("jti", UUID.class),
+                        rs.getTimestamp("revoked_at").toInstant()))
+                .list();
+    }
+
     private Invitation mapRow(ResultSet rs, int rowNum) throws SQLException {
         Time dailyFrom = rs.getTime("daily_from");
         Time dailyUntil = rs.getTime("daily_until");
@@ -160,6 +184,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 rs.getInt("max_uses"),
                 rs.getInt("used_count"),
                 rs.getString("token_kid"),
+                rs.getObject("jti", UUID.class),
                 false,
                 rs.getTimestamp("created_at").toInstant());
     }

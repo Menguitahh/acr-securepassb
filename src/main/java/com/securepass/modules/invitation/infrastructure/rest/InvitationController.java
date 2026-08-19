@@ -75,7 +75,7 @@ public class InvitationController {
         CurrentUser actor = accessGuard.require();
         Invitation invitation = getUseCase.get(actor, id);
         String qrToken = qrTokenIssuer.issue(new QrTokenIssuer.IssueCommand(
-                invitation.neighborhoodId(), invitation.lotId(), invitation.id(), UUID.randomUUID(),
+                invitation.neighborhoodId(), invitation.lotId(), invitation.id(), invitation.jti(),
                 invitation.type(), invitation.validFrom(), invitation.validUntil(), invitation.maxUses()));
         return InvitationResponse.from(invitation, qrToken, shareUrlFor(invitation.id()));
     }

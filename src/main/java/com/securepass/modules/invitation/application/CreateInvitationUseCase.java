@@ -53,6 +53,7 @@ public class CreateInvitationUseCase {
                         "no hay signing key activa para el barrio " + actorNeighborhoodId));
 
         UUID id = UUID.randomUUID();
+        UUID jti = UUID.randomUUID();
         Instant now = Instant.now();
         Invitation invitation;
         try {
@@ -62,7 +63,7 @@ public class CreateInvitationUseCase {
                     cmd.guestName(), cmd.guestDocument(), cmd.companions(), cmd.notes(),
                     cmd.validFrom(), cmd.validUntil(),
                     cmd.weekdays(), cmd.dailyFrom(), cmd.dailyUntil(),
-                    cmd.maxUses(), 0, key.kid(), false, now);
+                    cmd.maxUses(), 0, key.kid(), jti, false, now);
         } catch (IllegalArgumentException ex) {
             String message = ex.getMessage() == null ? "invitacion invalida" : ex.getMessage();
             String rule = message.startsWith("BR-") ? message.substring(0, 5) : "invitation-invalid";
@@ -72,7 +73,7 @@ public class CreateInvitationUseCase {
         invitations.save(invitation);
 
         String qrToken = qrTokenIssuer.issue(new QrTokenIssuer.IssueCommand(
-                actorNeighborhoodId, cmd.lotId(), invitation.id(), UUID.randomUUID(),
+                actorNeighborhoodId, cmd.lotId(), invitation.id(), invitation.jti(),
                 invitation.type(), invitation.validFrom(), invitation.validUntil(),
                 invitation.maxUses()));
 

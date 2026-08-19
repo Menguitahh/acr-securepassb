@@ -73,9 +73,21 @@ class CreateInvitationUseCaseTest {
         assertThat(issued.invitation().createdBy()).isEqualTo(userId);
         assertThat(issued.invitation().neighborhoodId()).isEqualTo(neighborhoodId);
         assertThat(issued.invitation().tokenKid()).isEqualTo("kid-1");
+        assertThat(issued.invitation().jti()).isNotNull();
         assertThat(issued.qrToken()).isEqualTo("SP1.token");
         assertThat(issued.shareUrl()).startsWith("https://securepass.test/i/");
         verify(invitations).save(any());
+    }
+
+    @Test
+    void jtiPersistidoCoincideConElUsadoAlFirmarQr() {
+        stubActiveMember(true);
+        var captor = org.mockito.ArgumentCaptor.forClass(QrTokenIssuer.IssueCommand.class);
+
+        IssuedInvitation issued = useCase.create(userId, neighborhoodId, singleCommand());
+
+        verify(qrTokenIssuer).issue(captor.capture());
+        assertThat(captor.getValue().jti()).isEqualTo(issued.invitation().jti());
     }
 
     // BR-01: sin canInvite falla

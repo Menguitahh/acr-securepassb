@@ -27,7 +27,7 @@ class InvitationTest {
                 NOW, NOW.plus(Duration.ofHours(6)),
                 null, null, null,
                 maxUses, usedCount,
-                "kid-1", false, NOW);
+                "kid-1", UUID.randomUUID(), false, NOW);
     }
 
     private static Invitation event(int maxUses, int usedCount) {
@@ -38,7 +38,7 @@ class InvitationTest {
                 NOW, NOW.plus(Duration.ofDays(1)),
                 null, null, null,
                 maxUses, usedCount,
-                "kid-1", false, NOW);
+                "kid-1", UUID.randomUUID(), false, NOW);
     }
 
     private static Invitation recurring(boolean residentPass) {
@@ -49,7 +49,7 @@ class InvitationTest {
                 NOW, NOW.plus(Duration.ofDays(200)),
                 List.of(1, 2, 3, 4, 5), LocalTime.of(8, 0), LocalTime.of(18, 0),
                 residentPass ? 1 : 10, 0,
-                "kid-1", residentPass, NOW);
+                "kid-1", UUID.randomUUID(), residentPass, NOW);
     }
 
     @Test
@@ -67,7 +67,7 @@ class InvitationTest {
                 "X", null, 0, null,
                 NOW, NOW.minusSeconds(1),
                 null, null, null,
-                1, 0, "kid-1", false, NOW))
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -85,7 +85,7 @@ class InvitationTest {
                 "X", null, 0, null,
                 NOW, NOW.plus(Duration.ofDays(30)),
                 null, null, null,
-                1, 0, "kid-1", false, NOW))
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -98,7 +98,7 @@ class InvitationTest {
                 "X", null, 0, null,
                 NOW, NOW.plus(Duration.ofDays(31)),
                 null, null, null,
-                1, 0, "kid-1", false, NOW))
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-04");
     }
@@ -111,7 +111,7 @@ class InvitationTest {
                 "X", null, 0, null,
                 NOW, NOW.plus(Duration.ofDays(31)),
                 null, null, null,
-                10, 0, "kid-1", false, NOW))
+                10, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-04");
     }
@@ -124,7 +124,7 @@ class InvitationTest {
                 "X", null, 0, null,
                 NOW, NOW.plus(Duration.ofDays(365)),
                 List.of(1), LocalTime.of(8, 0), LocalTime.of(18, 0),
-                10, 0, "kid-1", false, NOW);
+                10, 0, "kid-1", UUID.randomUUID(), false, NOW);
         assertThat(inv.type()).isEqualTo(InvitationType.RECURRING);
     }
 
@@ -136,7 +136,7 @@ class InvitationTest {
                 "X", null, 0, null,
                 NOW, NOW.plus(Duration.ofDays(366)),
                 List.of(1), LocalTime.of(8, 0), LocalTime.of(18, 0),
-                10, 0, "kid-1", false, NOW))
+                10, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-04");
     }
@@ -186,7 +186,7 @@ class InvitationTest {
                 "Residente", null, 0, null,
                 NOW, NOW.plus(Duration.ofDays(1)),
                 null, null, null,
-                1, 0, "kid-1", true, NOW))
+                1, 0, "kid-1", UUID.randomUUID(), true, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

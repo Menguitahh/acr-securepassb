@@ -238,6 +238,40 @@
         }
       }
     },
+    "/api/v1/access/revoked" : {
+      "get" : {
+        "tags" : [
+          "access-keys-controller"
+        ],
+        "operationId" : "revoked",
+        "parameters" : [
+          {
+            "name" : "since",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RevokedTokenResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access/keys" : {
       "get" : {
         "tags" : [
@@ -559,6 +593,19 @@
           "total" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "RevokedTokenResponse" : {
+        "type" : "object",
+        "properties" : {
+          "jti" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "revokedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },

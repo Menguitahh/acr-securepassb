@@ -25,6 +25,7 @@ public record Invitation(
         int maxUses,
         int usedCount,
         String tokenKid,
+        UUID jti,
         boolean residentPass,
         Instant createdAt
 ) {
@@ -93,6 +94,7 @@ public record Invitation(
         }
         if (tokenKid == null || tokenKid.isBlank()) throw new IllegalArgumentException("tokenKid requerido");
         if (tokenKid.length() > TOKEN_KID_MAX) throw new IllegalArgumentException("tokenKid excede " + TOKEN_KID_MAX);
+        if (jti == null) throw new IllegalArgumentException("jti requerido");
         if (createdAt == null) throw new IllegalArgumentException("createdAt requerido");
 
         weekdays = weekdays == null ? null : List.copyOf(weekdays);
@@ -129,6 +131,6 @@ public record Invitation(
                 id, neighborhoodId, lotId, createdBy, type, newStatus,
                 guestName, guestDocument, companions, notes,
                 validFrom, validUntil, weekdays, dailyFrom, dailyUntil,
-                maxUses, newUsedCount, tokenKid, residentPass, createdAt);
+                maxUses, newUsedCount, tokenKid, jti, residentPass, createdAt);
     }
 }

@@ -51,7 +51,7 @@ class RevokeInvitationUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "X", null, 0, null,
                 now, now.plus(Duration.ofHours(6)),
-                null, null, null, 1, 0, "kid-1", false, now);
+                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, now);
     }
 
     private CurrentUser user(UUID id, Role... roles) {

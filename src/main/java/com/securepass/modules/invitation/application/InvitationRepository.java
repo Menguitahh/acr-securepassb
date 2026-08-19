@@ -17,6 +17,8 @@ public interface InvitationRepository {
 
     InvitationPage list(ListQuery query);
 
+    List<RevokedEntry> listRevoked(UUID neighborhoodId, java.time.Instant since, int limit);
+
     record ListQuery(
             UUID neighborhoodId,
             List<UUID> lotIdsAllowed,

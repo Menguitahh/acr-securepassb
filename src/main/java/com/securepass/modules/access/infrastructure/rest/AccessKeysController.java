@@ -1,14 +1,18 @@
 package com.securepass.modules.access.infrastructure.rest;
 
+import com.securepass.modules.invitation.application.ListRevokedInvitationsUseCase;
 import com.securepass.modules.invitation.application.SigningKeyQuery;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,10 +21,15 @@ import java.util.UUID;
 public class AccessKeysController {
 
     private final SigningKeyQuery signingKeys;
+    private final ListRevokedInvitationsUseCase revokedUseCase;
     private final AccessGuard guard;
 
-    public AccessKeysController(SigningKeyQuery signingKeys, AccessGuard guard) {
+    public AccessKeysController(
+            SigningKeyQuery signingKeys,
+            ListRevokedInvitationsUseCase revokedUseCase,
+            AccessGuard guard) {
         this.signingKeys = signingKeys;
+        this.revokedUseCase = revokedUseCase;
         this.guard = guard;
     }
 
@@ -32,6 +41,16 @@ public class AccessKeysController {
         if (neighborhoodId == null) throw new AccessDeniedException("usuario sin barrio en el token");
         return signingKeys.findActivePublicKeys(neighborhoodId).stream()
                 .map(PublicKeyResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/revoked")
+    @PreAuthorize("hasRole('GUARD')")
+    public List<RevokedTokenResponse> revoked(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant since) {
+        CurrentUser user = guard.require();
+        return revokedUseCase.list(user, since).stream()
+                .map(RevokedTokenResponse::from)
                 .toList();
     }
 }
