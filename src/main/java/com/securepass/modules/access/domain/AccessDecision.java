@@ -15,6 +15,14 @@ public sealed interface AccessDecision {
         }
     }
 
+    record NeedsEnrollment(UUID invitationId, String guestName, String lotCode) implements AccessDecision {
+        public NeedsEnrollment {
+            if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
+            if (guestName == null || guestName.isBlank()) throw new IllegalArgumentException("guestName requerido");
+            if (lotCode == null || lotCode.isBlank()) throw new IllegalArgumentException("lotCode requerido");
+        }
+    }
+
     record Denied(DenialReason reason) implements AccessDecision {
         public Denied {
             if (reason == null) throw new IllegalArgumentException("reason requerido");

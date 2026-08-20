@@ -45,6 +45,11 @@ public class RecordAccessAttemptUseCase {
         if (existing.isPresent()) return reconstruct(existing.get());
 
         AccessDecision decision = decide(cmd);
+        // NEEDS_ENROLLMENT no es un intento de acceso completado: no se persiste.
+        // El guardia continua con /access/enroll (clientEventId nuevo).
+        if (decision instanceof AccessDecision.NeedsEnrollment) {
+            return new Result(decision, null, invitationFor(decision).orElse(null));
+        }
         AccessLog toSave = buildLog(cmd, decision);
         AccessLog persisted = logs.saveIdempotent(toSave);
         if (persisted.id().equals(toSave.id())) {
@@ -69,9 +74,10 @@ public class RecordAccessAttemptUseCase {
     }
 
     private AccessDecision decide(Command cmd) {
+        boolean checkEnrollment = !cmd.syncedOffline();
         AccessDecision decision = cmd.direction() == Direction.IN
-                ? consumeUseCase.consume(cmd.token(), cmd.capturedAt(), cmd.clientEventId().toString())
-                : validateUseCase.validate(cmd.token(), cmd.capturedAt(), Direction.OUT);
+                ? consumeUseCase.consume(cmd.token(), cmd.capturedAt(), cmd.clientEventId().toString(), checkEnrollment)
+                : validateUseCase.validate(cmd.token(), cmd.capturedAt(), Direction.OUT, checkEnrollment);
         if (cmd.syncedOffline()
                 && decision instanceof AccessDecision.Denied denied
                 && denied.reason() == DenialReason.ALREADY_USED) {
@@ -83,6 +89,9 @@ public class RecordAccessAttemptUseCase {
     private Optional<Invitation> invitationFor(AccessDecision decision) {
         if (decision instanceof AccessDecision.Allowed allowed) {
             return invitations.findById(allowed.invitationId());
+        }
+        if (decision instanceof AccessDecision.NeedsEnrollment needs) {
+            return invitations.findById(needs.invitationId());
         }
         return Optional.empty();
     }

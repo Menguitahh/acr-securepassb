@@ -27,23 +27,30 @@ public class ValidateAccessUseCase {
     private final SigningKeyRepository signingKeys;
     private final InvitationRepository invitations;
     private final LotStatusQuery lots;
+    private final GuestEnrollmentRepository enrollments;
 
     public ValidateAccessUseCase(
             QrTokenCodec codec,
             SigningKeyRepository signingKeys,
             InvitationRepository invitations,
-            LotStatusQuery lots) {
+            LotStatusQuery lots,
+            GuestEnrollmentRepository enrollments) {
         this.codec = codec;
         this.signingKeys = signingKeys;
         this.invitations = invitations;
         this.lots = lots;
+        this.enrollments = enrollments;
     }
 
     public AccessDecision validate(String token, Instant capturedAt) {
-        return validate(token, capturedAt, Direction.IN);
+        return validate(token, capturedAt, Direction.IN, true);
     }
 
     public AccessDecision validate(String token, Instant capturedAt, Direction direction) {
+        return validate(token, capturedAt, direction, true);
+    }
+
+    public AccessDecision validate(String token, Instant capturedAt, Direction direction, boolean checkEnrollment) {
         if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
         if (direction == null) throw new IllegalArgumentException("direction requerido");
 
@@ -83,6 +90,14 @@ public class ValidateAccessUseCase {
         if (direction == Direction.IN) {
             if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
             if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
+            // BR-12/BR-13: primer ingreso requiere enrolamiento por DNI. El residentPass
+            // no enrola (US-16). Los egresos tampoco necesitan enrolamiento. En sync
+            // offline el mobile ya verifico contra su enrollments_cache (WBS-62), no
+            // repetimos la guarda server-side.
+            if (checkEnrollment && !inv.residentPass()
+                    && enrollments.findByInvitationId(inv.id()).isEmpty()) {
+                return new AccessDecision.NeedsEnrollment(inv.id(), inv.guestName(), lot.code());
+            }
         }
 
         return new AccessDecision.Allowed(inv.id(), inv.jti(), inv.guestName(), lot.code(), inv.companions());

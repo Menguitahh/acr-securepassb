@@ -39,6 +39,7 @@ class ValidateAccessUseCaseTest {
     private SigningKeyRepository signingKeys;
     private InvitationRepository invitations;
     private LotStatusQuery lots;
+    private GuestEnrollmentRepository enrollments;
     private ValidateAccessUseCase useCase;
 
     private UUID neighborhoodId;
@@ -55,7 +56,12 @@ class ValidateAccessUseCaseTest {
         signingKeys = mock(SigningKeyRepository.class);
         invitations = mock(InvitationRepository.class);
         lots = mock(LotStatusQuery.class);
-        useCase = new ValidateAccessUseCase(codec, signingKeys, invitations, lots);
+        enrollments = mock(GuestEnrollmentRepository.class);
+        useCase = new ValidateAccessUseCase(codec, signingKeys, invitations, lots, enrollments);
+        when(enrollments.findByInvitationId(org.mockito.ArgumentMatchers.any(UUID.class))).thenReturn(Optional.of(
+                new com.securepass.modules.access.domain.GuestEnrollment(
+                        UUID.randomUUID(), UUID.randomUUID(), "30123456",
+                        Instant.parse("2026-08-01T00:00:00Z"), null, null)));
 
         neighborhoodId = UUID.randomUUID();
         lotId = UUID.randomUUID();
@@ -199,6 +205,71 @@ class ValidateAccessUseCaseTest {
         AccessDecision decision = useCase.validate(token, NOW);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED));
+    }
+
+    // BR-12: sin enrolamiento, un IN a una invitacion de invitado devuelve NEEDS_ENROLLMENT.
+    @Test
+    void needsEnrollmentSiNoHayEnrolamientoYEsIN() {
+        Invitation inv = singleInvitation(InvitationStatus.ACTIVE, 0);
+        stubHappyPath(inv);
+        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.empty());
+        String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
+
+        AccessDecision decision = useCase.validate(token, NOW);
+
+        assertThat(decision).isInstanceOf(AccessDecision.NeedsEnrollment.class);
+        AccessDecision.NeedsEnrollment needs = (AccessDecision.NeedsEnrollment) decision;
+        assertThat(needs.invitationId()).isEqualTo(invitationId);
+        assertThat(needs.guestName()).isEqualTo("Maria Lopez");
+        assertThat(needs.lotCode()).isEqualTo("M4-L12");
+    }
+
+    // BR-13: con enrolamiento existente, un IN pasa directo a ALLOWED.
+    @Test
+    void allowedConEnrolamientoExistente() {
+        Invitation inv = singleInvitation(InvitationStatus.ACTIVE, 0);
+        stubHappyPath(inv);
+        // el mock global ya devuelve enrolamiento presente
+        String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
+
+        AccessDecision decision = useCase.validate(token, NOW);
+
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
+    }
+
+    // Un OUT no requiere enrolamiento.
+    @Test
+    void allowedOutSinEnrolamiento() {
+        Invitation inv = singleInvitation(InvitationStatus.ACTIVE, 0);
+        stubHappyPath(inv);
+        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.empty());
+        String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
+
+        AccessDecision decision = useCase.validate(token, NOW, com.securepass.modules.access.domain.Direction.OUT);
+
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
+    }
+
+    // El residentPass no enrola (US-16). IN pasa directo aunque no haya enrolamiento.
+    @Test
+    void residentPassNoRequiereEnrolamiento() {
+        Instant from = NOW.minus(Duration.ofDays(1));
+        Instant until = NOW.plus(Duration.ofDays(30));
+        Invitation inv = new Invitation(
+                invitationId, neighborhoodId, lotId, createdBy,
+                InvitationType.RECURRING, InvitationStatus.ACTIVE,
+                "Residente", "00000000", 0, null,
+                from, until,
+                List.of(1, 2, 3, 4, 5, 6, 7),
+                LocalTime.of(0, 0), LocalTime.of(23, 59),
+                1, 0, "kid-1", jti, true, NOW);
+        stubHappyPath(inv);
+        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.empty());
+        String token = signedToken(payload(from, until, 1, InvitationType.RECURRING));
+
+        AccessDecision decision = useCase.validate(token, NOW);
+
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
 
     // US-08 / BR-10: el residente entra aunque su lote este SUSPENDED.

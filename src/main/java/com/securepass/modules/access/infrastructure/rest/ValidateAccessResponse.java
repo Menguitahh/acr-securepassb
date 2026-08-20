@@ -12,6 +12,7 @@ public record ValidateAccessResponse(
         String result,
         UUID logId,
         String reason,
+        UUID invitationId,
         GuestDetail guest,
         LotDetail lot,
         InvitationDetail invitation
@@ -24,7 +25,7 @@ public record ValidateAccessResponse(
     public record InvitationDetail(String type, int usedCount, int maxUses, int remaining) {}
 
     public static ValidateAccessResponse from(RecordAccessAttemptUseCase.Result result) {
-        UUID logId = result.log().id();
+        UUID logId = result.log() == null ? null : result.log().id();
         if (result.decision() instanceof AccessDecision.Allowed allowed) {
             Invitation inv = result.invitation();
             InvitationDetail invDetail = inv == null ? null : new InvitationDetail(
@@ -35,10 +36,16 @@ public record ValidateAccessResponse(
                     inv == null ? null : inv.guestDocument(),
                     allowed.companions());
             return new ValidateAccessResponse(
-                    "ALLOWED", logId, null, guest, new LotDetail(allowed.lotCode()), invDetail);
+                    "ALLOWED", logId, null, null, guest, new LotDetail(allowed.lotCode()), invDetail);
+        }
+        if (result.decision() instanceof AccessDecision.NeedsEnrollment needs) {
+            return new ValidateAccessResponse(
+                    "NEEDS_ENROLLMENT", null, null, needs.invitationId(),
+                    new GuestDetail(needs.guestName(), null, 0),
+                    new LotDetail(needs.lotCode()), null);
         }
         AccessDecision.Denied denied = (AccessDecision.Denied) result.decision();
         return new ValidateAccessResponse(
-                "DENIED", logId, denied.reason().name(), null, null, null);
+                "DENIED", logId, denied.reason().name(), null, null, null, null);
     }
 }

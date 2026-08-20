@@ -77,7 +77,7 @@ class ConsumeAccessConcurrencyTest {
                 invitationId, neighborhoodId, lotId, userId,
                 Timestamp.from(validFrom), Timestamp.from(validUntil), jti);
 
-        when(validator.validate(any(), any())).thenReturn(
+        when(validator.validate(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(
                 new AccessDecision.Allowed(invitationId, jti, "Maria", "M4-L12", 0));
     }
 
