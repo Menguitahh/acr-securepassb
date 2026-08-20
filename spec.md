@@ -925,7 +925,22 @@ Endpoints de residente para permanencia (US-42):
 | GET/POST/PATCH | `/admin/users` | Altas de guardias y residentes |
 | GET | `/admin/reports/access-logs.csv` | Export |
 
-### 7.6 Códigos de error
+### 7.6 Unidad familiar (titular)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/v1/family/lots/{lotId}/members` | Miembros del lote con nombre, contacto y permisos |
+| POST | `/api/v1/family/lots/{lotId}/members` | Titular vincula un usuario existente por email/teléfono |
+| PATCH | `/api/v1/family/lots/{lotId}/members/{userId}` | Titular cambia `canInvite` o da de baja un miembro |
+
+Reglas:
+
+- Solo el titular (`is_owner`) del lote crea o modifica miembros (BR-02). Cualquier miembro activo del lote y ADMIN pueden listar.
+- `POST` vincula un usuario ACTIVE existente: 404 si no existe, 409 si ya es miembro del lote. Si el usuario no tiene membresía en el barrio, se le otorga `RESIDENT_MEMBER`.
+- `PATCH` con `active=false` revoca en cascada las invitaciones ACTIVE del miembro para ese lote (US-07). El titular no se puede desactivar ni modificar a si mismo.
+- `can_invite` del titular siempre vale; el campo se gestiona solo para miembros.
+
+### 7.7 Códigos de error
 
 | HTTP | `type` | Cuándo |
 |---|---|---|
