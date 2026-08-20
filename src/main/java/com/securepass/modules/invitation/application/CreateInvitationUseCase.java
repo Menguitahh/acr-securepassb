@@ -18,6 +18,7 @@ public class CreateInvitationUseCase {
 
     private final InvitationRepository invitations;
     private final FamilyMemberQuery family;
+    private final LotStatusPort lots;
     private final SigningKeyRepository signingKeys;
     private final QrTokenIssuer qrTokenIssuer;
     private final String shareUrlBase;
@@ -25,11 +26,13 @@ public class CreateInvitationUseCase {
     public CreateInvitationUseCase(
             InvitationRepository invitations,
             FamilyMemberQuery family,
+            LotStatusPort lots,
             SigningKeyRepository signingKeys,
             QrTokenIssuer qrTokenIssuer,
             @Value("${securepass.share-url-base:https://securepass.app/i}") String shareUrlBase) {
         this.invitations = invitations;
         this.family = family;
+        this.lots = lots;
         this.signingKeys = signingKeys;
         this.qrTokenIssuer = qrTokenIssuer;
         this.shareUrlBase = shareUrlBase;
@@ -46,6 +49,12 @@ public class CreateInvitationUseCase {
         if (!fm.active() || !fm.canInvite()) {
             throw new BusinessRuleViolationException("BR-01",
                     "usuario sin permiso para invitar en este lote");
+        }
+
+        String lotStatus = lots.find(cmd.lotId())
+                .orElseThrow(() -> new BusinessRuleViolationException("BR-03", "lote inexistente"));
+        if (!"ACTIVE".equals(lotStatus)) {
+            throw new BusinessRuleViolationException("BR-03", "lote no activo: " + lotStatus);
         }
 
         SigningKey key = signingKeys.findActive(actorNeighborhoodId)

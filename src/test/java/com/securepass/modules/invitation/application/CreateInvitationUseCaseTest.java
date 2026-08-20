@@ -25,6 +25,7 @@ class CreateInvitationUseCaseTest {
 
     private InvitationRepository invitations;
     private FamilyMemberQuery family;
+    private LotStatusPort lots;
     private SigningKeyRepository signingKeys;
     private QrTokenIssuer qrTokenIssuer;
     private CreateInvitationUseCase useCase;
@@ -36,9 +37,10 @@ class CreateInvitationUseCaseTest {
     void setUp() {
         invitations = mock(InvitationRepository.class);
         family = mock(FamilyMemberQuery.class);
+        lots = mock(LotStatusPort.class);
         signingKeys = mock(SigningKeyRepository.class);
         qrTokenIssuer = mock(QrTokenIssuer.class);
-        useCase = new CreateInvitationUseCase(invitations, family, signingKeys, qrTokenIssuer,
+        useCase = new CreateInvitationUseCase(invitations, family, lots, signingKeys, qrTokenIssuer,
                 "https://securepass.test/i");
         userId = UUID.randomUUID();
         neighborhoodId = UUID.randomUUID();
@@ -48,6 +50,7 @@ class CreateInvitationUseCaseTest {
     private void stubActiveMember(boolean canInvite) {
         when(family.find(userId, lotId)).thenReturn(Optional.of(
                 new FamilyMembership(userId, lotId, false, canInvite, true)));
+        when(lots.find(lotId)).thenReturn(Optional.of("ACTIVE"));
         SigningKey key = new SigningKey(
                 UUID.randomUUID(), neighborhoodId, "kid-1",
                 new byte[32], "enc", true, Instant.now(), null);
@@ -200,9 +203,23 @@ class CreateInvitationUseCaseTest {
     void sinSigningKeyActivaLanzaIllegalState() {
         when(family.find(userId, lotId)).thenReturn(Optional.of(
                 new FamilyMembership(userId, lotId, false, true, true)));
+        when(lots.find(lotId)).thenReturn(Optional.of("ACTIVE"));
         when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, singleCommand()))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    // BR-03: lote suspendido rechaza nueva invitacion
+    @Test
+    void br03LoteSuspendidoRechazaCreacion() {
+        when(family.find(userId, lotId)).thenReturn(Optional.of(
+                new FamilyMembership(userId, lotId, false, true, true)));
+        when(lots.find(lotId)).thenReturn(Optional.of("SUSPENDED"));
+
+        assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, singleCommand()))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .satisfies(ex -> assertThat(((BusinessRuleViolationException) ex).rule()).isEqualTo("BR-03"));
+        verifyNoInteractions(invitations, qrTokenIssuer);
     }
 }
