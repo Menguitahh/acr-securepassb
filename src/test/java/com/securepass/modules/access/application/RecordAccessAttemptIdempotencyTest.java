@@ -80,10 +80,10 @@ class RecordAccessAttemptIdempotencyTest {
         jdbc.update("""
                 INSERT INTO invitations (
                     id, neighborhood_id, lot_id, created_by, type, status,
-                    guest_name, companions,
+                    guest_name, guest_document, companions,
                     valid_from, valid_until, max_uses, used_count,
                     token_kid, jti
-                ) VALUES (?, ?, ?, ?, 'SINGLE', 'ACTIVE', 'Maria', 0, ?, ?, 1, 0, 'kid-1', ?)
+                ) VALUES (?, ?, ?, ?, 'SINGLE', 'ACTIVE', 'Maria', '30123456', 0, ?, ?, 1, 0, 'kid-1', ?)
                 """,
                 invitationId, neighborhoodId, lotId, creatorId,
                 Timestamp.from(now.minusSeconds(60)),

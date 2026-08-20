@@ -360,6 +360,7 @@
     "schemas" : {
       "CreateInvitationRequest" : {
         "required" : [
+          "guestDocument",
           "guestName",
           "lotId",
           "type",
@@ -386,8 +387,7 @@
             "type" : "string"
           },
           "guestDocument" : {
-            "maxLength" : 20,
-            "minLength" : 0,
+            "pattern" : "^[0-9]{7,8}$",
             "type" : "string"
           },
           "companions" : {

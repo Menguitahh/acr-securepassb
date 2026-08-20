@@ -167,7 +167,7 @@ class ValidateAccessUseCaseTest {
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)),
                 null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, NOW);
         stubHappyPath(inv);
@@ -208,7 +208,7 @@ class ValidateAccessUseCaseTest {
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 from, until, null, null, null,
                 1, 0, "kid-1", jti, false, NOW);
         stubHappyPath(inv);
@@ -226,7 +226,7 @@ class ValidateAccessUseCaseTest {
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 from, until, null, null, null,
                 1, 0, "kid-1", jti, false, NOW);
         stubHappyPath(inv);
@@ -255,7 +255,7 @@ class ValidateAccessUseCaseTest {
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "Empleada", null, 0, null,
+                "Empleada", "30123456", 0, null,
                 from, until,
                 List.of(1, 2, 3, 4, 5),
                 LocalTime.of(0, 0), LocalTime.of(1, 0),
@@ -275,7 +275,7 @@ class ValidateAccessUseCaseTest {
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "Empleada", null, 0, null,
+                "Empleada", "30123456", 0, null,
                 from, until,
                 List.of(1, 2, 3, 4, 5, 6, 7),
                 LocalTime.of(0, 0), LocalTime.of(23, 59),
@@ -341,7 +341,7 @@ class ValidateAccessUseCaseTest {
         Invitation inconsistente = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, InvitationStatus.USED,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)),
                 null, null, null,
                 1, 0, "kid-1", jti, false, NOW);

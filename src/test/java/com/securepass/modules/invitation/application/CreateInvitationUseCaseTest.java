@@ -90,6 +90,18 @@ class CreateInvitationUseCaseTest {
         assertThat(captor.getValue().jti()).isEqualTo(issued.invitation().jti());
     }
 
+    // BR-11: el DNI no viaja en el payload del QR
+    @Test
+    void br11DniNoViajaEnElPayloadDelQr() {
+        stubActiveMember(true);
+        var captor = org.mockito.ArgumentCaptor.forClass(QrTokenIssuer.IssueCommand.class);
+
+        useCase.create(userId, neighborhoodId, singleCommand());
+
+        verify(qrTokenIssuer).issue(captor.capture());
+        assertThat(captor.getValue().toString()).doesNotContain("30123456");
+    }
+
     // BR-01: sin canInvite falla
     @Test
     void br01SinCanInviteRechaza() {
@@ -128,7 +140,7 @@ class CreateInvitationUseCaseTest {
         Instant from = Instant.now();
         CreateInvitationUseCase.Command cmd = new CreateInvitationUseCase.Command(
                 lotId, InvitationType.SINGLE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 from, from.plus(Duration.ofDays(31)),
                 null, null, null, 1);
 
@@ -144,7 +156,7 @@ class CreateInvitationUseCaseTest {
         Instant from = Instant.now();
         CreateInvitationUseCase.Command cmd = new CreateInvitationUseCase.Command(
                 lotId, InvitationType.RECURRING,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 from, from.plus(Duration.ofDays(30)),
                 List.of(1, 2), null, null, 10);
 
@@ -158,7 +170,7 @@ class CreateInvitationUseCaseTest {
         Instant from = Instant.now();
         CreateInvitationUseCase.Command cmd = new CreateInvitationUseCase.Command(
                 lotId, InvitationType.EVENT,
-                "Fiesta", null, 0, null,
+                "Fiesta", "30123456", 0, null,
                 from, from.plus(Duration.ofDays(1)),
                 null, null, null, 50);
 
@@ -174,7 +186,7 @@ class CreateInvitationUseCaseTest {
         Instant from = Instant.now();
         CreateInvitationUseCase.Command cmd = new CreateInvitationUseCase.Command(
                 lotId, InvitationType.RECURRING,
-                "Empleada", null, 0, null,
+                "Empleada", "30123456", 0, null,
                 from, from.plus(Duration.ofDays(180)),
                 List.of(1, 2, 3, 4, 5), LocalTime.of(8, 0), LocalTime.of(18, 0), 10);
 

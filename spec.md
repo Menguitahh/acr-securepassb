@@ -18,6 +18,11 @@ Estos puntos estaban ambiguos en el brief. Se resuelven acá; si alguno no coinc
 | D-05 | Firma del QR | **Ed25519 (asimétrica)**, no HMAC. Razón en §5.1: el guardia valida offline, y con HMAC habría que guardar el secreto de firma en el teléfono, lo que permitiría falsificar invitaciones desde un dispositivo robado. |
 | D-06 | Lectura de DNI (PDF417) | Dentro del MVP, Fase 4. Acelera la visita imprevista en vez de frenarla, que es lo contrario del caso de la patente. |
 | D-07 | Alcance de código | Sin capas especulativas. No se implementa multi-tenant por schema, no se implementa event sourcing, no se implementa GraphQL. Un barrio por fila en `neighborhoods` y punto. |
+| D-08 | DNI del invitado | **Obligatorio** al crear la invitación. Deja de ser opcional. |
+| D-09 | Enrolamiento | El primer ingreso de un invitado exige QR **y** DNI, y el sistema verifica que coincidan. Los ingresos siguientes de ese mismo invitado solo requieren QR. |
+| D-10 | Egreso | Se registra con el mismo QR. Si el invitado no puede presentarlo, el guardia cierra la estadía desde la lista de presentes. El DNI no se pide de nuevo. |
+| D-11 | Ocupación en garita | La lista de quiénes están adentro pasa del dashboard admin (§7.5) a la app del guardia. El que necesita saber que alguien lleva ocho horas adentro está en la garita, no mirando un panel desde su casa. Sigue disponible también para el admin. |
+| D-12 | Alerta de permanencia | Se avisa al guardia 20 minutos **antes** del vencimiento, no después. El objetivo es prevenir la permanencia excedida, no reportarla. |
 
 ---
 
@@ -528,6 +533,13 @@ CREATE INDEX idx_devices_user ON devices (user_id);
 | BR-08 | Alerta de permanencia excedida: ingreso `ALLOWED` sin egreso correspondiente pasadas `stay_alert_minutes`. |
 | BR-09 | Un guardia no puede tener dos turnos abiertos simultáneos (garantizado por índice `uq_guard_open_shift`). |
 | BR-10 | El residente puede escanear su propio QR personal (permanente, `RECURRING` implícito) sin consumir cupo. |
+| BR-11 | El DNI es obligatorio en toda invitación. No viaja en el payload del QR: se resuelve server-side por `invitationId`. |
+| BR-12 | El primer ingreso de una invitación requiere QR y DNI. El DNI escaneado debe coincidir con `invitations.guest_document`; si no, `DOCUMENT_MISMATCH` y el intento se persiste. |
+| BR-13 | Una vez creado el enrolamiento, los ingresos siguientes de esa invitación solo requieren QR. El enrolamiento es por invitación, no por persona: un pase nuevo se enrola de nuevo. |
+| BR-14 | Cada ingreso permitido abre una `stay`. Cada egreso permitido cierra la `stay` abierta de esa invitación. |
+| BR-15 | El aviso de permanencia se dispara a `expected_until - stay_warning_minutes`. Se emite una sola vez por estadía (`warned_at`). |
+| BR-16 | Extender una invitación suma `extension_minutes` a `valid_until` e incrementa `extension_count`. Se rechaza si `extension_count >= max_extensions`. La extensión actualiza también `expected_until` de la estadía abierta. |
+| BR-17 | Solo el creador de la invitación o el titular del lote pueden extenderla. |
 
 ---
 
@@ -841,6 +853,56 @@ POST /api/v1/access/sync
 | GET | `/access/keys` | GUARD | Claves públicas Ed25519 activas del barrio |
 | GET | `/access/revoked?since=` | GUARD | `jti` revocados desde `since` (alimenta `revoked_cache` de §8.1) |
 | GET | `/access-logs?from=&to=&lotId=&result=&page=` | ADMIN, RESIDENT (solo su lote) | Bitácora |
+| POST | `/access/enroll` | GUARD | Verifica el DNI contra la invitación y crea el enrolamiento |
+| GET | `/stays/open` | GUARD, ADMIN | Quiénes están adentro ahora |
+| POST | `/stays/{id}/close` | GUARD | Cierre manual de estadía (US-39) |
+| POST | `/stays/{id}/notify-resident` | GUARD | Avisa al residente que invitó (US-41) |
+
+```http
+POST /api/v1/access/enroll
+```
+```json
+{
+  "invitationId": "uuid",
+  "documentNumber": "30123456",
+  "gateId": "uuid",
+  "clientEventId": "uuid"
+}
+```
+```json
+{
+  "result": "ALLOWED",
+  "enrolledAt": "2026-08-20T18:42:11Z",
+  "stayId": "uuid",
+  "guest": { "name": "María López", "document": "30123456" }
+}
+```
+
+```http
+GET /api/v1/stays/open
+```
+```json
+{
+  "stays": [
+    {
+      "id": "uuid",
+      "subjectName": "María López",
+      "lotCode": "M4-L12",
+      "enteredAt": "2026-08-20T18:42:11Z",
+      "expectedUntil": "2026-08-20T23:59:00Z",
+      "minutesRemaining": 47,
+      "warned": false
+    }
+  ]
+}
+```
+
+Endpoints de residente para permanencia (US-42):
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| POST | `/invitations/{id}/extend` | RESIDENT_* | Extiende `valid_until` (US-42) |
+| POST | `/invitations/{id}/request-exit` | RESIDENT_* | Indica que la visita debe retirarse |
 
 ### 7.4 Turnos
 
@@ -948,6 +1010,27 @@ falta su guard clause, el pase se deniega. El costo de un falso
 permitido (un desconocido adentro) es mayor que el de un falso denegado
 (un registro manual en garita). `UNKNOWN` se agrega a los motivos
 producibles offline.
+
+El dispositivo cachea los enrolamientos junto con las claves y los revocados:
+
+```sql
+CREATE TABLE enrollments_cache (
+  invitation_id  TEXT PRIMARY KEY,
+  enrolled_at    TEXT NOT NULL
+);
+```
+
+Guard clause nueva, **después** de todas las existentes y antes del `allowed`:
+
+```ts
+if (direction === 'IN' && !ctx.enrollments.has(parsed.payload.i)) {
+  return { status: 'needs_enrollment', invitationId: parsed.payload.i }
+}
+```
+
+`needs_enrollment` es un estado nuevo de `AccessDecision`, distinto de `allowed` y de `denied`: no deja pasar ni rechaza, pide el segundo factor. El default fail-closed de la función no cambia.
+
+El enrolamiento offline se encola en el outbox como cualquier otro evento. Si dos garitas enrolan el mismo invitado sin red, gana el de `capturedAt` menor y el otro se persiste como duplicado auditable.
 
 ### 8.3 Limitaciones aceptadas del modo offline
 
@@ -1254,6 +1337,26 @@ Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesa
 | US-32 | Como admin quiero exportar la bitácora. | P1 | CSV con rango de fechas; la exportación queda registrada en auditoría. |
 | US-33 | Como admin quiero ver la bitácora de turnos de guardias. | P2 | Turno, guardia, garita, cantidad de accesos, nota de entrega. |
 
+### Épica G — Enrolamiento y verificación de identidad
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-34 | Como residente debo especificar el DNI del invitado al crear la invitación, para que su identidad se verifique en garita. | P0 | Campo obligatorio; validación de formato de documento argentino (7-8 dígitos); invitación sin DNI devuelve 422; el DNI no viaja en el payload del QR (§5.1 sigue sin PII). |
+| US-35 | Como guardia, en el primer ingreso de un invitado escaneo QR y después DNI, y el sistema confirma que coinciden. | P0 | Tras un QR válido y no enrolado, la app pide el DNI; coincidencia registra el ingreso y crea el enrolamiento; no coincidencia deniega con `DOCUMENT_MISMATCH` y persiste el intento en la bitácora. |
+| US-36 | Como guardia, en los ingresos siguientes del mismo invitado alcanza el QR. | P0 | Si la invitación ya tiene enrolamiento, el flujo termina en el QR; el resultado indica "verificado el DD/MM"; funciona offline con el enrolamiento cacheado en SQLite. |
+| US-37 | Como guardia quiero registrar el egreso con el mismo QR. | P0 | Egreso con QR cierra la estadía abierta; no consume cupo (BR-06); si no hay estadía abierta, se acepta como `MANUAL` (BR-07). |
+
+### Épica H — Ocupación y permanencia en garita
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-38 | Como guardia quiero ver quiénes están adentro ahora. | P0 | Lista con nombre, código de lote y hora de ingreso; orden por hora de ingreso descendente; refresco automático; funciona offline con lo que el dispositivo tiene registrado. |
+| US-39 | Como guardia quiero cerrar la estadía de alguien desde la lista. | P1 | Vía de respaldo cuando el invitado no puede presentar el QR; requiere confirmación; el log queda marcado como cierre manual con el guardia que lo hizo. |
+| US-40 | Como guardia quiero un aviso 20 minutos antes de que venza una permanencia. | P0 | Notificación local en el dispositivo de garita; la fila correspondiente se resalta en la lista; el aviso no se repite una vez atendido. |
+| US-41 | Como guardia quiero avisarle al residente que invitó, desde ese aviso. | P0 | Un toque envía la notificación; el residente recibe nombre del invitado, hora de ingreso y minutos restantes; el envío queda registrado. |
+| US-42 | Como residente quiero recibir ese aviso y poder extender el pase o indicar que la visita se retire. | P0 | Push con dos acciones; extender prolonga `valid_until` según la política del barrio; "que se retire" notifica al guardia; la decisión aparece en la garita en menos de 5 s. |
+| US-43 | Como admin quiero un tope a las extensiones. | P1 | Configurable por barrio: máximo de extensiones por invitación y duración de cada una; alcanzado el tope, el residente ve el motivo. |
+
 ---
 
 ## 13. Work Breakdown Structure (Roadmap de issues)
@@ -1358,6 +1461,34 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 | 57 | Observabilidad | `securepassb` | `chore/observability-setup` | Logs estructurados JSON sin PII; métricas de accesos por minuto, tasa de denegados y latencia p95 expuestas en Actuator. |
 | 58 | Import de padrón | ambos | `feature/registry-csv-import` | US-09: preview antes de confirmar; errores por fila sin abortar el lote. |
 
+### Fase 8 — Enrolamiento por DNI
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 59 | DNI obligatorio en invitación | `securepassb` | `feature/invitation-required-document` | US-34 | Migración V4 con backfill; validación de formato; 422 sin DNI; el payload del QR sigue sin PII (test). |
+| 60 | Dominio y API de enrolamiento | `securepassb` | `feature/access-enrollment` | US-35, US-36 | `POST /access/enroll`; `DOCUMENT_MISMATCH` persiste el intento; enrolamiento único por invitación; BR-12 y BR-13 con tests. |
+| 61 | Enrolamiento en validación | `securepassb` | `feature/access-enrollment-gate` | US-35, US-36 | La validación devuelve `NEEDS_ENROLLMENT` si la invitación no está enrolada; los ingresos siguientes pasan directo. |
+| 62 | Enrolamiento offline | `securepassf` | `feature/scanner-offline-enrollment` | US-36 | `enrollments_cache` en SQLite; estado `needs_enrollment` en `validateOffline` con tests; encolado en outbox. |
+| 63 | Escaneo de DNI en garita | `securepassf` | `feature/scanner-document-pdf417` | US-22, US-35 | PDF417 con `expo-camera`; parser del DNI argentino en `lib.ts` con tests; fallback a carga manual a los 5 s; pantalla de mismatch clara. |
+| 64 | DNI en el alta de invitación | `securepassf` | `feature/invitation-guest-document` | US-34 | Campo obligatorio con validación en cliente; mensaje explicando para qué se usa. |
+
+### Fase 9 — Ocupación y permanencia
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 65 | Dominio de estadías | `securepassb` | `feature/stay-domain` | US-37 | Migración V4; ingreso abre `stay`, egreso la cierra; BR-14 con tests; índice único de estadía abierta verificado. |
+| 66 | API de presentes | `securepassb` | `feature/stay-open-list` | US-38 | `GET /stays/open` con nombre, lote, hora y minutos restantes; sin seq scan; aislamiento por barrio testeado. |
+| 67 | Cierre manual | `securepassb` | `feature/stay-manual-close` | US-39 | `POST /stays/{id}/close`; queda marcado `closed_manually` con el guardia; append-only respetado. |
+| 68 | Lista de presentes en garita | `securepassf` | `feature/guard-present-list` | US-38, US-39 | Lista con orden por ingreso; fila resaltada al acercarse el vencimiento; cierre manual con confirmación; funciona offline. |
+| 69 | Aviso de permanencia | `securepassf` | `feature/guard-stay-warning` | US-40 | Notificación local a `expected_until - stay_warning_minutes`; una sola vez por estadía; no depende de red. |
+| 70 | Aviso al residente | ambos | `feature/notification-stay-warning` | US-41 | `POST /stays/{id}/notify-resident`; push con nombre, hora y minutos restantes; envío registrado. |
+| 71 | Extensión de invitación | `securepassb` | `feature/invitation-extend` | US-42, US-43 | `POST /invitations/{id}/extend`; BR-16 y BR-17 con tests; tope por barrio; actualiza `expected_until` de la estadía abierta. |
+| 72 | Push accionable en residente | `securepassf` | `feature/resident-stay-response` | US-42 | Dos acciones en la notificación; la decisión llega a la garita en < 5 s; motivo visible al alcanzar el tope. |
+
+**Orden de ejecución:** 59, 60, 61 (backend) → 62, 63, 64 (frontend) → 65, 66, 67 (backend) → 68, 69 (frontend) → 70, 71, 72 (ambos).
+
+El 59 es bloqueante de todo lo demás: cambia el esquema. El 63 depende del 60 para tener contra qué verificar.
+
 ---
 
 ### Mapeo WBS → issues de GitHub
@@ -1406,8 +1537,26 @@ commits y PRs se usan ambos: `WBS-N` en el cuerpo y `Refs: #<numero real>`.
 | WBS-55 | securepassb#34 | Indices y performance |
 | WBS-57 | securepassb#35 | Observabilidad |
 | WBS-58 | securepassb#36 | Import de padron |
+| WBS-59 | securepassb#60 | DNI obligatorio en invitacion |
+| WBS-60 | securepassb#61 | Dominio y API de enrolamiento |
+| WBS-61 | securepassb#62 | Enrolamiento en validacion |
+| WBS-65 | securepassb#63 | Dominio de estadias |
+| WBS-66 | securepassb#64 | API de presentes |
+| WBS-67 | securepassb#65 | Cierre manual |
+| WBS-70 | securepassb#66 | Aviso al residente |
+| WBS-71 | securepassb#67 | Extension de invitacion |
 
-**Repo `securepassf`**: pendiente, se completara cuando se creen los issues del frontend.
+**Repo `securepassf`** (creado en batch del 2026-08-20):
+
+| WBS | Issue GitHub | Titulo |
+|-----|--------------|--------|
+| WBS-62 | securepassf#27 | Enrolamiento offline |
+| WBS-63 | securepassf#28 | Escaneo de DNI en garita |
+| WBS-64 | securepassf#29 | DNI en el alta de invitacion |
+| WBS-68 | securepassf#30 | Lista de presentes en garita |
+| WBS-69 | securepassf#31 | Aviso de permanencia |
+| WBS-70 | securepassf#32 | Aviso al residente |
+| WBS-72 | securepassf#33 | Push accionable en residente |
 
 ---
 

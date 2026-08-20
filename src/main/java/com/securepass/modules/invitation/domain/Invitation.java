@@ -35,6 +35,8 @@ public record Invitation(
     private static final int COMPANIONS_MAX = 20;
     private static final int GUEST_NAME_MAX = 140;
     private static final int GUEST_DOCUMENT_MAX = 20;
+    private static final java.util.regex.Pattern GUEST_DOCUMENT_FORMAT =
+            java.util.regex.Pattern.compile("^[0-9]{7,8}$");
     private static final int NOTES_MAX = 280;
     private static final int TOKEN_KID_MAX = 16;
 
@@ -47,8 +49,14 @@ public record Invitation(
         if (status == null) throw new IllegalArgumentException("status requerido");
         if (guestName == null || guestName.isBlank()) throw new IllegalArgumentException("guestName requerido");
         if (guestName.length() > GUEST_NAME_MAX) throw new IllegalArgumentException("guestName excede " + GUEST_NAME_MAX);
-        if (guestDocument != null && guestDocument.length() > GUEST_DOCUMENT_MAX) {
+        if (guestDocument == null || guestDocument.isBlank()) {
+            throw new IllegalArgumentException("BR-11: guestDocument requerido");
+        }
+        if (guestDocument.length() > GUEST_DOCUMENT_MAX) {
             throw new IllegalArgumentException("guestDocument excede " + GUEST_DOCUMENT_MAX);
+        }
+        if (!GUEST_DOCUMENT_FORMAT.matcher(guestDocument).matches()) {
+            throw new IllegalArgumentException("BR-11: guestDocument formato invalido (7-8 digitos)");
         }
         if (companions < 0 || companions > COMPANIONS_MAX) {
             throw new IllegalArgumentException("companions fuera de rango 0..20");

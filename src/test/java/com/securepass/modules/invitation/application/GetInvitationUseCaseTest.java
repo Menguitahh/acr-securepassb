@@ -45,7 +45,7 @@ class GetInvitationUseCaseTest {
         return new Invitation(
                 UUID.randomUUID(), neighborhoodId, lotId, creatorId,
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 now, now.plus(Duration.ofHours(6)),
                 null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, now);
     }

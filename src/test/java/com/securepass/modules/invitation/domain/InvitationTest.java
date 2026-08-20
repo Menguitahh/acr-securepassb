@@ -34,7 +34,7 @@ class InvitationTest {
         return new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.EVENT, InvitationStatus.ACTIVE,
-                "Fiesta", null, 0, null,
+                "Fiesta", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(1)),
                 null, null, null,
                 maxUses, usedCount,
@@ -45,7 +45,7 @@ class InvitationTest {
         return new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "Empleada", null, 0, null,
+                "Empleada", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(200)),
                 List.of(1, 2, 3, 4, 5), LocalTime.of(8, 0), LocalTime.of(18, 0),
                 residentPass ? 1 : 10, 0,
@@ -60,11 +60,37 @@ class InvitationTest {
     }
 
     @Test
+    void br11RechazaGuestDocumentNulo() {
+        assertThatThrownBy(() -> new Invitation(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                InvitationType.SINGLE, InvitationStatus.ACTIVE,
+                "Maria", null, 0, null,
+                NOW, NOW.plus(Duration.ofHours(6)),
+                null, null, null,
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("BR-11");
+    }
+
+    @Test
+    void br11RechazaGuestDocumentFormatoInvalido() {
+        assertThatThrownBy(() -> new Invitation(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                InvitationType.SINGLE, InvitationStatus.ACTIVE,
+                "Maria", "abc123", 0, null,
+                NOW, NOW.plus(Duration.ofHours(6)),
+                null, null, null,
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("BR-11");
+    }
+
+    @Test
     void rechazaValidUntilAnteriorAValidFrom() {
         assertThatThrownBy(() -> new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW, NOW.minusSeconds(1),
                 null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
@@ -82,7 +108,7 @@ class InvitationTest {
         assertThatThrownBy(() -> new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(30)),
                 null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
@@ -95,7 +121,7 @@ class InvitationTest {
         assertThatThrownBy(() -> new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(31)),
                 null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
@@ -108,7 +134,7 @@ class InvitationTest {
         assertThatThrownBy(() -> new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.EVENT, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(31)),
                 null, null, null,
                 10, 0, "kid-1", UUID.randomUUID(), false, NOW))
@@ -121,7 +147,7 @@ class InvitationTest {
         Invitation inv = new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(365)),
                 List.of(1), LocalTime.of(8, 0), LocalTime.of(18, 0),
                 10, 0, "kid-1", UUID.randomUUID(), false, NOW);
@@ -133,7 +159,7 @@ class InvitationTest {
         assertThatThrownBy(() -> new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "X", null, 0, null,
+                "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(366)),
                 List.of(1), LocalTime.of(8, 0), LocalTime.of(18, 0),
                 10, 0, "kid-1", UUID.randomUUID(), false, NOW))
@@ -183,7 +209,7 @@ class InvitationTest {
         assertThatThrownBy(() -> new Invitation(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "Residente", null, 0, null,
+                "Residente", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(1)),
                 null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), true, NOW))
