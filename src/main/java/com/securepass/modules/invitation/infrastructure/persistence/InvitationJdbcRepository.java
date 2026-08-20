@@ -189,6 +189,19 @@ public class InvitationJdbcRepository implements InvitationRepository {
     }
 
     @Override
+    public int expireOverdue(Instant cutoff) {
+        return jdbc.sql("""
+                UPDATE invitations
+                   SET status = 'EXPIRED', updated_at = now()
+                 WHERE status IN ('ACTIVE', 'USED')
+                   AND valid_until < :cutoff
+                   AND resident_pass = FALSE
+                """)
+                .param("cutoff", Timestamp.from(cutoff))
+                .update();
+    }
+
+    @Override
     public List<RevokedEntry> listRevoked(UUID neighborhoodId, Instant since, int limit) {
         String sinceClause = since == null ? "" : " AND revoked_at > :since";
         var query = jdbc.sql("""

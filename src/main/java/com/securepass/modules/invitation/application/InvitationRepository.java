@@ -25,6 +25,8 @@ public interface InvitationRepository {
 
     Optional<Invitation> findActiveResidentPass(UUID userId, UUID lotId);
 
+    int expireOverdue(java.time.Instant cutoff);
+
     record ListQuery(
             UUID neighborhoodId,
             List<UUID> lotIdsAllowed,
