@@ -1,84 +1,97 @@
 # Retomar sesion
 
-Snapshot para reabrir el trabajo. Actualizado: 2026-08-19.
+Snapshot para reabrir el trabajo. Actualizado: 2026-08-20.
 
 ## Estado
 
 Rama base: `develop`, limpia y al dia con `origin/develop`.
 
-Spring Boot en 3.3.13 (verificado al empezar la sesion, no en 4).
+Spring Boot en 3.3.13.
 
-## Issues cerrados
+Plan actual: cerrar el backend entero en 4 tandas (21 issues).
 
-Orden pedido: 6, 7, 8, 10, 13, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25.
+## Tandas
 
-- [x] WBS-6 · Dominio de identidad (#40)
-- [x] WBS-7 · Login y JWT HS256 + BCrypt cost 12 (#41)
-- [x] WBS-8 · Refresh con rotacion + logout, familia en Redis (#42)
-- [x] WBS-10 · Autorizacion por rol y barrio, JWT filter + AccessGuard (#43)
-- [x] WBS-13 · Handler global application/problem+json (#44)
-- [x] WBS-14 · Contratos OpenAPI + snapshot `openapi.json` en CI (#45)
-- [x] WBS-15 · Cripto Ed25519, AES-GCM con IV random, master key en env (#46)
-- [x] WBS-16 · Emision de token QR SP1 con firma Ed25519 (#47)
-- [x] WBS-17 · Dominio Invitation con maquina de estados (#49)
-- [x] WBS-18 · API de invitaciones CRUD + revoke (#50)
-- [x] WBS-19 · Revocacion: jti estable + `/access/revoked` (#51)
-- [x] WBS-22 · Caso de uso de validacion + AccessDecision sealed (#52)
-- [x] WBS-23 · Anti-replay Redis + consumo transaccional (#53)
-- [x] WBS-24 · Endpoint POST /access/validate con log e idempotencia (#54)
+- **Tanda A - Desbloqueos**: WBS-11, 12, 21, 20. **CERRADA.**
+- **Tanda B - Adenda v1.1**: WBS-59, 60, 61, 65, 66, 67, 70, 71. En curso.
+- **Tanda C - Operacion de garita**: WBS-26, 27, 28, 9.
+- **Tanda D - Endurecimiento**: WBS-54, 55, 56, 57.
+
+Fuera de alcance: Fase 6 (dashboard admin web, D-03).
+
+## Issues cerrados en esta sesion
+
+- [x] WBS-11 · Gestion de lotes (#69, `5622006`)
+- [x] WBS-12 · Permisos de unidad familiar (#70, `26a3a6b`)
+- [x] WBS-21 · Pase personal del residente (#71, `407aaa1`)
+- [x] WBS-20 · Materializar EXPIRED con job programado (#72, `16e091b`)
+- [x] WBS-59 · DNI obligatorio en invitacion (#68) — cerro rama colgada
+- [x] WBS-60 · Dominio y API de enrolamiento por DNI (#73, `389971e`)
+- [x] WBS-61 · NEEDS_ENROLLMENT en validacion (#74, `7aa05a3`, fix #75)
+- [x] WBS-65 · Dominio de estadias con hook por acceso (#76, `fba9204`)
+- [x] WBS-66 · Endpoint de presentes por barrio (#77, `62b9603`)
+
+Tambien: `chore: agregar seed de desarrollo y documentacion de setup`
+(`022f042`) y `docs(spec): agregar 7.6 unidad familiar`.
 
 ## Que sigue
 
-Proximo: **WBS-25 Sync de eventos offline** (`securepassb`, rama
-`feature/access-offline-sync`). Cubre US-19 y spec 8.4.
+Proximo: **WBS-67 Cierre manual de estadia** (`securepassb`, rama
+`feature/stay-manual-close`).
 
-Criterios del issue:
-- `POST /access/sync` idempotente por `clientEventId`.
-- Batch de max 50 eventos.
-- Conflictos resueltos first-captured-wins (usa `captured_at`).
-- Duplicados persistidos como `REPLAY` en `access_logs`.
-- Desvio de reloj > 5 min se marca en auditoria.
+Criterios:
+- `POST /api/v1/stays/{id}/close` (rol GUARD).
+- Marca `closed_manually = TRUE` y `closed_by = guardId`.
+- Append-only respetado: no toca `access_logs`, solo `stays`.
+- Rechaza cerrar una stay ya cerrada.
 
 Notas para arrancar:
-- `RecordAccessAttemptUseCase` ya maneja idempotencia por
-  `clientEventId` via `saveIdempotent`. Reusar.
-- `ConsumeAccessUseCase` + anti-replay Redis ya existen; el sync
-  itera eventos y los pasa por el mismo pipeline.
-- La respuesta del sync es `{ accepted, conflicts[] }` (spec 7.3).
-- Este es el ULTIMO issue antes del `/ponytail-review` acumulado.
+- El dominio `Stay.close(exitLogId, at, manually, by)` exige `exitLogId`
+  no nulo. Un cierre manual no tiene egreso registrado. Ver si conviene
+  relajar el invariante (permitir `exitLogId` nullable) o registrar un
+  `access_log` sintetico.
+- Ponytail: el schema V4 permite `exit_log_id` NULL; alinear el domain
+  con eso es el camino corto.
 
-Recordatorio del usuario: `/ponytail-review` NO se corre por issue en
-esta tanda. Los tres ultimos dieron solo falsos positivos sobre
-dominio que el spec define. Retomarlo recien tras cerrar WBS-25,
-sobre el acumulado completo.
+Despues de WBS-67 vienen 70 (aviso al residente) y 71 (extension de
+invitacion) para cerrar Tanda B.
 
-Follow-ups pendientes (no urgentes):
-- `lot.ownerName` en la respuesta ALLOWED de `/access/validate`.
-- Load test de p95 < 200 ms para `/access/validate` (WBS-24).
+## Pausas obligatorias
 
-## Reglas de sesion (mantener vigentes)
+- **WBS-70**: revisar antes de mergear (aviso al residente, cruce
+  push + notificacion).
+- **WBS-54** (Tanda D): checklist de seguridad item por item.
+
+## Reglas de sesion (vigentes)
 
 1. No explicar lo que voy a hacer, hacerlo.
 2. No resumir despues, el diff habla.
-3. Nada de entrevistas ni `/grill-with-docs`, el spec ya define todo.
+3. Nada de entrevistas ni skills de grilling; el spec ya define todo.
 4. Maximo 2 intentos por problema; al tercero, parar y preguntar.
 5. Leer solo los archivos que la tarea toca.
-6. Tests solo en `domain/` y `application/`. En adaptadores no
-   (excepciones justificadas: snapshot OpenAPI, leak test de la privada).
+6. Tests solo en `domain/` y `application/` (excepciones justificadas:
+   snapshot OpenAPI, integration para cascadas cross-modulo).
 7. Si voy a apartarme de algo que el spec define, preguntar antes.
+8. Al terminar cada issue, working tree limpio y parado en `develop`.
+   Nada de ramas con cambios sin commitear.
+9. Al cerrar cada tanda: regenerar OpenAPI, listar cambios de API que
+   consume el frontend, y avisar para que el usuario pruebe.
+10. Cualquier cambio de payload/respuesta que consuma el frontend se
+    avisa explicito en el cierre del issue.
 
-Extras acordados durante la sesion:
-- `/ponytail-review` no corre por issue. Se dispara cada 4 issues
-  cerrados sobre el acumulado.
-- Si el review propone borrar codigo del dominio que el spec define
-  explicitamente (por falta de consumidores todavia), ignorar y seguir.
-- Parar y avisar antes de mergear en WBS-15, 16, 22, 23. Los otros van
-  directo: rama desde develop -> implementar -> commit convencional con
-  `WBS-N` y `Refs: #<pr>` -> push -> PR contra develop -> merge squash.
+Extras acordados en esta sesion:
+- Solo un actor (agente/editor) tocando el working tree por vez. El
+  frontend se aparto a `securepassf` y no vuelve a tocar este repo.
+- Credenciales de dev en `docs/seed.sql` y `README.md` estan en claro.
+  Repo privado, solo para maquinas de desarrollador; en staging/prod
+  se generan passwords aleatorias.
+- Cambios de contrato con el frontend: pedir el shape si el frontend
+  tiene una expectativa concreta; si no, decidir aca y avisar.
 
 ## Comandos utiles
 
 - Regenerar snapshot OpenAPI: `OPENAPI_UPDATE=true ./gradlew test`.
 - Correr suite completa: `./gradlew test`.
 - Build + tests: `./gradlew build`.
-- Env vars requeridas para correr la app localmente: ver `.env.example`.
+- Env vars requeridas para correr la app localmente: ver `.env` o
+  `README.md`.
