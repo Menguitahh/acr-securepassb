@@ -1,0 +1,35 @@
+package com.securepass.modules.access.infrastructure.rest;
+
+import com.securepass.modules.access.application.OpenStayView;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+public record OpenStaysResponse(List<Item> stays) {
+
+    public record Item(
+            UUID id,
+            String subjectName,
+            String lotCode,
+            Instant enteredAt,
+            Instant expectedUntil,
+            long minutesRemaining,
+            boolean warned
+    ) {}
+
+    public static OpenStaysResponse from(List<OpenStayView> views, Instant now) {
+        List<Item> items = views.stream()
+                .map(v -> new Item(
+                        v.id(),
+                        v.subjectName(),
+                        v.lotCode(),
+                        v.enteredAt(),
+                        v.expectedUntil(),
+                        Math.max(0, Duration.between(now, v.expectedUntil()).toMinutes()),
+                        v.warned()))
+                .toList();
+        return new OpenStaysResponse(items);
+    }
+}

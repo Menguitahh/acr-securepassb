@@ -597,6 +597,26 @@
         }
       }
     },
+    "/api/v1/stays/open" : {
+      "get" : {
+        "tags" : [
+          "stays-controller"
+        ],
+        "operationId" : "open",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OpenStaysResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/passes" : {
       "get" : {
         "tags" : [
@@ -1462,6 +1482,47 @@
             "maxLength" : 20,
             "minLength" : 0,
             "type" : "string"
+          }
+        }
+      },
+      "Item" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "subjectName" : {
+            "type" : "string"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "enteredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expectedUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "minutesRemaining" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "warned" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "OpenStaysResponse" : {
+        "type" : "object",
+        "properties" : {
+          "stays" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Item"
+            }
           }
         }
       },

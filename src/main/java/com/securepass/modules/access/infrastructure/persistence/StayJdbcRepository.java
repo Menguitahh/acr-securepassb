@@ -82,6 +82,28 @@ public class StayJdbcRepository implements StayRepository {
     }
 
     @Override
+    public java.util.List<com.securepass.modules.access.application.OpenStayView> listOpenByNeighborhood(UUID neighborhoodId) {
+        return jdbc.sql("""
+                SELECT s.id, s.subject_name, l.code AS lot_code,
+                       s.entered_at, s.expected_until, s.warned_at
+                  FROM stays s
+                  LEFT JOIN lots l ON l.id = s.lot_id
+                 WHERE s.neighborhood_id = :nid
+                   AND s.exited_at IS NULL
+                 ORDER BY s.entered_at DESC
+                """)
+                .param("nid", neighborhoodId)
+                .query((rs, i) -> new com.securepass.modules.access.application.OpenStayView(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("subject_name"),
+                        rs.getString("lot_code"),
+                        rs.getTimestamp("entered_at").toInstant(),
+                        rs.getTimestamp("expected_until").toInstant(),
+                        rs.getTimestamp("warned_at") != null))
+                .list();
+    }
+
+    @Override
     public void close(Stay s) {
         jdbc.sql("""
                 UPDATE stays

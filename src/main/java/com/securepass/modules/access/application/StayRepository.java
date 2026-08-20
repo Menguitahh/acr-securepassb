@@ -16,4 +16,6 @@ public interface StayRepository {
     Stay openIfNotOpen(Stay stay);
 
     void close(Stay closedStay);
+
+    java.util.List<OpenStayView> listOpenByNeighborhood(java.util.UUID neighborhoodId);
 }
