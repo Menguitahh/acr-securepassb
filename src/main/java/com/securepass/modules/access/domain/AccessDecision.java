@@ -15,10 +15,13 @@ public sealed interface AccessDecision {
         }
     }
 
-    record NeedsEnrollment(UUID invitationId, String guestName, String lotCode) implements AccessDecision {
+    // No lleva guestName: la identidad no esta verificada aun. Si el guardia
+    // ve el nombre antes de pedir el DNI, compara el documento contra la
+    // pantalla en vez de que el sistema compare a ciegas. La verificacion
+    // tiene que ser sistema contra dato; el nombre aparece en el enroll.
+    record NeedsEnrollment(UUID invitationId, String lotCode) implements AccessDecision {
         public NeedsEnrollment {
             if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
-            if (guestName == null || guestName.isBlank()) throw new IllegalArgumentException("guestName requerido");
             if (lotCode == null || lotCode.isBlank()) throw new IllegalArgumentException("lotCode requerido");
         }
     }

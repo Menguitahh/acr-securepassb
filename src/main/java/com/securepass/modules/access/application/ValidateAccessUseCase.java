@@ -96,7 +96,7 @@ public class ValidateAccessUseCase {
             // repetimos la guarda server-side.
             if (checkEnrollment && !inv.residentPass()
                     && enrollments.findByInvitationId(inv.id()).isEmpty()) {
-                return new AccessDecision.NeedsEnrollment(inv.id(), inv.guestName(), lot.code());
+                return new AccessDecision.NeedsEnrollment(inv.id(), lot.code());
             }
         }
 

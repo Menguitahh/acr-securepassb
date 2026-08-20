@@ -220,7 +220,6 @@ class ValidateAccessUseCaseTest {
         assertThat(decision).isInstanceOf(AccessDecision.NeedsEnrollment.class);
         AccessDecision.NeedsEnrollment needs = (AccessDecision.NeedsEnrollment) decision;
         assertThat(needs.invitationId()).isEqualTo(invitationId);
-        assertThat(needs.guestName()).isEqualTo("Maria Lopez");
         assertThat(needs.lotCode()).isEqualTo("M4-L12");
     }
 

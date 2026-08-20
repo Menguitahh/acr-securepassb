@@ -843,6 +843,22 @@ POST /api/v1/access/validate
 }
 ```
 
+`200 OK` — requiere enrolamiento (BR-12, primer ingreso de la invitación):
+```json
+{
+  "result": "NEEDS_ENROLLMENT",
+  "invitationId": "uuid",
+  "lot": { "code": "M4-L12" }
+}
+```
+
+No lleva `guest.name`: la identidad no está verificada todavía. Si la app le
+mostrara el nombre al guardia antes de pedir el DNI, el guardia compararía el
+documento contra la pantalla en vez de que el sistema compare a ciegas. El
+nombre aparece recién en la respuesta de `POST /access/enroll`, ya verificado.
+La app continúa con el scan de DNI y llama a `/access/enroll` con un
+`clientEventId` nuevo (el de `validate` no se persiste).
+
 ```http
 POST /api/v1/access/sync
 ```

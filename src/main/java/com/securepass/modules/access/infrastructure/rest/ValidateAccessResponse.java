@@ -41,8 +41,7 @@ public record ValidateAccessResponse(
         if (result.decision() instanceof AccessDecision.NeedsEnrollment needs) {
             return new ValidateAccessResponse(
                     "NEEDS_ENROLLMENT", null, null, needs.invitationId(),
-                    new GuestDetail(needs.guestName(), null, 0),
-                    new LotDetail(needs.lotCode()), null);
+                    null, new LotDetail(needs.lotCode()), null);
         }
         AccessDecision.Denied denied = (AccessDecision.Denied) result.decision();
         return new ValidateAccessResponse(
