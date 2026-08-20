@@ -124,6 +124,79 @@
         }
       }
     },
+    "/api/v1/family/lots/{lotId}/members" : {
+      "get" : {
+        "tags" : [
+          "family-controller"
+        ],
+        "operationId" : "list_1",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FamilyMemberResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "family-controller"
+        ],
+        "operationId" : "add",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddFamilyMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FamilyMemberResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh" : {
       "post" : {
         "tags" : [
@@ -212,7 +285,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "list_1",
+        "operationId" : "list_2",
         "parameters" : [
           {
             "name" : "page",
@@ -403,12 +476,62 @@
         }
       }
     },
+    "/api/v1/family/lots/{lotId}/members/{userId}" : {
+      "patch" : {
+        "tags" : [
+          "family-controller"
+        ],
+        "operationId" : "update",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "userId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateFamilyMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FamilyMemberResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/lots/{id}" : {
       "patch" : {
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "update",
+        "operationId" : "update_1",
         "parameters" : [
           {
             "name" : "id",
@@ -709,6 +832,55 @@
           },
           "shareUrl" : {
             "type" : "string"
+          }
+        }
+      },
+      "AddFamilyMemberRequest" : {
+        "required" : [
+          "identifier"
+        ],
+        "type" : "object",
+        "properties" : {
+          "identifier" : {
+            "type" : "string"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "relation" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "FamilyMemberResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "relation" : {
+            "type" : "string"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
           }
         }
       },
@@ -1139,6 +1311,17 @@
             "items" : {
               "$ref" : "#/components/schemas/Conflict"
             }
+          }
+        }
+      },
+      "UpdateFamilyMemberRequest" : {
+        "type" : "object",
+        "properties" : {
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
           }
         }
       },
