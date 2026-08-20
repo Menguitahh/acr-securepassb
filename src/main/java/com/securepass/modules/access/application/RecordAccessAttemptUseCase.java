@@ -24,18 +24,21 @@ public class RecordAccessAttemptUseCase {
     private final InvitationRepository invitations;
     private final LotStatusQuery lots;
     private final AccessLogRepository logs;
+    private final StayLifecycle stayLifecycle;
 
     public RecordAccessAttemptUseCase(
             ConsumeAccessUseCase consumeUseCase,
             ValidateAccessUseCase validateUseCase,
             InvitationRepository invitations,
             LotStatusQuery lots,
-            AccessLogRepository logs) {
+            AccessLogRepository logs,
+            StayLifecycle stayLifecycle) {
         this.consumeUseCase = consumeUseCase;
         this.validateUseCase = validateUseCase;
         this.invitations = invitations;
         this.lots = lots;
         this.logs = logs;
+        this.stayLifecycle = stayLifecycle;
     }
 
     public Result record(Command cmd) {
@@ -53,7 +56,9 @@ public class RecordAccessAttemptUseCase {
         AccessLog toSave = buildLog(cmd, decision);
         AccessLog persisted = logs.saveIdempotent(toSave);
         if (persisted.id().equals(toSave.id())) {
-            return new Result(decision, persisted, invitationFor(decision).orElse(null));
+            Invitation inv = invitationFor(decision).orElse(null);
+            stayLifecycle.onAllowed(persisted, inv); // BR-14
+            return new Result(decision, persisted, inv);
         }
         return reconstruct(persisted);
     }

@@ -53,7 +53,7 @@ class RecordAccessAttemptUseCaseTest {
         logs = mock(AccessLogRepository.class);
         when(logs.saveIdempotent(any())).thenAnswer(inv -> inv.getArgument(0));
         when(logs.findByClientEventId(any())).thenReturn(Optional.empty());
-        useCase = new RecordAccessAttemptUseCase(consume, validate, invitations, lotStatus, logs);
+        useCase = new RecordAccessAttemptUseCase(consume, validate, invitations, lotStatus, logs, mock(StayLifecycle.class));
 
         neighborhoodId = UUID.randomUUID();
         gateId = UUID.randomUUID();

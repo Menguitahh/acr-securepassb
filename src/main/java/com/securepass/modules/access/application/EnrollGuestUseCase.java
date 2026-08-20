@@ -29,18 +29,21 @@ public class EnrollGuestUseCase {
     private final InvitationRepository invitations;
     private final GuestEnrollmentRepository enrollments;
     private final AccessLogRepository logs;
+    private final StayLifecycle stayLifecycle;
 
     public EnrollGuestUseCase(
             QrTokenCodec codec,
             SigningKeyRepository signingKeys,
             InvitationRepository invitations,
             GuestEnrollmentRepository enrollments,
-            AccessLogRepository logs) {
+            AccessLogRepository logs,
+            StayLifecycle stayLifecycle) {
         this.codec = codec;
         this.signingKeys = signingKeys;
         this.invitations = invitations;
         this.enrollments = enrollments;
         this.logs = logs;
+        this.stayLifecycle = stayLifecycle;
     }
 
     public EnrollmentResult enroll(Command cmd) {
@@ -93,6 +96,7 @@ public class EnrollGuestUseCase {
                 Direction.IN, SubjectType.GUEST, true, null,
                 inv.guestName(), cmd.documentNumber(), inv.companions(),
                 inv.jti(), cmd.capturedAt(), false, false, cmd.clientEventId()));
+        stayLifecycle.onAllowed(log, inv); // BR-14
         return new EnrollmentResult.Enrolled(enrollment, log, inv.guestName());
     }
 

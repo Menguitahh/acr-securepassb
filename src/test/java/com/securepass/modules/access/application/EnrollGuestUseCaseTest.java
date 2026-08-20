@@ -64,7 +64,7 @@ class EnrollGuestUseCaseTest {
         invitations = mock(InvitationRepository.class);
         enrollments = mock(GuestEnrollmentRepository.class);
         logs = mock(AccessLogRepository.class);
-        useCase = new EnrollGuestUseCase(codec, signingKeys, invitations, enrollments, logs);
+        useCase = new EnrollGuestUseCase(codec, signingKeys, invitations, enrollments, logs, mock(StayLifecycle.class));
         neighborhoodId = UUID.randomUUID();
         gateId = UUID.randomUUID();
         guardId = UUID.randomUUID();
