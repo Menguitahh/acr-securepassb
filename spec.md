@@ -889,20 +889,36 @@ POST /api/v1/access/enroll
 ```
 ```json
 {
-  "invitationId": "uuid",
+  "token": "SP1.eyJ2Ijox....abc",
   "documentNumber": "30123456",
   "gateId": "uuid",
-  "clientEventId": "uuid"
+  "clientEventId": "uuid",
+  "capturedAt": "2026-08-20T18:42:11Z"
 }
 ```
+`200 OK` — permitido:
 ```json
 {
   "result": "ALLOWED",
   "enrolledAt": "2026-08-20T18:42:11Z",
-  "stayId": "uuid",
+  "enrollmentId": "uuid",
   "guest": { "name": "María López", "document": "30123456" }
 }
 ```
+`200 OK` — denegado (respuesta de negocio, no error HTTP):
+```json
+{
+  "result": "DENIED",
+  "reason": "DOCUMENT_MISMATCH",
+  "guest": { "name": null, "document": "99999999" }
+}
+```
+
+El body lleva el token firmado del QR, no `invitationId`. El backend
+verifica firma Ed25519 antes que el documento: el enrolamiento son dos
+factores (token + DNI) y ninguno se puede saltear. `reason` sigue el
+mismo vocabulario que `/access/validate` (`INVALID_SIGNATURE`,
+`REVOKED`, `DOCUMENT_MISMATCH`).
 
 ```http
 GET /api/v1/stays/open

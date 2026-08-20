@@ -476,6 +476,36 @@
         }
       }
     },
+    "/api/v1/access/enroll" : {
+      "post" : {
+        "tags" : [
+          "access-enroll-controller"
+        ],
+        "operationId" : "enroll",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EnrollRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EnrollResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/family/lots/{lotId}/members/{userId}" : {
       "patch" : {
         "tags" : [
@@ -1331,6 +1361,69 @@
             "items" : {
               "$ref" : "#/components/schemas/Conflict"
             }
+          }
+        }
+      },
+      "EnrollRequest" : {
+        "required" : [
+          "clientEventId",
+          "documentNumber",
+          "gateId",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "pattern" : "^[0-9]{7,8}$",
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "EnrollResponse" : {
+        "type" : "object",
+        "properties" : {
+          "result" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "enrolledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "enrollmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guest" : {
+            "$ref" : "#/components/schemas/Guest"
+          }
+        }
+      },
+      "Guest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "document" : {
+            "type" : "string"
           }
         }
       },

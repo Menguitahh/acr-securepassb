@@ -9,5 +9,6 @@ public enum DenialReason {
     OUT_OF_SCHEDULE,
     LOT_SUSPENDED,
     REPLAY,
+    DOCUMENT_MISMATCH,
     UNKNOWN
 }
