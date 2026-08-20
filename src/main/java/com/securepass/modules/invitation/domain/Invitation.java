@@ -68,9 +68,11 @@ public record Invitation(
         if (validUntil == null) throw new IllegalArgumentException("validUntil requerido");
         if (!validUntil.isAfter(validFrom)) throw new IllegalArgumentException("validUntil debe ser posterior a validFrom");
 
-        int maxDays = type == InvitationType.RECURRING ? RECURRING_MAX_DAYS : SINGLE_EVENT_MAX_DAYS;
-        if (Duration.between(validFrom, validUntil).toDays() > maxDays) {
-            throw new IllegalArgumentException("BR-04: ventana excede " + maxDays + " dias para " + type);
+        if (!residentPass) {
+            int maxDays = type == InvitationType.RECURRING ? RECURRING_MAX_DAYS : SINGLE_EVENT_MAX_DAYS;
+            if (Duration.between(validFrom, validUntil).toDays() > maxDays) {
+                throw new IllegalArgumentException("BR-04: ventana excede " + maxDays + " dias para " + type);
+            }
         }
 
         if (maxUses < 1) throw new IllegalArgumentException("maxUses debe ser >= 1");

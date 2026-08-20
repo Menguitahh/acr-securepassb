@@ -567,6 +567,26 @@
         }
       }
     },
+    "/api/v1/me/passes" : {
+      "get" : {
+        "tags" : [
+          "me-passes-controller"
+        ],
+        "operationId" : "passes",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PassesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations/{id}" : {
       "get" : {
         "tags" : [
@@ -1345,6 +1365,38 @@
             "maxLength" : 20,
             "minLength" : 0,
             "type" : "string"
+          }
+        }
+      },
+      "PassResponse" : {
+        "type" : "object",
+        "properties" : {
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "neighborhoodName" : {
+            "type" : "string"
+          },
+          "qrToken" : {
+            "type" : "string"
+          },
+          "kid" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PassesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "passes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PassResponse"
+            }
           }
         }
       },

@@ -69,7 +69,9 @@ public class ValidateAccessUseCase {
         Optional<LotSnapshot> lotOpt = lots.find(inv.lotId());
         if (lotOpt.isEmpty()) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
         LotSnapshot lot = lotOpt.get();
-        if (lot.status() != LotStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED);
+        if (lot.status() != LotStatus.ACTIVE && !inv.residentPass()) {
+            return AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED);
+        }
 
         if (capturedAt.isBefore(inv.validFrom())) return AccessDecision.Denied.of(DenialReason.NOT_YET_VALID);
         if (capturedAt.isAfter(inv.validUntil()) || inv.status() == InvitationStatus.EXPIRED) {

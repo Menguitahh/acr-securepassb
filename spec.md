@@ -779,6 +779,32 @@ Para `type: "RECURRING"` se agregan `weekdays: [1,2,3,4,5]`, `dailyFrom: "08:00"
 | GET | `/invitations?lotId=&status=&page=` | RESIDENT_*, ADMIN | Listar |
 | GET | `/invitations/{id}` | dueño del lote, ADMIN | Detalle + QR |
 | POST | `/invitations/{id}/revoke` | creador, owner del lote, ADMIN | Revocar |
+| GET | `/me/passes` | RESIDENT_* | Lista de QR personales del residente |
+
+**Pase personal del residente (US-16, BR-10).** Una entrada por lote donde el
+usuario es `family_members` activo. Token permanente (`residentPass=true`,
+`RECURRING` implícito, sin franja horaria efectiva y sin consumir cupo). Se
+invalida al desactivar la membresía del lote.
+
+```http
+GET /api/v1/me/passes
+```
+```json
+{
+  "passes": [
+    {
+      "lotId": "uuid",
+      "lotCode": "M4-L12",
+      "neighborhoodName": "Barrio X",
+      "qrToken": "SP1.eyJ2Ijox....abc",
+      "kid": "kid-1"
+    }
+  ]
+}
+```
+
+BR-03 no bloquea al titular (US-08): la validación de un `residentPass` en un
+lote `SUSPENDED` sigue permitiendo el ingreso.
 
 ### 7.3 Accesos (guardia)
 

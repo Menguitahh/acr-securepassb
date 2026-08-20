@@ -201,6 +201,29 @@ class ValidateAccessUseCaseTest {
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED));
     }
 
+    // US-08 / BR-10: el residente entra aunque su lote este SUSPENDED.
+    @Test
+    void allowedResidentPassEnLoteSuspendido() {
+        Instant from = NOW.minus(Duration.ofDays(1));
+        Instant until = NOW.plus(Duration.ofDays(30));
+        Invitation inv = new Invitation(
+                invitationId, neighborhoodId, lotId, createdBy,
+                InvitationType.RECURRING, InvitationStatus.ACTIVE,
+                "Residente", "00000000", 0, null,
+                from, until,
+                List.of(1, 2, 3, 4, 5, 6, 7),
+                LocalTime.of(0, 0), LocalTime.of(23, 59),
+                1, 0, "kid-1", jti, true, NOW);
+        when(signingKeys.findByKid(neighborhoodId, "kid-1")).thenReturn(Optional.of(signingKey));
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(inv));
+        when(lots.find(lotId)).thenReturn(Optional.of(new LotSnapshot(lotId, "M4-L12", LotStatus.SUSPENDED, TZ)));
+        String token = signedToken(payload(from, until, 1, InvitationType.RECURRING));
+
+        AccessDecision decision = useCase.validate(token, NOW);
+
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
+    }
+
     @Test
     void notYetValidCuandoCapturaAntesDeValidFrom() {
         Instant from = NOW.plus(Duration.ofHours(1));

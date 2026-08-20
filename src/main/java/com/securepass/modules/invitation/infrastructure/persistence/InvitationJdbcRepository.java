@@ -37,12 +37,12 @@ public class InvitationJdbcRepository implements InvitationRepository {
                     id, neighborhood_id, lot_id, created_by, type, status,
                     guest_name, guest_document, companions, notes,
                     valid_from, valid_until, weekdays, daily_from, daily_until,
-                    max_uses, used_count, token_kid, jti, created_at, updated_at
+                    max_uses, used_count, token_kid, jti, resident_pass, created_at, updated_at
                 ) VALUES (
                     :id, :nid, :lid, :by, :type, :status,
                     :name, :doc, :comp, :notes,
                     :vfrom, :vuntil, CAST(:wdays AS SMALLINT[]), :dfrom, :duntil,
-                    :max, :used, :kid, :jti, :created, :created
+                    :max, :used, :kid, :jti, :resident, :created, :created
                 )
                 """)
                 .param("id", inv.id())
@@ -64,6 +64,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 .param("used", inv.usedCount())
                 .param("kid", inv.tokenKid())
                 .param("jti", inv.jti())
+                .param("resident", inv.residentPass())
                 .param("created", Timestamp.from(inv.createdAt()))
                 .update();
     }
@@ -90,7 +91,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
                        valid_from, valid_until, weekdays, daily_from, daily_until,
-                       max_uses, used_count, token_kid, jti, created_at
+                       max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                  WHERE id = :id
                 """)
@@ -105,7 +106,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
                        valid_from, valid_until, weekdays, daily_from, daily_until,
-                       max_uses, used_count, token_kid, jti, created_at
+                       max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                  WHERE id = :id
                  FOR UPDATE
@@ -139,7 +140,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
                        valid_from, valid_until, weekdays, daily_from, daily_until,
-                       max_uses, used_count, token_kid, jti, created_at
+                       max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                 """ + where + """
                  ORDER BY created_at DESC
@@ -167,6 +168,24 @@ public class InvitationJdbcRepository implements InvitationRepository {
         List<Invitation> items = itemsQuery.query(this::mapRow).list();
         long total = countQuery.query(Long.class).single();
         return new InvitationPage(items, q.page(), q.size(), total);
+    }
+
+    @Override
+    public Optional<Invitation> findActiveResidentPass(UUID userId, UUID lotId) {
+        return jdbc.sql("""
+                SELECT id, neighborhood_id, lot_id, created_by, type, status,
+                       guest_name, guest_document, companions, notes,
+                       valid_from, valid_until, weekdays, daily_from, daily_until,
+                       max_uses, used_count, token_kid, jti, resident_pass, created_at
+                  FROM invitations
+                 WHERE created_by = :uid AND lot_id = :lid
+                   AND resident_pass = TRUE AND status = 'ACTIVE'
+                 LIMIT 1
+                """)
+                .param("uid", userId)
+                .param("lid", lotId)
+                .query(this::mapRow)
+                .optional();
     }
 
     @Override
@@ -214,7 +233,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 rs.getInt("used_count"),
                 rs.getString("token_kid"),
                 rs.getObject("jti", UUID.class),
-                false,
+                rs.getBoolean("resident_pass"),
                 rs.getTimestamp("created_at").toInstant());
     }
 

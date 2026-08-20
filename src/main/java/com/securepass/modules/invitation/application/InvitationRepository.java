@@ -23,6 +23,8 @@ public interface InvitationRepository {
 
     List<RevokedEntry> listRevoked(UUID neighborhoodId, java.time.Instant since, int limit);
 
+    Optional<Invitation> findActiveResidentPass(UUID userId, UUID lotId);
+
     record ListQuery(
             UUID neighborhoodId,
             List<UUID> lotIdsAllowed,
