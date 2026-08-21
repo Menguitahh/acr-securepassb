@@ -25,6 +25,7 @@ public class RecordAccessAttemptUseCase {
     private final LotStatusQuery lots;
     private final AccessLogRepository logs;
     private final StayLifecycle stayLifecycle;
+    private final com.securepass.shared.metrics.AccessMetrics metrics;
 
     public RecordAccessAttemptUseCase(
             ConsumeAccessUseCase consumeUseCase,
@@ -32,13 +33,15 @@ public class RecordAccessAttemptUseCase {
             InvitationRepository invitations,
             LotStatusQuery lots,
             AccessLogRepository logs,
-            StayLifecycle stayLifecycle) {
+            StayLifecycle stayLifecycle,
+            com.securepass.shared.metrics.AccessMetrics metrics) {
         this.consumeUseCase = consumeUseCase;
         this.validateUseCase = validateUseCase;
         this.invitations = invitations;
         this.lots = lots;
         this.logs = logs;
         this.stayLifecycle = stayLifecycle;
+        this.metrics = metrics;
     }
 
     public Result record(Command cmd) {
@@ -48,6 +51,7 @@ public class RecordAccessAttemptUseCase {
         if (existing.isPresent()) return reconstruct(existing.get());
 
         AccessDecision decision = decide(cmd);
+        metrics.recordResult(metricLabel(decision), cmd.syncedOffline() ? "sync" : "validate");
         // NEEDS_ENROLLMENT no es un intento de acceso completado: no se persiste.
         // El guardia continua con /access/enroll (clientEventId nuevo).
         if (decision instanceof AccessDecision.NeedsEnrollment) {
@@ -132,6 +136,12 @@ public class RecordAccessAttemptUseCase {
                 cmd.syncedOffline(),
                 clockSkew,
                 cmd.clientEventId());
+    }
+
+    private static String metricLabel(AccessDecision decision) {
+        if (decision instanceof AccessDecision.Allowed) return "ALLOWED";
+        if (decision instanceof AccessDecision.NeedsEnrollment) return "NEEDS_ENROLLMENT";
+        return ((AccessDecision.Denied) decision).reason().name();
     }
 
     public record Command(
