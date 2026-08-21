@@ -137,6 +137,23 @@ public class StayJdbcRepository implements StayRepository {
     }
 
     @Override
+    public void markResidentNotified(UUID stayId, java.time.Instant at) {
+        jdbc.sql("UPDATE stays SET resident_notified_at = :at WHERE id = :id")
+                .param("id", stayId)
+                .param("at", Timestamp.from(at))
+                .update();
+    }
+
+    @Override
+    public java.util.Optional<java.time.Instant> findResidentNotifiedAt(UUID stayId) {
+        return jdbc.sql("SELECT resident_notified_at FROM stays WHERE id = :id")
+                .param("id", stayId)
+                .query((rs, i) -> rs.getTimestamp("resident_notified_at"))
+                .optional()
+                .map(ts -> ts == null ? null : ts.toInstant());
+    }
+
+    @Override
     public void close(Stay s) {
         jdbc.sql("""
                 UPDATE stays

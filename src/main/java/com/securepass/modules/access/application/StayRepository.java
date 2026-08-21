@@ -20,4 +20,8 @@ public interface StayRepository {
     void close(Stay closedStay);
 
     java.util.List<OpenStayView> listOpenByNeighborhood(java.util.UUID neighborhoodId);
+
+    void markResidentNotified(UUID stayId, java.time.Instant at);
+
+    java.util.Optional<java.time.Instant> findResidentNotifiedAt(UUID stayId);
 }

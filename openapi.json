@@ -10,6 +10,37 @@
     }
   ],
   "paths" : {
+    "/api/v1/stays/{id}/notify-resident" : {
+      "post" : {
+        "tags" : [
+          "notify-resident-controller"
+        ],
+        "operationId" : "notify",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotifyResidentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stays/{id}/close" : {
       "post" : {
         "tags" : [
@@ -769,6 +800,23 @@
   },
   "components" : {
     "schemas" : {
+      "NotifyResidentResponse" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "notifiedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "minutesRemaining" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
       "CloseStayRequest" : {
         "required" : [
           "gateId"
