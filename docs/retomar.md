@@ -1,6 +1,6 @@
 # Retomar sesion
 
-Snapshot para reabrir el trabajo. Actualizado: 2026-08-20.
+Snapshot para reabrir el trabajo. Actualizado: 2026-08-21.
 
 ## Estado
 
@@ -8,59 +8,118 @@ Rama base: `develop`, limpia y al dia con `origin/develop`.
 
 Spring Boot en 3.3.13.
 
-Plan actual: cerrar el backend entero en 4 tandas (21 issues).
+Plan: cerrar el backend entero en 4 tandas (21 issues).
 
 ## Tandas
 
 - **Tanda A - Desbloqueos**: WBS-11, 12, 21, 20. **CERRADA.**
-- **Tanda B - Adenda v1.1**: WBS-59, 60, 61, 65, 66, 67, 70, 71. En curso.
-- **Tanda C - Operacion de garita**: WBS-26, 27, 28, 9.
-- **Tanda D - Endurecimiento**: WBS-54, 55, 56, 57.
+- **Tanda B - Adenda v1.1**: WBS-59, 60, 61, 65, 66, 67, 70, 71. **CERRADA.**
+- **Tanda C - Operacion de garita**: WBS-26, 27, 28, 9. **CERRADA.**
+- **Tanda D - Endurecimiento**: WBS-54, 55, 56, 57. En curso.
 
 Fuera de alcance: Fase 6 (dashboard admin web, D-03).
 
-## Issues cerrados en esta sesion
+## Issues cerrados hasta ahora en la sesion
 
-- [x] WBS-11 · Gestion de lotes (#69, `5622006`)
-- [x] WBS-12 · Permisos de unidad familiar (#70, `26a3a6b`)
-- [x] WBS-21 · Pase personal del residente (#71, `407aaa1`)
-- [x] WBS-20 · Materializar EXPIRED con job programado (#72, `16e091b`)
-- [x] WBS-59 · DNI obligatorio en invitacion (#68) — cerro rama colgada
-- [x] WBS-60 · Dominio y API de enrolamiento por DNI (#73, `389971e`)
-- [x] WBS-61 · NEEDS_ENROLLMENT en validacion (#74, `7aa05a3`, fix #75)
-- [x] WBS-65 · Dominio de estadias con hook por acceso (#76, `fba9204`)
-- [x] WBS-66 · Endpoint de presentes por barrio (#77, `62b9603`)
+**Tanda A** (todos en develop):
+- WBS-11 · Gestion de lotes (#69)
+- WBS-12 · Permisos de unidad familiar (#70)
+- WBS-21 · Pase personal del residente (#71)
+- WBS-20 · Materializar EXPIRED con job programado (#72)
 
-Tambien: `chore: agregar seed de desarrollo y documentacion de setup`
-(`022f042`) y `docs(spec): agregar 7.6 unidad familiar`.
+**Tanda B**:
+- WBS-59 · DNI obligatorio en invitacion (#68)
+- WBS-60 · Dominio y API de enrolamiento por DNI (#73)
+- WBS-61 · NEEDS_ENROLLMENT en validacion (#74, fix #75)
+- WBS-65 · Dominio de estadias con hook por acceso (#76)
+- WBS-66 · Endpoint de presentes por barrio (#77)
+- WBS-67 · Cierre manual de estadia por el guardia (#78)
+- WBS-70 · Aviso al residente desde estadia abierta (#79)
+- WBS-71 · Extension de invitacion por politica del barrio (#80)
+
+**Tanda C**:
+- WBS-27 · Turnos de guardia (#81) — se hizo antes de 26 por dependencia
+- WBS-26 · Ingreso manual sin QR con turno abierto (#82)
+- WBS-28 · Bitacora consultable con filtros y aislamiento (#83)
+- WBS-9 · Rate limiting con Redis sliding window (#84)
+
+**Tanda D**:
+- WBS-54 · Auditoria de seguridad + IDOR test (#85)
+- WBS-55 · EXPLAIN ANALYZE + inventario de indices (#86, doc-only)
 
 ## Que sigue
 
-Proximo: **WBS-67 Cierre manual de estadia** (`securepassb`, rama
-`feature/stay-manual-close`).
+**PR abierto sin mergear: WBS-57 (#87)** `chore/observability-setup`.
+CI probablemente en verde (correr `gh pr checks 87`). Cambios:
+- Actuator: `/metrics`, `/prometheus` expuestos con histograma y
+  percentiles p50/p95/p99 sobre `http.server.requests`.
+- `AccessMetrics` counter `securepass.access.results{result, source}`
+  inyectado en `RecordAccessAttemptUseCase`.
+- `logback-spring.xml` con `LogstashEncoder` en profile `prod` para
+  JSON estructurado; dev sigue con pattern legible.
+- Dependencies nuevas: `micrometer-registry-prometheus`,
+  `logstash-logback-encoder:7.4`.
 
-Criterios:
-- `POST /api/v1/stays/{id}/close` (rol GUARD).
-- Marca `closed_manually = TRUE` y `closed_by = guardId`.
-- Append-only respetado: no toca `access_logs`, solo `stays`.
-- Rechaza cerrar una stay ya cerrada.
+Al reabrir: revisar PR #87, mergear si el CI esta verde, y seguir con:
 
-Notas para arrancar:
-- El dominio `Stay.close(exitLogId, at, manually, by)` exige `exitLogId`
-  no nulo. Un cierre manual no tiene egreso registrado. Ver si conviene
-  relajar el invariante (permitir `exitLogId` nullable) o registrar un
-  `access_log` sintetico.
-- Ponytail: el schema V4 permite `exit_log_id` NULL; alinear el domain
-  con eso es el camino corto.
+**WBS-56 Prueba de campo offline**. Ojo: el spec (linea 1533) lo lista
+como `securepassf` (frontend), rama `test/offline-field-validation`.
+El backend ya provee el sync (WBS-25 mergeado hace tiempo). Opciones:
+1. Confirmar con el usuario que va del lado frontend y cerrar Tanda D
+   sin ese issue en backend (WBS-57 seria el ultimo).
+2. Agregar un integration test backend que simule 200 eventos offline
+   syncados y verifique cero perdidas / duplicados / falsos permitidos.
 
-Despues de WBS-67 vienen 70 (aviso al residente) y 71 (extension de
-invitacion) para cerrar Tanda B.
+Preguntar antes de decidir.
 
 ## Pausas obligatorias
 
-- **WBS-70**: revisar antes de mergear (aviso al residente, cruce
-  push + notificacion).
-- **WBS-54** (Tanda D): checklist de seguridad item por item.
+- **WBS-70**: ya cumplida y mergeada.
+- **WBS-54**: ya cumplida y mergeada tras dos rondas de fixes
+  (rate limit por stay, drop residentUserId, cerrar 3 IDOR holes en
+  ManualAccess/CreateInvitation/ExtendInvitation, ampliar test IDOR
+  de 3 a 14 rutas).
+
+## Cambios de contrato acumulados que consume el frontend
+
+Regenerar el cliente OpenAPI. Endpoints nuevos desde el ultimo update:
+
+**Admin / padron**
+- `GET/POST /api/v1/admin/lots`, `PATCH /api/v1/admin/lots/{id}`
+- `GET/POST /api/v1/admin/lots/{id}/members`
+
+**Unidad familiar (titular)**
+- `GET /api/v1/family/lots/{lotId}/members`
+- `POST /api/v1/family/lots/{lotId}/members`
+- `PATCH /api/v1/family/lots/{lotId}/members/{userId}`
+
+**Residente**
+- `GET /api/v1/me/passes`
+- `POST /api/v1/invitations/{id}/extend`
+
+**Garita**
+- `POST /api/v1/access/enroll` (body lleva `token`, no `invitationId`)
+- `POST /api/v1/access/manual`
+- `POST /api/v1/shifts/open`, `POST /api/v1/shifts/close`,
+  `GET /api/v1/shifts/current`, `GET /api/v1/shifts?...`
+- `GET /api/v1/stays/open`
+- `POST /api/v1/stays/{id}/close`
+- `POST /api/v1/stays/{id}/notify-resident`
+- `GET /api/v1/access-logs?from=&to=&lotId=&result=&page=`
+
+**Comportamiento nuevo en endpoints existentes**
+- `POST /api/v1/invitations`: 422 con `rule="BR-03"` si el lote no
+  esta `ACTIVE`.
+- `POST /api/v1/access/validate`: puede devolver `NEEDS_ENROLLMENT`
+  con `{ result, invitationId, lot: {code} }` (sin `guest`). Frontend
+  usa el `invitationId` para el flujo de scan de DNI + `/access/enroll`
+  con un `clientEventId` NUEVO.
+- `POST /api/v1/access/validate`: si el `qrToken` es un residentPass
+  y el lote esta `SUSPENDED`, devuelve `ALLOWED` (US-08 excepcion).
+- Rate limits activos en `/auth/login` (5/15min por IP+email),
+  `/invitations` (30/hora), `/access/validate` (120/min por
+  `X-Device-Id` o IP), `/access/sync` (10/min por dispositivo).
+  Al 429 el header `Retry-After` indica los segundos.
 
 ## Reglas de sesion (vigentes)
 
@@ -70,28 +129,20 @@ invitacion) para cerrar Tanda B.
 4. Maximo 2 intentos por problema; al tercero, parar y preguntar.
 5. Leer solo los archivos que la tarea toca.
 6. Tests solo en `domain/` y `application/` (excepciones justificadas:
-   snapshot OpenAPI, integration para cascadas cross-modulo).
+   snapshot OpenAPI, integration para cascadas cross-modulo, IDOR).
 7. Si voy a apartarme de algo que el spec define, preguntar antes.
 8. Al terminar cada issue, working tree limpio y parado en `develop`.
-   Nada de ramas con cambios sin commitear.
-9. Al cerrar cada tanda: regenerar OpenAPI, listar cambios de API que
-   consume el frontend, y avisar para que el usuario pruebe.
-10. Cualquier cambio de payload/respuesta que consuma el frontend se
-    avisa explicito en el cierre del issue.
-
-Extras acordados en esta sesion:
-- Solo un actor (agente/editor) tocando el working tree por vez. El
-  frontend se aparto a `securepassf` y no vuelve a tocar este repo.
-- Credenciales de dev en `docs/seed.sql` y `README.md` estan en claro.
-  Repo privado, solo para maquinas de desarrollador; en staging/prod
-  se generan passwords aleatorias.
-- Cambios de contrato con el frontend: pedir el shape si el frontend
-  tiene una expectativa concreta; si no, decidir aca y avisar.
+9. Al cerrar cada tanda: regenerar OpenAPI, listar cambios de API y
+   avisar para que el usuario pruebe. En esta sesion el usuario
+   pidio explicitamente NO parar entre tandas B/C/D salvo pausas.
+10. Cambios de payload/respuesta que consuma el frontend se avisan
+    en el cierre del issue.
 
 ## Comandos utiles
 
 - Regenerar snapshot OpenAPI: `OPENAPI_UPDATE=true ./gradlew test`.
 - Correr suite completa: `./gradlew test`.
-- Build + tests: `./gradlew build`.
-- Env vars requeridas para correr la app localmente: ver `.env` o
-  `README.md`.
+- Env vars requeridas para correr la app: ver `.env` o `README.md`.
+- Nuevas env vars introducidas en esta sesion:
+  - `SECUREPASS_CORS_ALLOWED_ORIGINS` (csv, default `https://admin.securepass.app`)
+  - `SECUREPASS_INVITATION_EXPIRY_CRON` (default cada 15 min)
