@@ -27,6 +27,10 @@ public interface InvitationRepository {
 
     int expireOverdue(java.time.Instant cutoff);
 
+    int findExtensionCount(UUID id);
+
+    Invitation applyExtension(UUID id, java.time.Instant newValidUntil, int newExtensionCount);
+
     record ListQuery(
             UUID neighborhoodId,
             List<UUID> lotIdsAllowed,

@@ -1,6 +1,7 @@
 package com.securepass.modules.invitation.infrastructure.rest;
 
 import com.securepass.modules.invitation.application.CreateInvitationUseCase;
+import com.securepass.modules.invitation.application.ExtendInvitationUseCase;
 import com.securepass.modules.invitation.application.GetInvitationUseCase;
 import com.securepass.modules.invitation.application.IssuedInvitation;
 import com.securepass.modules.invitation.application.ListInvitationsUseCase;
@@ -36,6 +37,7 @@ public class InvitationController {
     private final ListInvitationsUseCase listUseCase;
     private final GetInvitationUseCase getUseCase;
     private final RevokeInvitationUseCase revokeUseCase;
+    private final ExtendInvitationUseCase extendUseCase;
     private final QrTokenIssuer qrTokenIssuer;
     private final NeighborhoodNameQuery neighborhoodNames;
     private final AccessGuard accessGuard;
@@ -46,6 +48,7 @@ public class InvitationController {
             ListInvitationsUseCase listUseCase,
             GetInvitationUseCase getUseCase,
             RevokeInvitationUseCase revokeUseCase,
+            ExtendInvitationUseCase extendUseCase,
             QrTokenIssuer qrTokenIssuer,
             NeighborhoodNameQuery neighborhoodNames,
             AccessGuard accessGuard,
@@ -54,6 +57,7 @@ public class InvitationController {
         this.listUseCase = listUseCase;
         this.getUseCase = getUseCase;
         this.revokeUseCase = revokeUseCase;
+        this.extendUseCase = extendUseCase;
         this.qrTokenIssuer = qrTokenIssuer;
         this.neighborhoodNames = neighborhoodNames;
         this.accessGuard = accessGuard;
@@ -88,6 +92,12 @@ public class InvitationController {
                 invitation.weekdays(), invitation.dailyFrom(), invitation.dailyUntil()));
         String name = neighborhoodNames.findName(invitation.neighborhoodId());
         return InvitationResponse.from(invitation, name, qrToken, shareUrlFor(invitation.id()));
+    }
+
+    @PostMapping("/{id}/extend")
+    public ExtendInvitationResponse extend(@PathVariable UUID id) {
+        CurrentUser actor = accessGuard.require();
+        return ExtendInvitationResponse.from(extendUseCase.extend(actor.userId(), id));
     }
 
     @PostMapping("/{id}/revoke")

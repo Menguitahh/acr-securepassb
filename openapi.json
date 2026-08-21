@@ -196,6 +196,37 @@
         }
       }
     },
+    "/api/v1/invitations/{id}/extend" : {
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "extend",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExtendInvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/family/lots/{lotId}/members" : {
       "get" : {
         "tags" : [
@@ -1027,6 +1058,27 @@
           },
           "shareUrl" : {
             "type" : "string"
+          }
+        }
+      },
+      "ExtendInvitationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "extensionCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "maxExtensions" : {
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },

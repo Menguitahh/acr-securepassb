@@ -24,4 +24,6 @@ public interface StayRepository {
     void markResidentNotified(UUID stayId, java.time.Instant at);
 
     java.util.Optional<java.time.Instant> findResidentNotifiedAt(UUID stayId);
+
+    void updateExpectedUntilByInvitation(UUID invitationId, java.time.Instant expectedUntil);
 }

@@ -145,6 +145,18 @@ public class StayJdbcRepository implements StayRepository {
     }
 
     @Override
+    public void updateExpectedUntilByInvitation(UUID invitationId, java.time.Instant expectedUntil) {
+        jdbc.sql("""
+                UPDATE stays
+                   SET expected_until = :expected
+                 WHERE invitation_id = :inv AND exited_at IS NULL
+                """)
+                .param("inv", invitationId)
+                .param("expected", Timestamp.from(expectedUntil))
+                .update();
+    }
+
+    @Override
     public java.util.Optional<java.time.Instant> findResidentNotifiedAt(UUID stayId) {
         return jdbc.sql("SELECT resident_notified_at FROM stays WHERE id = :id")
                 .param("id", stayId)

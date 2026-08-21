@@ -189,6 +189,32 @@ public class InvitationJdbcRepository implements InvitationRepository {
     }
 
     @Override
+    public int findExtensionCount(UUID id) {
+        return jdbc.sql("SELECT extension_count FROM invitations WHERE id = :id")
+                .param("id", id)
+                .query(Integer.class)
+                .optional()
+                .orElseThrow(() -> new IllegalStateException("invitation " + id + " no encontrada"));
+    }
+
+    @Override
+    public Invitation applyExtension(UUID id, Instant newValidUntil, int newExtensionCount) {
+        int rows = jdbc.sql("""
+                UPDATE invitations
+                   SET valid_until = :until,
+                       extension_count = :count,
+                       updated_at = now()
+                 WHERE id = :id
+                """)
+                .param("id", id)
+                .param("until", Timestamp.from(newValidUntil))
+                .param("count", newExtensionCount)
+                .update();
+        if (rows == 0) throw new IllegalStateException("invitation " + id + " no encontrada al extender");
+        return findById(id).orElseThrow(() -> new IllegalStateException("invitation " + id + " desaparecio"));
+    }
+
+    @Override
     public int expireOverdue(Instant cutoff) {
         return jdbc.sql("""
                 UPDATE invitations
