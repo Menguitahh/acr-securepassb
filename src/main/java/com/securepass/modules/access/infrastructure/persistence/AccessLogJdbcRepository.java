@@ -27,14 +27,18 @@ public class AccessLogJdbcRepository implements AccessLogRepository {
     @Override
     public AccessLog saveIdempotent(AccessLog log) {
         try {
+            // BR-09/WBS-27: si el guardia tiene un turno abierto, el log queda
+            // asociado a el via subquery. Sin turno abierto, shift_id = NULL.
             jdbc.sql("""
                     INSERT INTO access_logs (
-                        id, neighborhood_id, gate_id, guard_id, invitation_id, lot_id,
+                        id, neighborhood_id, gate_id, guard_id, shift_id, invitation_id, lot_id,
                         direction, subject_type, result, denial_reason,
                         subject_name, subject_document, companions,
                         token_jti, captured_at, synced_offline, clock_skew, client_event_id
                     ) VALUES (
-                        :id, :nid, :gate, :guard, :inv, :lot,
+                        :id, :nid, :gate, :guard,
+                        (SELECT id FROM guard_shifts WHERE guard_id = :guard AND ended_at IS NULL LIMIT 1),
+                        :inv, :lot,
                         :direction, :subject, :result, :reason,
                         :name, :doc, :comp,
                         :jti, :captured, :synced, :skew, :evt

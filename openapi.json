@@ -82,12 +82,72 @@
         }
       }
     },
+    "/api/v1/shifts/open" : {
+      "post" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "open",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OpenShiftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShiftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts/close" : {
+      "post" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "close_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CloseShiftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShiftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations" : {
       "get" : {
         "tags" : [
           "invitation-controller"
         ],
-        "operationId" : "list",
+        "operationId" : "list_1",
         "parameters" : [
           {
             "name" : "lotId",
@@ -232,7 +292,7 @@
         "tags" : [
           "family-controller"
         ],
-        "operationId" : "list_1",
+        "operationId" : "list_2",
         "parameters" : [
           {
             "name" : "lotId",
@@ -388,7 +448,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "parameters" : [
           {
             "name" : "page",
@@ -705,7 +765,7 @@
         "tags" : [
           "stays-controller"
         ],
-        "operationId" : "open",
+        "operationId" : "open_1",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -713,6 +773,78 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/OpenStaysResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts" : {
+      "get" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "list",
+        "parameters" : [
+          {
+            "name" : "gateId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "from",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ShiftResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts/current" : {
+      "get" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "current",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShiftResponse"
                 }
               }
             }
@@ -881,6 +1013,65 @@
           "closedBy" : {
             "type" : "string",
             "format" : "uuid"
+          }
+        }
+      },
+      "OpenShiftRequest" : {
+        "required" : [
+          "gateId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "handoverNotes" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "ShiftResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guardId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "handoverNotes" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CloseShiftRequest" : {
+        "type" : "object",
+        "properties" : {
+          "handoverNotes" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
           }
         }
       },
