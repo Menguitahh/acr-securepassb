@@ -639,6 +639,36 @@
         }
       }
     },
+    "/api/v1/access/manual" : {
+      "post" : {
+        "tags" : [
+          "access-manual-controller"
+        ],
+        "operationId" : "manual",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ManualAccessRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ManualAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access/enroll" : {
       "post" : {
         "tags" : [
@@ -1753,6 +1783,67 @@
             "items" : {
               "$ref" : "#/components/schemas/Conflict"
             }
+          }
+        }
+      },
+      "ManualAccessRequest" : {
+        "required" : [
+          "clientEventId",
+          "gateId",
+          "lotId",
+          "subjectDocument",
+          "subjectName"
+        ],
+        "type" : "object",
+        "properties" : {
+          "subjectName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "subjectDocument" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ManualAccessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "subjectName" : {
+            "type" : "string"
+          },
+          "subjectDocument" : {
+            "type" : "string"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
