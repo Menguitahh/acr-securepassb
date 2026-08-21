@@ -15,6 +15,7 @@ import com.securepass.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,6 +66,7 @@ public class InvitationController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
     public ResponseEntity<InvitationResponse> create(@Valid @RequestBody CreateInvitationRequest request) {
         CurrentUser actor = accessGuard.require();
         IssuedInvitation issued = createUseCase.create(actor.userId(), actor.neighborhoodId(), request.toCommand());
@@ -74,6 +76,7 @@ public class InvitationController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
     public PagedInvitationsResponse list(
             @RequestParam(required = false) UUID lotId,
             @RequestParam(required = false) InvitationStatus status,
@@ -83,6 +86,7 @@ public class InvitationController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
     public InvitationResponse detail(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         Invitation invitation = getUseCase.get(actor, id);
@@ -95,12 +99,14 @@ public class InvitationController {
     }
 
     @PostMapping("/{id}/extend")
+    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
     public ExtendInvitationResponse extend(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
-        return ExtendInvitationResponse.from(extendUseCase.extend(actor.userId(), id));
+        return ExtendInvitationResponse.from(extendUseCase.extend(actor.neighborhoodId(), actor.userId(), id));
     }
 
     @PostMapping("/{id}/revoke")
+    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
     public InvitationResponse revoke(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         Invitation revoked = revokeUseCase.revoke(actor, id);

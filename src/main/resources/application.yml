@@ -23,3 +23,5 @@ securepass:
   refresh:
     ttl-days: ${SECUREPASS_REFRESH_TTL_DAYS:30}
   master-key: ${SECUREPASS_MASTER_KEY}
+  cors:
+    allowed-origins: ${SECUREPASS_CORS_ALLOWED_ORIGINS:https://admin.securepass.app}

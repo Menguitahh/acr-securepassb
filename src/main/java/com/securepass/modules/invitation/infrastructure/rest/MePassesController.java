@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.application.IssueResidentPassesUseCase;
 import com.securepass.modules.invitation.application.ResidentPass;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,6 +24,7 @@ public class MePassesController {
     }
 
     @GetMapping("/passes")
+    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
     public PassesResponse passes() {
         CurrentUser actor = guard.require();
         List<ResidentPass> passes = useCase.issue(actor.userId(), actor.neighborhoodId());

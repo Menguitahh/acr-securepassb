@@ -84,7 +84,7 @@ class ExtendInvitationUseCaseTest {
         Instant expectedNew = inv.validUntil().plus(Duration.ofMinutes(120));
         when(invitations.applyExtension(invitationId, expectedNew, 1)).thenReturn(extended(expectedNew));
 
-        ExtendInvitationUseCase.Result result = useCase.extend(actorUserId, invitationId);
+        ExtendInvitationUseCase.Result result = useCase.extend(neighborhoodId, actorUserId, invitationId);
 
         assertThat(result.extensionCount()).isEqualTo(1);
         assertThat(result.maxExtensions()).isEqualTo(2);
@@ -99,7 +99,7 @@ class ExtendInvitationUseCaseTest {
         when(policies.find(neighborhoodId)).thenReturn(Optional.of(new NeighborhoodExtensionPolicy(2, 120)));
         when(invitations.findExtensionCount(invitationId)).thenReturn(2);
 
-        assertThatThrownBy(() -> useCase.extend(actorUserId, invitationId))
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .satisfies(ex -> assertThat(((BusinessRuleViolationException) ex).rule()).isEqualTo("BR-16"));
         verify(invitations, never()).applyExtension(any(), any(), org.mockito.ArgumentMatchers.anyInt());
@@ -114,7 +114,7 @@ class ExtendInvitationUseCaseTest {
         when(family.find(actorUserId, lotId)).thenReturn(Optional.of(
                 new FamilyMembership(actorUserId, lotId, false, true, true)));
 
-        assertThatThrownBy(() -> useCase.extend(actorUserId, invitationId))
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
                 .isInstanceOf(AccessDeniedException.class);
         verify(invitations, never()).applyExtension(any(), any(), org.mockito.ArgumentMatchers.anyInt());
     }
@@ -131,7 +131,7 @@ class ExtendInvitationUseCaseTest {
         Instant expectedNew = inv.validUntil().plus(Duration.ofMinutes(120));
         when(invitations.applyExtension(eq(invitationId), eq(expectedNew), eq(1))).thenReturn(extended(expectedNew));
 
-        useCase.extend(actorUserId, invitationId);
+        useCase.extend(neighborhoodId, actorUserId, invitationId);
 
         verify(invitations).applyExtension(invitationId, expectedNew, 1);
     }
@@ -140,7 +140,7 @@ class ExtendInvitationUseCaseTest {
     void invitationInexistenteEs404() {
         when(invitations.findById(invitationId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.extend(actorUserId, invitationId))
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -148,7 +148,7 @@ class ExtendInvitationUseCaseTest {
     void solaAcceptaActive() {
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation(actorUserId, InvitationStatus.REVOKED)));
 
-        assertThatThrownBy(() -> useCase.extend(actorUserId, invitationId))
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
                 .isInstanceOf(BusinessRuleViolationException.class);
     }
 }

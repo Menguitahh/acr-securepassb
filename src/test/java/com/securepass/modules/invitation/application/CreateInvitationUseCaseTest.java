@@ -51,6 +51,7 @@ class CreateInvitationUseCaseTest {
         when(family.find(userId, lotId)).thenReturn(Optional.of(
                 new FamilyMembership(userId, lotId, false, canInvite, true)));
         when(lots.find(lotId)).thenReturn(Optional.of("ACTIVE"));
+        when(lots.findNeighborhoodId(lotId)).thenReturn(Optional.of(neighborhoodId));
         SigningKey key = new SigningKey(
                 UUID.randomUUID(), neighborhoodId, "kid-1",
                 new byte[32], "enc", true, Instant.now(), null);
@@ -204,6 +205,7 @@ class CreateInvitationUseCaseTest {
         when(family.find(userId, lotId)).thenReturn(Optional.of(
                 new FamilyMembership(userId, lotId, false, true, true)));
         when(lots.find(lotId)).thenReturn(Optional.of("ACTIVE"));
+        when(lots.findNeighborhoodId(lotId)).thenReturn(Optional.of(neighborhoodId));
         when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, singleCommand()))

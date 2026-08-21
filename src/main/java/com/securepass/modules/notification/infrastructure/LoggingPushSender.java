@@ -20,8 +20,10 @@ public class LoggingPushSender implements PushSender {
 
     @Override
     public void notifyStayWarning(UUID residentUserId, StayWarning payload) {
-        LOG.info("push.stay-warning resident={} stay={} subject={} entered={} minutesRemaining={}",
-                residentUserId, payload.stayId(), payload.subjectName(),
+        // Sin PII (spec 5.5): resident/stay/entered como identificadores;
+        // subjectName queda fuera para no filtrar identidad del invitado.
+        LOG.info("push.stay-warning resident={} stay={} entered={} minutesRemaining={}",
+                residentUserId, payload.stayId(),
                 payload.enteredAt(), payload.minutesRemaining());
     }
 }

@@ -8,6 +8,7 @@ import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,12 +42,14 @@ public class FamilyController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
     public List<FamilyMemberResponse> list(@PathVariable UUID lotId) {
         CurrentUser actor = accessGuard.require();
         return listUseCase.list(actor, lotId).stream().map(FamilyMemberResponse::from).toList();
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('RESIDENT_OWNER')")
     public ResponseEntity<FamilyMemberResponse> add(
             @PathVariable UUID lotId,
             @Valid @RequestBody AddFamilyMemberRequest request) {
@@ -59,6 +62,7 @@ public class FamilyController {
     }
 
     @PatchMapping("/{userId}")
+    @PreAuthorize("hasRole('RESIDENT_OWNER')")
     public FamilyMemberResponse update(
             @PathVariable UUID lotId,
             @PathVariable UUID userId,

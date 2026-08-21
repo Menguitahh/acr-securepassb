@@ -30,16 +30,20 @@ class ManualAccessUseCaseTest {
     private UUID lotId;
     private UUID clientEventId;
 
+    private LotStatusQuery lotBarrio;
+
     @BeforeEach
     void setUp() {
         shifts = mock(OpenShiftQuery.class);
+        lotBarrio = mock(LotStatusQuery.class);
         logs = mock(AccessLogRepository.class);
-        useCase = new ManualAccessUseCase(shifts, logs);
+        useCase = new ManualAccessUseCase(shifts, lotBarrio, logs);
         neighborhoodId = UUID.randomUUID();
         gateId = UUID.randomUUID();
         guardId = UUID.randomUUID();
         lotId = UUID.randomUUID();
         clientEventId = UUID.randomUUID();
+        when(lotBarrio.findNeighborhoodId(lotId)).thenReturn(Optional.of(neighborhoodId));
         when(logs.saveIdempotent(any(AccessLog.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 

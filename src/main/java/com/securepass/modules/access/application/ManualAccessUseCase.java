@@ -3,6 +3,7 @@ package com.securepass.modules.access.application;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.Direction;
 import com.securepass.modules.access.domain.SubjectType;
+import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +21,12 @@ import java.util.UUID;
 public class ManualAccessUseCase {
 
     private final OpenShiftQuery shifts;
+    private final LotStatusQuery lots;
     private final AccessLogRepository logs;
 
-    public ManualAccessUseCase(OpenShiftQuery shifts, AccessLogRepository logs) {
+    public ManualAccessUseCase(OpenShiftQuery shifts, LotStatusQuery lots, AccessLogRepository logs) {
         this.shifts = shifts;
+        this.lots = lots;
         this.logs = logs;
     }
 
@@ -36,6 +39,13 @@ public class ManualAccessUseCase {
 
         if (!shifts.hasOpenShift(cmd.guardId())) {
             throw new StateConflictException("el guardia no tiene turno abierto");
+        }
+
+        // Aislamiento por barrio (spec 5.5): el lote debe pertenecer al barrio del actor.
+        UUID lotBarrio = lots.findNeighborhoodId(cmd.lotId())
+                .orElseThrow(() -> new ResourceNotFoundException("lote", cmd.lotId()));
+        if (!lotBarrio.equals(cmd.neighborhoodId())) {
+            throw new ResourceNotFoundException("lote", cmd.lotId());
         }
 
         AccessLog log = new AccessLog(

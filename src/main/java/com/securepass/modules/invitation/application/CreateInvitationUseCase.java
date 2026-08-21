@@ -51,6 +51,13 @@ public class CreateInvitationUseCase {
                     "usuario sin permiso para invitar en este lote");
         }
 
+        // Aislamiento por barrio (spec 5.5): el lote debe estar en el barrio del actor.
+        UUID lotBarrio = lots.findNeighborhoodId(cmd.lotId())
+                .orElseThrow(() -> new BusinessRuleViolationException("BR-03", "lote inexistente"));
+        if (!lotBarrio.equals(actorNeighborhoodId)) {
+            throw new BusinessRuleViolationException("BR-01", "lote fuera del barrio del actor");
+        }
+
         String lotStatus = lots.find(cmd.lotId())
                 .orElseThrow(() -> new BusinessRuleViolationException("BR-03", "lote inexistente"));
         if (!"ACTIVE".equals(lotStatus)) {

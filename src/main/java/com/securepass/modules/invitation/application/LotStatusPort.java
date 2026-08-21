@@ -6,4 +6,6 @@ import java.util.UUID;
 public interface LotStatusPort {
 
     Optional<String> find(UUID lotId);
+
+    Optional<UUID> findNeighborhoodId(UUID lotId);
 }

@@ -23,4 +23,12 @@ public class LotStatusJdbcPort implements LotStatusPort {
                 .query(String.class)
                 .optional();
     }
+
+    @Override
+    public Optional<UUID> findNeighborhoodId(UUID lotId) {
+        return jdbc.sql("SELECT neighborhood_id FROM lots WHERE id = :id")
+                .param("id", lotId)
+                .query(UUID.class)
+                .optional();
+    }
 }

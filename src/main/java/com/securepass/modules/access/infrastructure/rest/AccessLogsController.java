@@ -4,6 +4,7 @@ import com.securepass.modules.access.application.ListAccessLogsUseCase;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +26,7 @@ public class AccessLogsController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
     public AccessLogsResponse list(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,

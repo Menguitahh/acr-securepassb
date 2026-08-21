@@ -41,12 +41,17 @@ public class ExtendInvitationUseCase {
     }
 
     @Transactional
-    public Result extend(UUID actorUserId, UUID invitationId) {
+    public Result extend(UUID actorNeighborhoodId, UUID actorUserId, UUID invitationId) {
+        if (actorNeighborhoodId == null) throw new IllegalArgumentException("actorNeighborhoodId requerido");
         if (actorUserId == null) throw new IllegalArgumentException("actorUserId requerido");
         if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
 
         Invitation inv = invitations.findById(invitationId)
                 .orElseThrow(() -> new ResourceNotFoundException("invitation", invitationId));
+        // Aislamiento por barrio (spec 5.5).
+        if (!inv.neighborhoodId().equals(actorNeighborhoodId)) {
+            throw new ResourceNotFoundException("invitation", invitationId);
+        }
         assertActorCanExtend(actorUserId, inv);
 
         if (inv.status() != InvitationStatus.ACTIVE) {

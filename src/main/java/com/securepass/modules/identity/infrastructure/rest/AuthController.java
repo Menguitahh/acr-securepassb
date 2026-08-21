@@ -9,6 +9,7 @@ import com.securepass.shared.ratelimit.RateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,6 +44,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @PreAuthorize("permitAll()")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         String key = "login:" + clientIp(http) + ":" + request.identifier().toLowerCase(Locale.ROOT);
         Optional<Duration> retry = limiter.tryAcquire(key, LOGIN_LIMIT, LOGIN_WINDOW);
@@ -54,6 +56,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
+    @PreAuthorize("permitAll()")
     public RefreshResponse refresh(@Valid @RequestBody RefreshRequest request) {
         RefreshTokenUseCase.Result result = refreshUseCase.refresh(request.refreshToken());
         if (result instanceof RefreshTokenUseCase.Success success) return RefreshResponse.from(success);
@@ -61,6 +64,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
         logoutUseCase.logout(request.refreshToken());
         return ResponseEntity.noContent().build();

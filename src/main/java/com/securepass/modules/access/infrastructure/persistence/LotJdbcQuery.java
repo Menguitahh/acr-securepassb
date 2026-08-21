@@ -20,6 +20,14 @@ public class LotJdbcQuery implements LotStatusQuery {
     }
 
     @Override
+    public Optional<UUID> findNeighborhoodId(UUID lotId) {
+        return jdbc.sql("SELECT neighborhood_id FROM lots WHERE id = :id")
+                .param("id", lotId)
+                .query(UUID.class)
+                .optional();
+    }
+
+    @Override
     public Optional<LotSnapshot> find(UUID lotId) {
         return jdbc.sql("""
                 SELECT l.id, l.code, l.status, n.timezone
