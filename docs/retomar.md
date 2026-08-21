@@ -8,14 +8,14 @@ Rama base: `develop`, limpia y al dia con `origin/develop`.
 
 Spring Boot en 3.3.13.
 
-Plan: cerrar el backend entero en 4 tandas (21 issues).
+Plan: cerrar el backend entero en 4 tandas (21 issues). **BACKEND CERRADO.**
 
 ## Tandas
 
 - **Tanda A - Desbloqueos**: WBS-11, 12, 21, 20. **CERRADA.**
 - **Tanda B - Adenda v1.1**: WBS-59, 60, 61, 65, 66, 67, 70, 71. **CERRADA.**
 - **Tanda C - Operacion de garita**: WBS-26, 27, 28, 9. **CERRADA.**
-- **Tanda D - Endurecimiento**: WBS-54, 55, 56, 57. En curso.
+- **Tanda D - Endurecimiento**: WBS-54, 55, 56, 57. **CERRADA.**
 
 Fuera de alcance: Fase 6 (dashboard admin web, D-03).
 
@@ -46,31 +46,12 @@ Fuera de alcance: Fase 6 (dashboard admin web, D-03).
 **Tanda D**:
 - WBS-54 · Auditoria de seguridad + IDOR test (#85)
 - WBS-55 · EXPLAIN ANALYZE + inventario de indices (#86, doc-only)
+- WBS-56 · Prueba de campo offline: 200 escaneos + sync (#88, test)
+- WBS-57 · Observabilidad: metricas Prometheus + logs JSON (#87)
 
 ## Que sigue
 
-**PR abierto sin mergear: WBS-57 (#87)** `chore/observability-setup`.
-CI probablemente en verde (correr `gh pr checks 87`). Cambios:
-- Actuator: `/metrics`, `/prometheus` expuestos con histograma y
-  percentiles p50/p95/p99 sobre `http.server.requests`.
-- `AccessMetrics` counter `securepass.access.results{result, source}`
-  inyectado en `RecordAccessAttemptUseCase`.
-- `logback-spring.xml` con `LogstashEncoder` en profile `prod` para
-  JSON estructurado; dev sigue con pattern legible.
-- Dependencies nuevas: `micrometer-registry-prometheus`,
-  `logstash-logback-encoder:7.4`.
-
-Al reabrir: revisar PR #87, mergear si el CI esta verde, y seguir con:
-
-**WBS-56 Prueba de campo offline**. Ojo: el spec (linea 1533) lo lista
-como `securepassf` (frontend), rama `test/offline-field-validation`.
-El backend ya provee el sync (WBS-25 mergeado hace tiempo). Opciones:
-1. Confirmar con el usuario que va del lado frontend y cerrar Tanda D
-   sin ese issue en backend (WBS-57 seria el ultimo).
-2. Agregar un integration test backend que simule 200 eventos offline
-   syncados y verifique cero perdidas / duplicados / falsos permitidos.
-
-Preguntar antes de decidir.
+Backend cerrado. Frontend es la siguiente pieza.
 
 ## Pausas obligatorias
 
