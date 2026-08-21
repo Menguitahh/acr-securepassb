@@ -20,6 +20,39 @@ public class StayJdbcRepository implements StayRepository {
     }
 
     @Override
+    public Optional<Stay> findById(UUID id) {
+        return jdbc.sql("""
+                SELECT id, neighborhood_id, invitation_id, lot_id,
+                       subject_name, subject_document, companions,
+                       entry_log_id, exit_log_id, entered_at, exited_at,
+                       expected_until, closed_manually, closed_by
+                  FROM stays
+                 WHERE id = :id
+                """)
+                .param("id", id)
+                .query(this::mapRow)
+                .optional();
+    }
+
+    private Stay mapRow(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+        return new Stay(
+                rs.getObject("id", UUID.class),
+                rs.getObject("neighborhood_id", UUID.class),
+                rs.getObject("invitation_id", UUID.class),
+                rs.getObject("lot_id", UUID.class),
+                rs.getString("subject_name"),
+                rs.getString("subject_document"),
+                rs.getInt("companions"),
+                rs.getObject("entry_log_id", UUID.class),
+                rs.getObject("exit_log_id", UUID.class),
+                rs.getTimestamp("entered_at").toInstant(),
+                rs.getTimestamp("exited_at") == null ? null : rs.getTimestamp("exited_at").toInstant(),
+                rs.getTimestamp("expected_until").toInstant(),
+                rs.getBoolean("closed_manually"),
+                rs.getObject("closed_by", UUID.class));
+    }
+
+    @Override
     public Optional<Stay> findOpenByInvitationId(UUID invitationId) {
         return jdbc.sql("""
                 SELECT id, neighborhood_id, invitation_id, lot_id,

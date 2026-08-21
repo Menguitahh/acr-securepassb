@@ -10,6 +10,47 @@
     }
   ],
   "paths" : {
+    "/api/v1/stays/{id}/close" : {
+      "post" : {
+        "tags" : [
+          "stays-controller"
+        ],
+        "operationId" : "close",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CloseStayRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClosedStayResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations" : {
       "get" : {
         "tags" : [
@@ -728,6 +769,42 @@
   },
   "components" : {
     "schemas" : {
+      "CloseStayRequest" : {
+        "required" : [
+          "gateId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "ClosedStayResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "exitLogId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "exitedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "closedManually" : {
+            "type" : "boolean"
+          },
+          "closedBy" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
       "CreateInvitationRequest" : {
         "required" : [
           "guestDocument",
