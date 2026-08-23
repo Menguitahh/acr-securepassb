@@ -117,7 +117,7 @@ public class StayJdbcRepository implements StayRepository {
     @Override
     public java.util.List<com.securepass.modules.access.application.OpenStayView> listOpenByNeighborhood(UUID neighborhoodId) {
         return jdbc.sql("""
-                SELECT s.id, s.subject_name, l.code AS lot_code,
+                SELECT s.id, s.invitation_id, s.subject_name, l.code AS lot_code,
                        s.entered_at, s.expected_until, s.warned_at,
                        s.exit_requested_at
                   FROM stays s
@@ -129,6 +129,7 @@ public class StayJdbcRepository implements StayRepository {
                 .param("nid", neighborhoodId)
                 .query((rs, i) -> new com.securepass.modules.access.application.OpenStayView(
                         rs.getObject("id", UUID.class),
+                        rs.getObject("invitation_id", UUID.class),
                         rs.getString("subject_name"),
                         rs.getString("lot_code"),
                         rs.getTimestamp("entered_at").toInstant(),

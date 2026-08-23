@@ -2166,6 +2166,10 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "invitationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "subjectName" : {
             "type" : "string"
           },

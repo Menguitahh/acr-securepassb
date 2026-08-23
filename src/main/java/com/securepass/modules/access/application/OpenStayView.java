@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record OpenStayView(
         UUID id,
+        UUID invitationId,
         String subjectName,
         String lotCode,
         Instant enteredAt,
@@ -17,5 +18,6 @@ public record OpenStayView(
         if (subjectName == null || subjectName.isBlank()) throw new IllegalArgumentException("subjectName requerido");
         if (enteredAt == null) throw new IllegalArgumentException("enteredAt requerido");
         if (expectedUntil == null) throw new IllegalArgumentException("expectedUntil requerido");
+        // invitationId es nullable: estadias MANUAL (US-21) no tienen invitacion.
     }
 }

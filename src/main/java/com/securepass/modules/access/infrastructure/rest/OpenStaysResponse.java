@@ -11,6 +11,7 @@ public record OpenStaysResponse(List<Item> stays) {
 
     public record Item(
             UUID id,
+            UUID invitationId,
             String subjectName,
             String lotCode,
             Instant enteredAt,
@@ -24,6 +25,7 @@ public record OpenStaysResponse(List<Item> stays) {
         List<Item> items = views.stream()
                 .map(v -> new Item(
                         v.id(),
+                        v.invitationId(),
                         v.subjectName(),
                         v.lotCode(),
                         v.enteredAt(),

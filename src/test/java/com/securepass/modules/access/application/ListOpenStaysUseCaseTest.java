@@ -22,7 +22,7 @@ class ListOpenStaysUseCaseTest {
         StayRepository repo = mock(StayRepository.class);
         UUID mine = UUID.randomUUID();
         OpenStayView view = new OpenStayView(
-                UUID.randomUUID(), "Maria Lopez", "M4-L12",
+                UUID.randomUUID(), UUID.randomUUID(), "Maria Lopez", "M4-L12",
                 Instant.parse("2026-08-20T15:00:00Z"),
                 Instant.parse("2026-08-20T23:00:00Z"), false, null);
         when(repo.listOpenByNeighborhood(mine)).thenReturn(List.of(view));

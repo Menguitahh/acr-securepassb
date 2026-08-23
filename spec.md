@@ -945,16 +945,23 @@ GET /api/v1/stays/open
   "stays": [
     {
       "id": "uuid",
+      "invitationId": "uuid",
       "subjectName": "María López",
       "lotCode": "M4-L12",
       "enteredAt": "2026-08-20T18:42:11Z",
       "expectedUntil": "2026-08-20T23:59:00Z",
       "minutesRemaining": 47,
-      "warned": false
+      "warned": false,
+      "exitRequestedAt": null
     }
   ]
 }
 ```
+
+`invitationId` puede ser `null` en estadías `MANUAL` (US-21, sin
+invitación asociada). El residente lo usa para invocar
+`/invitations/{id}/extend` y `/invitations/{id}/request-exit`; sin este
+campo el cliente no puede mapear una estadía a su invitación.
 
 Endpoints de residente para permanencia (US-42):
 
