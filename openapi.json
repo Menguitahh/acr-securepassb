@@ -391,6 +391,36 @@
         }
       }
     },
+    "/api/v1/devices" : {
+      "post" : {
+        "tags" : [
+          "device-controller"
+        ],
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterDeviceRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeviceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh" : {
       "post" : {
         "tags" : [
@@ -1493,6 +1523,47 @@
           },
           "active" : {
             "type" : "boolean"
+          }
+        }
+      },
+      "RegisterDeviceRequest" : {
+        "required" : [
+          "expoPushToken",
+          "platform"
+        ],
+        "type" : "object",
+        "properties" : {
+          "expoPushToken" : {
+            "maxLength" : 200,
+            "minLength" : 10,
+            "type" : "string"
+          },
+          "platform" : {
+            "type" : "string",
+            "enum" : [
+              "IOS",
+              "ANDROID"
+            ]
+          }
+        }
+      },
+      "DeviceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "platform" : {
+            "type" : "string",
+            "enum" : [
+              "IOS",
+              "ANDROID"
+            ]
+          },
+          "lastSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },

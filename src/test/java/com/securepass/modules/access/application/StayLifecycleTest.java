@@ -11,9 +11,11 @@ import com.securepass.modules.invitation.domain.InvitationType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,6 +31,8 @@ class StayLifecycleTest {
     private static final Instant NOW = Instant.parse("2026-08-20T15:00:00Z");
 
     private StayRepository stays;
+    private ApplicationEventPublisher events;
+    private LotStatusQuery lots;
     private StayLifecycle lifecycle;
     private UUID neighborhoodId;
     private UUID lotId;
@@ -39,13 +43,17 @@ class StayLifecycleTest {
     @BeforeEach
     void setUp() {
         stays = mock(StayRepository.class);
-        lifecycle = new StayLifecycle(stays);
+        events = mock(ApplicationEventPublisher.class);
+        lots = mock(LotStatusQuery.class);
+        lifecycle = new StayLifecycle(stays, events, lots);
         neighborhoodId = UUID.randomUUID();
         lotId = UUID.randomUUID();
         invitationId = UUID.randomUUID();
         gateId = UUID.randomUUID();
         guardId = UUID.randomUUID();
         when(stays.openIfNotOpen(any(Stay.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(lots.find(any(UUID.class))).thenReturn(Optional.of(new LotSnapshot(
+                lotId, "M4-L12", com.securepass.modules.access.domain.LotStatus.ACTIVE, ZoneId.of("UTC"))));
     }
 
     private Invitation guestInvitation(boolean residentPass) {
@@ -139,9 +147,10 @@ class StayLifecycleTest {
         verify(stays, never()).close(any());
     }
 
-    // Un segundo IN con la misma invitacion no crea otra stay (unique index).
+    // Un segundo IN con la misma invitacion no crea otra stay (unique index)
+    // ni republica el evento (evita re-push cuando el guardia escanea 2 veces).
     @Test
-    void segundoInDevuelveStayExistente() {
+    void segundoInDevuelveStayExistenteYNoRepublicaEvento() {
         Invitation inv = guestInvitation(false);
         Stay existing = new Stay(
                 UUID.randomUUID(), neighborhoodId, invitationId, lotId,
@@ -153,5 +162,55 @@ class StayLifecycleTest {
         Optional<Stay> result = lifecycle.onAllowed(log(Direction.IN, true, null), inv);
 
         assertThat(result).contains(existing);
+        verify(events, never()).publishEvent(any(GuestArrivedEvent.class));
+    }
+
+    // WBS-43: ingreso nuevo publica GuestArrivedEvent con enteredAt = capturedAt
+    // del log (no "now"), para respetar la hora real en sync offline.
+    @Test
+    void allowedInPublicaGuestArrivedEvent() {
+        Invitation inv = guestInvitation(false);
+
+        lifecycle.onAllowed(log(Direction.IN, true, null), inv);
+
+        ArgumentCaptor<GuestArrivedEvent> captor = ArgumentCaptor.forClass(GuestArrivedEvent.class);
+        verify(events).publishEvent(captor.capture());
+        GuestArrivedEvent ev = captor.getValue();
+        assertThat(ev.invitationId()).isEqualTo(invitationId);
+        assertThat(ev.residentUserId()).isEqualTo(inv.createdBy());
+        assertThat(ev.subjectName()).isEqualTo("Maria Lopez");
+        assertThat(ev.enteredAt()).isEqualTo(NOW);
+        assertThat(ev.lotCode()).isEqualTo("M4-L12");
+        assertThat(ev.syncedOffline()).isFalse();
+    }
+
+    // WBS-43: para eventos sincronizados offline, el evento lleva la hora real
+    // (capturedAt del scan) y syncedOffline = true.
+    @Test
+    void ingresoOfflinePublicaEventoConHoraRealYFlagSync() {
+        Invitation inv = guestInvitation(false);
+        AccessLog syncedLog = new AccessLog(
+                UUID.randomUUID(), neighborhoodId, gateId, guardId, invitationId, lotId,
+                Direction.IN, SubjectType.GUEST, true, null,
+                "Maria Lopez", "30123456", 2, UUID.randomUUID(),
+                NOW.minus(Duration.ofHours(2)), true, false, UUID.randomUUID());
+
+        lifecycle.onAllowed(syncedLog, inv);
+
+        ArgumentCaptor<GuestArrivedEvent> captor = ArgumentCaptor.forClass(GuestArrivedEvent.class);
+        verify(events).publishEvent(captor.capture());
+        assertThat(captor.getValue().enteredAt()).isEqualTo(NOW.minus(Duration.ofHours(2)));
+        assertThat(captor.getValue().syncedOffline()).isTrue();
+    }
+
+    // DENIED y OUT no disparan el evento.
+    @Test
+    void deniedYOutNoPublicanEvento() {
+        Invitation inv = guestInvitation(false);
+        lifecycle.onAllowed(log(Direction.IN, false, DenialReason.EXPIRED), inv);
+        when(stays.findOpenByInvitationId(invitationId)).thenReturn(Optional.empty());
+        lifecycle.onAllowed(log(Direction.OUT, true, null), inv);
+
+        verify(events, never()).publishEvent(any(GuestArrivedEvent.class));
     }
 }

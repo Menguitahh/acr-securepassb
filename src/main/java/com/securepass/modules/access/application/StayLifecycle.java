@@ -6,6 +6,7 @@ import com.securepass.modules.access.domain.Stay;
 import com.securepass.modules.invitation.domain.Invitation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -25,9 +26,13 @@ public class StayLifecycle {
     private static final Logger LOG = LoggerFactory.getLogger(StayLifecycle.class);
 
     private final StayRepository stays;
+    private final ApplicationEventPublisher events;
+    private final LotStatusQuery lots;
 
-    public StayLifecycle(StayRepository stays) {
+    public StayLifecycle(StayRepository stays, ApplicationEventPublisher events, LotStatusQuery lots) {
         this.stays = stays;
+        this.events = events;
+        this.lots = lots;
     }
 
     public Optional<Stay> onAllowed(AccessLog log, Invitation invitation) {
@@ -46,7 +51,24 @@ public class StayLifecycle {
                 inv.guestName(), inv.guestDocument(), log.companions(),
                 log.id(), null, log.capturedAt(), null, inv.validUntil(),
                 false, null);
-        return stays.openIfNotOpen(stay);
+        Stay opened = stays.openIfNotOpen(stay);
+        // WBS-43 / US-25: notificar solo cuando este ingreso genero una stay
+        // nueva. Si `openIfNotOpen` colapso en una existente (mismo QR entrado
+        // dos veces rapido), evitar re-push. La `capturedAt` es la hora real
+        // del ingreso: para eventos offline no es "ahora", es la del scan.
+        if (opened.entryLogId().equals(log.id())) {
+            String lotCode = lots.find(log.lotId()).map(LotSnapshot::code).orElse(null);
+            events.publishEvent(new GuestArrivedEvent(
+                    log.neighborhoodId(),
+                    opened.id(),
+                    inv.id(),
+                    inv.createdBy(),
+                    inv.guestName(),
+                    lotCode,
+                    log.capturedAt(),
+                    log.syncedOffline()));
+        }
+        return opened;
     }
 
     private Optional<Stay> closeStay(AccessLog log, Invitation inv) {
