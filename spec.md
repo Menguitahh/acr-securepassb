@@ -892,6 +892,7 @@ POST /api/v1/access/sync
 | POST | `/access/validate` | GUARD | Validación online |
 | POST | `/access/sync` | GUARD | Batch offline, idempotente por `clientEventId` |
 | POST | `/access/manual` | GUARD | Ingreso sin QR (proveedor, visita imprevista) |
+| GET | `/lots?q=` | GUARD | Autocompletar por `code` (parcial, case-insensitive) sobre lotes `ACTIVE` del barrio del turno activo; devuelve `[{id, code}]` con tope 10; necesario para armar el body de `/access/manual`, que pide `lotId` UUID |
 | GET | `/access/keys` | GUARD | Claves públicas Ed25519 activas del barrio |
 | GET | `/access/revoked?since=` | GUARD | `jti` revocados desde `since` (alimenta `revoked_cache` de §8.1) |
 | GET | `/access-logs?from=&to=&lotId=&result=&page=` | ADMIN, RESIDENT (solo su lote) | Bitácora |

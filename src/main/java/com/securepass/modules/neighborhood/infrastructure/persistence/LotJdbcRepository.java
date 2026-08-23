@@ -46,6 +46,23 @@ public class LotJdbcRepository implements LotRepository {
     }
 
     @Override
+    public List<Lot> searchActiveByCodePrefix(UUID neighborhoodId, String prefix, int limit) {
+        return jdbc.sql("""
+                SELECT id, neighborhood_id, code, street, number, status, created_at, updated_at
+                  FROM lots
+                 WHERE neighborhood_id = :n
+                   AND status = 'ACTIVE'
+                   AND code ILIKE :prefix
+                 ORDER BY code
+                 LIMIT :limit
+                """)
+                .param("n", neighborhoodId)
+                .param("prefix", prefix + "%")
+                .param("limit", limit)
+                .query(mapper()).list();
+    }
+
+    @Override
     public void save(Lot lot) {
         jdbc.sql("""
                 INSERT INTO lots (id, neighborhood_id, code, street, number, status, created_at, updated_at)

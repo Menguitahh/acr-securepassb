@@ -933,6 +933,39 @@
         }
       }
     },
+    "/api/v1/lots" : {
+      "get" : {
+        "tags" : [
+          "guard-lots-controller"
+        ],
+        "operationId" : "search",
+        "parameters" : [
+          {
+            "name" : "q",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/LotAutocompleteResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations/{id}" : {
       "get" : {
         "tags" : [
@@ -2129,6 +2162,18 @@
             "items" : {
               "$ref" : "#/components/schemas/PassResponse"
             }
+          }
+        }
+      },
+      "LotAutocompleteResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
           }
         }
       },

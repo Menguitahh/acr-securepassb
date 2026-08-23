@@ -14,6 +14,12 @@ public interface LotRepository {
 
     List<Lot> listByNeighborhood(UUID neighborhoodId, int page, int size);
 
+    /**
+     * Autocomplete de lotes ACTIVE por prefijo de `code`. Case-insensitive,
+     * ordenado por `code`, con tope de filas para uso en garita.
+     */
+    List<Lot> searchActiveByCodePrefix(UUID neighborhoodId, String prefix, int limit);
+
     void save(Lot lot);
 
     void update(Lot lot);
