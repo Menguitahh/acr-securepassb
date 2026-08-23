@@ -118,7 +118,8 @@ public class StayJdbcRepository implements StayRepository {
     public java.util.List<com.securepass.modules.access.application.OpenStayView> listOpenByNeighborhood(UUID neighborhoodId) {
         return jdbc.sql("""
                 SELECT s.id, s.subject_name, l.code AS lot_code,
-                       s.entered_at, s.expected_until, s.warned_at
+                       s.entered_at, s.expected_until, s.warned_at,
+                       s.exit_requested_at
                   FROM stays s
                   LEFT JOIN lots l ON l.id = s.lot_id
                  WHERE s.neighborhood_id = :nid
@@ -132,8 +133,36 @@ public class StayJdbcRepository implements StayRepository {
                         rs.getString("lot_code"),
                         rs.getTimestamp("entered_at").toInstant(),
                         rs.getTimestamp("expected_until").toInstant(),
-                        rs.getTimestamp("warned_at") != null))
+                        rs.getTimestamp("warned_at") != null,
+                        rs.getTimestamp("exit_requested_at") == null ? null : rs.getTimestamp("exit_requested_at").toInstant()))
                 .list();
+    }
+
+    @Override
+    public Optional<java.time.Instant> requestExitByInvitation(UUID invitationId, UUID requestedBy, java.time.Instant at) {
+        // Solo pisa NULL: conserva la primera solicitud (idempotencia).
+        jdbc.sql("""
+                UPDATE stays
+                   SET exit_requested_at = :at,
+                       exit_requested_by = :by
+                 WHERE invitation_id = :inv
+                   AND exited_at IS NULL
+                   AND exit_requested_at IS NULL
+                """)
+                .param("inv", invitationId)
+                .param("by", requestedBy)
+                .param("at", Timestamp.from(at))
+                .update();
+        return jdbc.sql("""
+                SELECT exit_requested_at
+                  FROM stays
+                 WHERE invitation_id = :inv AND exited_at IS NULL
+                 LIMIT 1
+                """)
+                .param("inv", invitationId)
+                .query((rs, i) -> rs.getTimestamp("exit_requested_at"))
+                .optional()
+                .map(ts -> ts == null ? null : ts.toInstant());
     }
 
     @Override

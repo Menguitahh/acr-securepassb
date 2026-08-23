@@ -7,6 +7,7 @@ import com.securepass.modules.invitation.application.IssuedInvitation;
 import com.securepass.modules.invitation.application.ListInvitationsUseCase;
 import com.securepass.modules.invitation.application.NeighborhoodNameQuery;
 import com.securepass.modules.invitation.application.QrTokenIssuer;
+import com.securepass.modules.invitation.application.RequestGuestExitUseCase;
 import com.securepass.modules.invitation.application.RevokeInvitationUseCase;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
@@ -39,6 +40,7 @@ public class InvitationController {
     private final GetInvitationUseCase getUseCase;
     private final RevokeInvitationUseCase revokeUseCase;
     private final ExtendInvitationUseCase extendUseCase;
+    private final RequestGuestExitUseCase requestExitUseCase;
     private final QrTokenIssuer qrTokenIssuer;
     private final NeighborhoodNameQuery neighborhoodNames;
     private final AccessGuard accessGuard;
@@ -50,6 +52,7 @@ public class InvitationController {
             GetInvitationUseCase getUseCase,
             RevokeInvitationUseCase revokeUseCase,
             ExtendInvitationUseCase extendUseCase,
+            RequestGuestExitUseCase requestExitUseCase,
             QrTokenIssuer qrTokenIssuer,
             NeighborhoodNameQuery neighborhoodNames,
             AccessGuard accessGuard,
@@ -59,6 +62,7 @@ public class InvitationController {
         this.getUseCase = getUseCase;
         this.revokeUseCase = revokeUseCase;
         this.extendUseCase = extendUseCase;
+        this.requestExitUseCase = requestExitUseCase;
         this.qrTokenIssuer = qrTokenIssuer;
         this.neighborhoodNames = neighborhoodNames;
         this.accessGuard = accessGuard;
@@ -103,6 +107,14 @@ public class InvitationController {
     public ExtendInvitationResponse extend(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         return ExtendInvitationResponse.from(extendUseCase.extend(actor.neighborhoodId(), actor.userId(), id));
+    }
+
+    @PostMapping("/{id}/request-exit")
+    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
+    public RequestExitResponse requestExit(@PathVariable UUID id) {
+        CurrentUser actor = accessGuard.require();
+        return RequestExitResponse.from(
+                requestExitUseCase.requestExit(actor.neighborhoodId(), actor.userId(), id));
     }
 
     @PostMapping("/{id}/revoke")

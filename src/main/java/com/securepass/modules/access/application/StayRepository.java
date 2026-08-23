@@ -26,4 +26,11 @@ public interface StayRepository {
     java.util.Optional<java.time.Instant> findResidentNotifiedAt(UUID stayId);
 
     void updateExpectedUntilByInvitation(UUID invitationId, java.time.Instant expectedUntil);
+
+    /**
+     * Marca la stay abierta de esta invitacion como "salida solicitada" por el
+     * residente. Idempotente: si ya estaba marcada, conserva el timestamp
+     * original y devuelve ese valor. Devuelve `empty` si no hay stay abierta.
+     */
+    Optional<java.time.Instant> requestExitByInvitation(UUID invitationId, UUID requestedBy, java.time.Instant at);
 }

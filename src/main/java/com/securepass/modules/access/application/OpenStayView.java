@@ -9,7 +9,8 @@ public record OpenStayView(
         String lotCode,
         Instant enteredAt,
         Instant expectedUntil,
-        boolean warned
+        boolean warned,
+        Instant exitRequestedAt
 ) {
     public OpenStayView {
         if (id == null) throw new IllegalArgumentException("id requerido");

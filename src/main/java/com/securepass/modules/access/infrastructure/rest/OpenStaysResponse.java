@@ -16,7 +16,8 @@ public record OpenStaysResponse(List<Item> stays) {
             Instant enteredAt,
             Instant expectedUntil,
             long minutesRemaining,
-            boolean warned
+            boolean warned,
+            Instant exitRequestedAt
     ) {}
 
     public static OpenStaysResponse from(List<OpenStayView> views, Instant now) {
@@ -28,7 +29,8 @@ public record OpenStaysResponse(List<Item> stays) {
                         v.enteredAt(),
                         v.expectedUntil(),
                         Math.max(0, Duration.between(now, v.expectedUntil()).toMinutes()),
-                        v.warned()))
+                        v.warned(),
+                        v.exitRequestedAt()))
                 .toList();
         return new OpenStaysResponse(items);
     }

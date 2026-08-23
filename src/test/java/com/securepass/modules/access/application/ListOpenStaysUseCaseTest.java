@@ -24,7 +24,7 @@ class ListOpenStaysUseCaseTest {
         OpenStayView view = new OpenStayView(
                 UUID.randomUUID(), "Maria Lopez", "M4-L12",
                 Instant.parse("2026-08-20T15:00:00Z"),
-                Instant.parse("2026-08-20T23:00:00Z"), false);
+                Instant.parse("2026-08-20T23:00:00Z"), false, null);
         when(repo.listOpenByNeighborhood(mine)).thenReturn(List.of(view));
 
         List<OpenStayView> result = new ListOpenStaysUseCase(repo).list(mine);

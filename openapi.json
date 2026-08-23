@@ -256,6 +256,37 @@
         }
       }
     },
+    "/api/v1/invitations/{id}/request-exit" : {
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "requestExit",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RequestExitResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations/{id}/extend" : {
       "post" : {
         "tags" : [
@@ -1349,6 +1380,19 @@
           }
         }
       },
+      "RequestExitResponse" : {
+        "type" : "object",
+        "properties" : {
+          "invitationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "exitRequestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
       "ExtendInvitationResponse" : {
         "type" : "object",
         "properties" : {
@@ -2038,6 +2082,10 @@
           },
           "warned" : {
             "type" : "boolean"
+          },
+          "exitRequestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },
