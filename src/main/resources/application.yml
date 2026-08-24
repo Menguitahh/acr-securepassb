@@ -30,6 +30,12 @@ securepass:
     expo:
       url: ${SECUREPASS_EXPO_PUSH_URL:https://exp.host/--/api/v2/push/send}
       access-token: ${SECUREPASS_EXPO_ACCESS_TOKEN:}
+  email:
+    provider: ${SECUREPASS_EMAIL_PROVIDER:logging}
+    from: ${SECUREPASS_EMAIL_FROM:Securepass <no-reply@securepass.app>}
+    resend:
+      url: ${SECUREPASS_RESEND_URL:https://api.resend.com/emails}
+      api-key: ${RESEND_API_KEY:}
 
 management:
   endpoints:

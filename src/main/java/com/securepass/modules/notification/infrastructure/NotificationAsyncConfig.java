@@ -35,4 +35,21 @@ public class NotificationAsyncConfig {
             @Value("${securepass.push.expo.access-token:}") String accessToken) {
         return ExpoPushSender.defaultHttpClient(accessToken);
     }
+
+    /**
+     * WBS-100: los use cases que envian email lo hacen con
+     * {@code @Async("emailExecutor")}. Mismo criterio que push: I/O corto,
+     * un fallo/latencia no puede colgar la operacion que lo dispara.
+     */
+    @Bean("emailExecutor")
+    public Executor emailExecutor() {
+        return new ConcurrentTaskExecutor(Executors.newVirtualThreadPerTaskExecutor());
+    }
+
+    @Bean("resendRestClient")
+    @ConditionalOnProperty(name = "securepass.email.provider", havingValue = "resend")
+    public RestClient resendRestClient(
+            @Value("${securepass.email.resend.api-key}") String apiKey) {
+        return ResendEmailSender.defaultHttpClient(apiKey);
+    }
 }
