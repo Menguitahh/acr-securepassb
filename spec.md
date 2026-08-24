@@ -1355,6 +1355,21 @@ Ambos: bloqueo de merge si falla.
 
 Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesario, **P2** posterior.
 
+> **v2 — modelo funcional revisado.** A partir de la prueba en dispositivo de
+> agosto 2026, el modelo funcional pasa a ser `docs/modelo-funcional-v2.md`.
+> Las épicas I a O de esta sección (US-50 a US-74) son la ronda v2. Las
+> siguientes historias/reglas quedan **OBSOLETAS** por v2 y se conservan solo
+> por trazabilidad histórica:
+>
+> - **US-13** (pase recurrente) y el tipo `RECURRING` de invitación (§4.2,
+>   §5.1, BR-04, BR-10) → reemplazado por Épica L (trabajadores). Se elimina
+>   en WBS-127.
+> - **US-34, US-35, US-36** y **BR-13** (enrolamiento por invitación, §4.3) →
+>   reemplazado por Épica M (verificación por persona). La tabla de
+>   `guest_enrollments` migra a verificación por documento en WBS-122.
+> - **Fase 8** del WBS (WBS-59/60/61/62, enrolamiento por DNI por invitación)
+>   → superseded por WBS-122/123.
+
 ### Épica A — Identidad y acceso al sistema
 
 | ID | Historia | Prioridad | Criterios de aceptación |
@@ -1437,6 +1452,66 @@ Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesa
 | US-41 | Como guardia quiero avisarle al residente que invitó, desde ese aviso. | P0 | Un toque envía la notificación; el residente recibe nombre del invitado, hora de ingreso y minutos restantes; el envío queda registrado. |
 | US-42 | Como residente quiero recibir ese aviso y poder extender el pase o indicar que la visita se retire. | P0 | Push con dos acciones; extender prolonga `valid_until` según la política del barrio; "que se retire" notifica al guardia; la decisión aparece en la garita en menos de 5 s. |
 | US-43 | Como admin quiero un tope a las extensiones. | P1 | Configurable por barrio: máximo de extensiones por invitación y duración de cada una; alcanzado el tope, el residente ve el motivo. |
+
+### Épica I — Activación de cuentas por email (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-50 | Como sistema necesito enviar emails transaccionales. | P0 | Proveedor configurado por variable de entorno (Resend, `RESEND_API_KEY`); en desarrollo `LoggingEmailSender` escribe a log; fallo de envío no rompe la operación que lo disparó. |
+| US-51 | Como usuario nuevo recibo un email con un enlace para activar mi cuenta. | P0 | Enlace válido 7 días, un solo uso; token aleatorio de 256 bits (no el id del usuario); el email dice quién lo invitó y a qué barrio. |
+| US-52 | Como usuario nuevo defino mi contraseña desde ese enlace. | P0 | Mínimo 8 caracteres; al confirmar, la cuenta queda activa y entra directo; el token se consume y no sirve más. |
+| US-53 | Como usuario quiero recuperar mi contraseña si la olvido. | P1 | Mismo mecanismo de token; la respuesta se envía siempre igual, exista o no la cuenta, para no revelar quién está registrado. |
+| US-54 | Como quien dio de alta a alguien quiero reenviar la activación si venció. | P1 | Reenviar invalida el token anterior; visible en la pantalla desde donde se creó la cuenta. |
+
+### Épica J — Permisos por lote (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-55 | Como sistema debo resolver qué puede hacer alguien según sus permisos vigentes, no según un rol fijo. | P0 | Un usuario puede tener varios permisos en lotes distintos; el JWT lleva la lista; revocar uno no afecta a los demás. |
+| US-56 | Como sistema debo identificar a una persona por su DNI en todo el barrio. | P0 | El DNI es único por barrio; dar de alta un DNI existente reusa el usuario en vez de duplicarlo. |
+
+### Épica K — Familia (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-57 | Como titular quiero agregar a un familiar mayor de 16 y que reciba su cuenta. | P0 | Nombre, DNI, edad, parentesco y email; se crea el usuario y se envía activación; si el DNI ya existe, se le suma el permiso. |
+| US-58 | Como titular quiero registrar a un menor de 16 sin cuenta. | P0 | Queda en el padrón del lote; no se pide email; no se crea usuario; la app explica por qué. |
+| US-59 | Como titular quiero quitarle el acceso a un familiar. | P1 | Confirmación explícita; sus invitaciones activas se revocan; el usuario sigue existiendo por si es residente en otro lote. |
+| US-60 | Como familiar quiero ver quiénes componen mi unidad familiar. | P1 | Misma pantalla que el titular, sin botones de gestión. |
+| US-61 | Como familiar quiero crear invitaciones igual que el titular. | P0 | Sin diferencias en el flujo de invitación. |
+
+### Épica L — Trabajadores (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-62 | Como titular quiero habilitar a un trabajador con sus días y horarios. | P0 | Nombre, DNI, tipo de servicio, días de la semana y franja horaria; si el DNI existe se le suma el permiso sin crear otro usuario ni otro QR. |
+| US-63 | Como titular quiero ver y editar los horarios de mis trabajadores. | P1 | Lista con nombre, servicio y horarios; edición sin recrear el permiso. |
+| US-64 | Como titular quiero quitarle el acceso a un trabajador. | P0 | Efecto inmediato online; tras la próxima sincronización offline; no afecta sus permisos en otros lotes. |
+| US-65 | Como trabajador quiero ver mi QR y dónde trabajo. | P0 | Pantalla única: nombre, servicio, QR grande, y la lista de casas con horarios. Nada más del barrio. |
+| US-66 | Como trabajador entro al barrio mostrando mi QR. | P0 | El sistema evalúa todos los permisos vigentes en ese momento; primera vez también DNI. |
+| US-67 | Como guardia veo a qué lote va el trabajador cuando tiene varios habilitados. | P0 | Si más de un permiso lo habilita, la app muestra los lotes y el guardia toca el correcto; si es uno solo, entra directo. |
+| US-68 | Como sistema rechazo al trabajador fuera de su horario. | P0 | Denegado con motivo `OUT_OF_SCHEDULE`; el intento queda en la bitácora; funciona offline. |
+
+### Épica M — Verificación de identidad por persona (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-69 | Como persona verificada una vez no vuelvo a mostrar el documento. | P0 | La verificación se guarda contra el DNI, no contra la invitación; vale para invitaciones futuras y para permisos de trabajador. |
+| US-70 | Como guardia veo si la persona ya está verificada antes de escanear el DNI. | P1 | El resultado del QR indica si requiere verificación; sin adelantar el nombre cuando todavía no está verificada. |
+
+### Épica N — Garita usable (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-71 | Como guardia quiero navegar entre escáner, presentes, registro y turno. | P0 | Barra superior sólida, legible sobre cualquier fondo de cámara; toques de 48 dp; el escáner sigue siendo la pantalla principal. |
+| US-72 | Como guardia quiero ver el registro de ingresos y egresos de mi turno. | P0 | Lista con hora, nombre, lote, dirección y resultado; los denegados con su motivo. |
+| US-73 | Como guardia quiero que la app no se trabe al navegar. | P0 | Sin crashes al montar o desmontar pantallas; el selector de fecha del turno no rompe la navegación. |
+
+### Épica O — Limpieza (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-74 | Como equipo quiero eliminar el pase recurrente de invitación. | P1 | Los trabajadores lo reemplazan; migración de los recurrentes existentes a permisos de trabajador o revocación; el tipo desaparece de la API y de la app. |
 
 ---
 
@@ -1569,6 +1644,77 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 **Orden de ejecución:** 59, 60, 61 (backend) → 62, 63, 64 (frontend) → 65, 66, 67 (backend) → 68, 69 (frontend) → 70, 71, 72 (ambos).
 
 El 59 es bloqueante de todo lo demás: cambia el esquema. El 63 depende del 60 para tener contra qué verificar.
+
+---
+
+## Ronda v2 — Fases 10 a 16
+
+Basadas en `docs/modelo-funcional-v2.md` y `docs/historias-y-plan-v2.md`. Orden de
+dependencia: A (Fase 10) sostiene todo lo demás; B (Fase 11) es cambio
+estructural, va antes de construir encima; F (Fase 15) puede adelantarse.
+
+### Fase 10 — Activación de cuentas por email (Épica A v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 100 | Infraestructura de email | `securepassb` | `feature/notification-email-sender` | US-50 | Puerto `EmailSender` + adapter Resend detrás de flag + `LoggingEmailSender` para dev; plantillas en recursos; envío asíncrono con timeout, fuera de la ruta del request. |
+| 101 | Tokens de activación | `securepassb` | `feature/auth-activation-tokens` | US-51 | Migración: tabla `activation_tokens` (hash del token, user_id, propósito, expira, consumido); 256 bits de entropía; un solo uso garantizado por índice. |
+| 102 | Endpoints de activación | `securepassb` | `feature/auth-activation-endpoints` | US-52, US-54 | `GET /activation/{token}` valida y devuelve datos del usuario; `POST /activation/{token}` define contraseña y activa; 410 si vencido o consumido; página web estática de respaldo en `GET /activar/{token}` para requests no-app. |
+| 103 | Recuperación de contraseña | `securepassb` | `feature/auth-password-reset` | US-53 | `POST /auth/forgot-password` y `POST /auth/reset-password`; respuesta idéntica exista o no el email; rate limit 3 por hora por email. |
+| 104 | Pantalla de activación | `securepassf` | `feature/auth-activation-screen` | US-52 | Deep link `securepass://activar/{token}` y web fallback; formulario de contraseña con confirmación; mensajes claros de token vencido; entra directo al activar. |
+| 105 | Pantalla de recuperación | `securepassf` | `feature/auth-password-reset-screen` | US-53 | Enlace desde el login; mensaje neutro tras enviar. |
+
+### Fase 11 — Permisos por lote (Épica B v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 106 | Migración de roles a permisos | `securepassb` | `refactor/identity-lot-permissions` | US-55 | Migración que convierte `memberships` + `family_members` en `lot_permissions` (user, lot, tipo, atributos); los datos existentes se preservan; sin pérdida. |
+| 107 | DNI único por barrio | `securepassb` | `feature/identity-document-uniqueness` | US-56 | Índice único `(neighborhood_id, document)`; alta con DNI existente devuelve el usuario en vez de 409; tests del caso jardinero en tres casas. |
+| 108 | Autorización por permiso | `securepassb` | `refactor/auth-permission-checks` | US-55 | `@PreAuthorize` evalúa permisos sobre el lote del recurso, no rol global; el test de IDOR sigue verde; sin regresiones. |
+| 109 | Adaptación del cliente | `securepassf` | `refactor/auth-permission-model` | US-55 | El estado de sesión guarda la lista de permisos; el ruteo por rol pasa a ser por permiso; una persona con dos permisos elige contexto al entrar. |
+
+### Fase 12 — Familia (Épica C v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 110 | Alta de familiar con cuenta | `securepassb` | `feature/family-member-invite` | US-57 | Crea usuario si el DNI es nuevo, reusa si existe; dispara activación; solo el titular; valida edad ≥ 16 para pedir email. |
+| 111 | Padrón de menores | `securepassb` | `feature/family-minor-registry` | US-58 | Tabla de personas del lote sin usuario; edad obligatoria; no genera credenciales. |
+| 112 | Baja de familiar | `securepassb` | `feature/family-member-revoke` | US-59 | Revoca el permiso, no el usuario; cascada sobre invitaciones activas de ese lote. |
+| 113 | Pantalla de familia | `securepassf` | `feature/family-management-screen` | US-57, US-58, US-59, US-60 | Alta con validación de edad que cambia el formulario; lista con parentesco; modo lectura para familiares; baja con confirmación. |
+
+### Fase 13 — Trabajadores (Épica D v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 114 | Dominio de trabajadores | `securepassb` | `feature/worker-domain` | US-62 | Permiso tipo `WORKER` con servicio, días y franja; reuso de usuario por DNI; tests del caso multi-lote. |
+| 115 | API de gestión | `securepassb` | `feature/worker-management-api` | US-62, US-63, US-64 | Alta, listado, edición y baja; solo el titular del lote; dispara activación si el usuario es nuevo. |
+| 116 | QR permanente del trabajador | `securepassb` | `feature/worker-qr-token` | US-65, US-66 | Token sin invitación asociada, ligado al usuario; formato SP1; no consume cupo; se invalida al perder todos los permisos. |
+| 117 | Validación por franja multi-lote | `securepassb` | `feature/worker-schedule-validation` | US-67, US-68 | Resuelve todos los permisos vigentes; devuelve la lista de lotes habilitados; `OUT_OF_SCHEDULE` si ninguno; zona horaria del barrio. |
+| 118 | Validación offline del trabajador | `securepassf` | `feature/worker-offline-validation` | US-68 | Los permisos vigentes se cachean en SQLite; `validateOffline` evalúa la franja localmente; tests de dentro y fuera de horario. |
+| 119 | Selección de lote en garita | `securepassf` | `feature/guard-worker-lot-picker` | US-67 | Pantalla con los lotes habilitados cuando hay más de uno; toque único; sin lista larga. |
+| 120 | App del trabajador | `securepassf` | `feature/worker-app-screens` | US-65 | Home con QR y horarios; perfil; ruteo por permiso; sin acceso a nada más. |
+| 121 | Pantalla de trabajadores del titular | `securepassf` | `feature/worker-management-screen` | US-62, US-63, US-64 | Alta con selector de días y franja; lista; edición; baja con confirmación. |
+
+### Fase 14 — Verificación de identidad por persona (Épica E v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 122 | Migrar enrolamiento a persona | `securepassb` | `refactor/access-person-verification` | US-69 | Migración de `guest_enrollments` (por invitación) a verificación por documento y barrio; los datos existentes se conservan; una persona verificada no vuelve a requerirlo. |
+| 123 | Caché de verificados offline | `securepassf` | `refactor/scanner-person-verification` | US-69, US-70 | El caché pasa a indexarse por documento; `validateOffline` consulta por persona. |
+
+### Fase 15 — Garita usable (Épica F v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 124 | Fix del selector de fecha | `securepassf` | `fix/shift-datetimepicker-crash` | US-73 | Resolver `Cannot read property 'dismiss' of undefined` al desmontar; verificado navegando en dispositivo. |
+| 125 | Barra de navegación del guardia | `securepassf` | `feature/guard-navigation-bar` | US-71 | Barra sólida sobre la cámara; cuatro destinos; contraste verificado sobre fondo claro y oscuro. |
+| 126 | Registro del turno | `securepassf` | `feature/guard-shift-log-screen` | US-72 | Consume `GET /access-logs` filtrado por turno; agrupado por hora; denegados destacados. |
+
+### Fase 16 — Limpieza (Épica G v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 127 | Eliminar invitación recurrente | ambos | `refactor/invitation-remove-recurring` | US-74 | Sale el tipo `RECURRING` del dominio, la API y la UI; los campos de franja salen del payload del QR; migración de los existentes; spec actualizado. |
 
 ---
 
