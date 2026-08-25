@@ -43,6 +43,34 @@ public class UserJdbcRepository implements UserRepository {
                 .optional();
     }
 
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return jdbc.sql("""
+                SELECT id, email, phone, password_hash, full_name, document_number, status
+                  FROM users
+                 WHERE email = :email
+                """)
+                .param("email", email)
+                .query(this::mapUser)
+                .optional();
+    }
+
+    @Override
+    public boolean activateWithPassword(UUID userId, String passwordHash) {
+        int rows = jdbc.sql("""
+                UPDATE users
+                   SET password_hash = :hash,
+                       status = 'ACTIVE',
+                       updated_at = NOW()
+                 WHERE id = :id
+                   AND status = 'PENDING_ACTIVATION'
+                """)
+                .param("hash", passwordHash)
+                .param("id", userId)
+                .update();
+        return rows == 1;
+    }
+
     private User mapUser(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new User(
                 rs.getObject("id", UUID.class),

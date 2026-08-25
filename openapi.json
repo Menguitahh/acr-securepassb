@@ -640,6 +640,67 @@
         }
       }
     },
+    "/api/v1/activation/{token}" : {
+      "get" : {
+        "tags" : [
+          "activation-controller"
+        ],
+        "operationId" : "get",
+        "parameters" : [
+          {
+            "name" : "token",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ActivationLookupResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "activation-controller"
+        ],
+        "operationId" : "post",
+        "parameters" : [
+          {
+            "name" : "token",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ActivateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
     "/api/v1/access/validate" : {
       "post" : {
         "tags" : [
@@ -1144,6 +1205,36 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/AccessLogsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activar/{token}" : {
+      "get" : {
+        "tags" : [
+          "activation-web-controller"
+        ],
+        "operationId" : "page",
+        "parameters" : [
+          {
+            "name" : "token",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "text/html" : {
+                "schema" : {
+                  "type" : "string"
                 }
               }
             }
@@ -1789,6 +1880,17 @@
           }
         }
       },
+      "ActivateRequest" : {
+        "required" : [
+          "password"
+        ],
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string"
+          }
+        }
+      },
       "ValidateAccessRequest" : {
         "required" : [
           "capturedAt",
@@ -2272,6 +2374,24 @@
           "total" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "ActivationLookupResponse" : {
+        "type" : "object",
+        "properties" : {
+          "maskedEmail" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "purpose" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },

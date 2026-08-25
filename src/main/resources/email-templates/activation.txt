@@ -1,0 +1,14 @@
+Hola ${fullName},
+
+${invitedByLine}
+
+Para activar tu cuenta en Securepass, definí tu contraseña en el siguiente enlace:
+
+${url}
+
+El enlace es válido por ${validityDays} días y sirve una sola vez. Si vence, pediselo a quien te dio de alta.
+
+Si vos no esperabas este mensaje, ignoralo: sin definir la contraseña la cuenta no queda activa.
+
+--
+Securepass
