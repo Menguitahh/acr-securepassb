@@ -66,6 +66,22 @@ public class LotMemberJdbcRepository implements LotMemberRepository {
                 .param("active", m.active())
                 .param("created", java.sql.Timestamp.from(m.createdAt()))
                 .update();
+        // WBS-106: escritura dual en lot_permissions dentro de la misma tx.
+        // Si falla, rollback total. Ver LotPermissionsDualWriteTest.
+        jdbc.sql("""
+                INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active, created_at)
+                VALUES (:u, :lot, :type,
+                        jsonb_build_object('can_invite', :inv::boolean, 'relation', :rel),
+                        :active, :created)
+                """)
+                .param("u", m.userId())
+                .param("lot", m.lotId())
+                .param("type", m.isOwner() ? "OWNER" : "MEMBER")
+                .param("inv", m.canInvite())
+                .param("rel", m.relation())
+                .param("active", m.active())
+                .param("created", java.sql.Timestamp.from(m.createdAt()))
+                .update();
     }
 
     private RowMapper<LotMember> mapper() {

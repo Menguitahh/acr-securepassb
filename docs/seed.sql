@@ -61,4 +61,17 @@ VALUES ('33333333-3333-3333-3333-333333333333',
         'OWNER', TRUE, TRUE, TRUE)
 ON CONFLICT (lot_id, user_id) DO NOTHING;
 
+-- WBS-106: escritura dual. El seed inserta family_members con SQL directo
+-- (no pasa por FamilyMemberJdbcRepository.save), asi que hay que replicar
+-- en lot_permissions con el mismo mapeo que usa la V10, si no cada reset
+-- de dev deja las dos tablas desincronizadas y WBS-108 (al invertir la
+-- fuente de verdad) rompe el permiso del owner del seed.
+INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc',
+        '33333333-3333-3333-3333-333333333333',
+        'OWNER',
+        jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'),
+        TRUE)
+ON CONFLICT (user_id, lot_id, permission_type) DO NOTHING;
+
 COMMIT;

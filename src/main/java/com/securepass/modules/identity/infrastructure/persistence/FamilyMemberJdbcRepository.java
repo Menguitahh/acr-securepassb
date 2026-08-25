@@ -59,6 +59,23 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
                 .param("canInvite", member.canInvite())
                 .param("active", member.active())
                 .update();
+        // WBS-106: escritura dual en lot_permissions dentro de la misma tx.
+        // Si esto falla, la tx entera hace rollback y family_members tampoco
+        // queda. Es intencional: silenciar el fallo reintroduciria el drift
+        // que la migracion intenta prevenir. Ver LotPermissionsDualWriteTest.
+        jdbc.sql("""
+                INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+                VALUES (:user, :lot, :type,
+                        jsonb_build_object('can_invite', :canInvite::boolean, 'relation', :relation),
+                        :active)
+                """)
+                .param("user", member.userId())
+                .param("lot", member.lotId())
+                .param("type", member.isOwner() ? "OWNER" : "MEMBER")
+                .param("canInvite", member.canInvite())
+                .param("relation", member.relation())
+                .param("active", member.active())
+                .update();
     }
 
     @Override
@@ -67,6 +84,23 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
                 UPDATE family_members
                    SET can_invite = :canInvite,
                        active = :active
+                 WHERE user_id = :uid AND lot_id = :lid
+                """)
+                .param("canInvite", canInvite)
+                .param("active", active)
+                .param("uid", userId)
+                .param("lid", lotId)
+                .update();
+        // WBS-106: escritura dual. family_members tiene UNIQUE (lot, user)
+        // total, asi que a lo sumo existe una fila en lot_permissions para
+        // este (user, lot) — no restrinjo por permission_type. Cubre el
+        // path de desactivacion (active=false), que es el unico DELETE
+        // efectivo del sistema.
+        jdbc.sql("""
+                UPDATE lot_permissions
+                   SET attributes = jsonb_set(attributes, '{can_invite}', to_jsonb(:canInvite::boolean)),
+                       active = :active,
+                       updated_at = now()
                  WHERE user_id = :uid AND lot_id = :lid
                 """)
                 .param("canInvite", canInvite)
