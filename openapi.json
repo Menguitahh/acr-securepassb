@@ -550,6 +550,60 @@
         }
       }
     },
+    "/api/v1/admin/users" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedUserResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/resend-activation" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "resendActivation",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
     "/api/v1/admin/lots" : {
       "get" : {
         "tags" : [
@@ -588,7 +642,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "create_1",
+        "operationId" : "create_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1831,6 +1885,49 @@
         "type" : "object",
         "properties" : {
           "email" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CreateUserRequest" : {
+        "required" : [
+          "dni",
+          "email",
+          "fullName",
+          "role"
+        ],
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "dni" : {
+            "pattern" : "\\d{7,8}",
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "CreatedUserResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "status" : {
             "type" : "string"
           }
         }

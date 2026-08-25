@@ -21,8 +21,11 @@ public record User(
     public User {
         if (id == null) throw new IllegalArgumentException("id requerido");
         if (status == null) throw new IllegalArgumentException("status requerido");
-        if (passwordHash == null || passwordHash.isBlank()) {
-            throw new IllegalArgumentException("passwordHash requerido");
+        // v2 WBS-128: PENDING_ACTIVATION arranca con password_hash NULL. Login
+        // rechaza !ACTIVE, y activateWithPassword lo llena al confirmar el token.
+        boolean pending = status == UserStatus.PENDING_ACTIVATION;
+        if (!pending && (passwordHash == null || passwordHash.isBlank())) {
+            throw new IllegalArgumentException("passwordHash requerido salvo en PENDING_ACTIVATION");
         }
         if (fullName == null || fullName.isBlank()) {
             throw new IllegalArgumentException("fullName requerido");

@@ -56,6 +56,35 @@ public class UserJdbcRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByDocument(String documentNumber) {
+        if (documentNumber == null || documentNumber.isBlank()) return Optional.empty();
+        return jdbc.sql("""
+                SELECT id, email, phone, password_hash, full_name, document_number, status
+                  FROM users
+                 WHERE document_number = :doc
+                """)
+                .param("doc", documentNumber)
+                .query(this::mapUser)
+                .optional();
+    }
+
+    @Override
+    public void create(User user) {
+        jdbc.sql("""
+                INSERT INTO users (id, email, phone, password_hash, full_name, document_number, status)
+                VALUES (:id, :email, :phone, :hash, :fullName, :doc, :status)
+                """)
+                .param("id", user.id())
+                .param("email", user.email())
+                .param("phone", user.phone())
+                .param("hash", user.passwordHash())
+                .param("fullName", user.fullName())
+                .param("doc", user.documentNumber())
+                .param("status", user.status().name())
+                .update();
+    }
+
+    @Override
     public boolean activateWithPassword(UUID userId, String passwordHash) {
         int rows = jdbc.sql("""
                 UPDATE users

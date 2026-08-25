@@ -45,6 +45,7 @@ public class LoginUseCase {
 
         User user = found.get();
         if (!user.isActive()) return Failure.INVALID_CREDENTIALS;
+        if (user.passwordHash() == null || user.passwordHash().isBlank()) return Failure.INVALID_CREDENTIALS;
         if (!encoder.matches(rawPassword, user.passwordHash())) return Failure.INVALID_CREDENTIALS;
 
         UserProfileSummary summary = profiles.summarize(user.id());

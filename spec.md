@@ -988,8 +988,17 @@ Endpoints de residente para permanencia (US-42):
 | GET | `/admin/metrics/overstays` | Permanencias excedidas (BR-08) |
 | GET/POST/PATCH | `/admin/lots` | Padrón catastral |
 | POST | `/admin/lots/{id}/members` | Vincular usuario a lote |
-| GET/POST/PATCH | `/admin/users` | Altas de guardias y residentes |
+| POST | `/admin/users` | Alta de usuario (v2, WBS-128). Body `{email, fullName, dni, role, lotId?}` con `role ∈ {RESIDENT_OWNER, GUARD}`. 201 con `{userId, role, status: PENDING_ACTIVATION}`. Dispara email de activación. |
+| POST | `/admin/users/{id}/resend-activation` | Reenvía el email de activación (v2, WBS-128). 3/hora por usuario. 409 si el usuario no está en `PENDING_ACTIVATION`. |
 | GET | `/admin/reports/access-logs.csv` | Export |
+
+**Códigos de conflicto en `POST /admin/users`** (HTTP 409, campo `code` en el body para que el frontend ramifique):
+
+| `code` | Cuándo | `existingUserId` |
+|---|---|---|
+| `EMAIL_TAKEN` | El email ya existe en `ACTIVE` o `SUSPENDED`. | no |
+| `PENDING_ACTIVATION_EXISTS` | El email ya existe en `PENDING_ACTIVATION`. El admin puede reenviar la activación en vez de crear otro. | sí |
+| `DNI_TAKEN` | El DNI ya existe. La persona ya es usuaria (mudanza / titular en otro barrio); el admin debe vincularla con `POST /admin/lots/{id}/members` en vez de recrearla. | sí |
 
 ### 7.6 Unidad familiar (titular)
 
@@ -1376,7 +1385,7 @@ Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesa
 |---|---|---|---|
 | US-01 | Como usuario quiero iniciar sesión con email/teléfono y contraseña para acceder a mi rol. | P0 | Credenciales válidas devuelven access + refresh; inválidas devuelven 401 sin revelar si el usuario existe; 5 intentos fallidos en 15 min bloquean por IP+identificador. |
 | US-02 | Como usuario quiero permanecer logueado sin reingresar la contraseña cada vez. | P0 | Refresh rota en cada uso; reutilizar un refresh viejo invalida toda la familia; tokens en Keychain/Keystore. |
-| US-03 | Como admin quiero dar de alta guardias y residentes con su rol. | P0 | Alta genera contraseña temporal; el usuario debe cambiarla en el primer login; el email/teléfono duplicado devuelve 409. |
+| US-03 | Como admin quiero dar de alta guardias y residentes con su rol. | P0 | **v2 (WBS-128)**: alta crea usuario en `PENDING_ACTIVATION` sin contraseña y envía email de activación (Épica I v2). El "contraseña temporal + cambio en primer login" de v1 queda **obsoleto**. `role ∈ {RESIDENT_OWNER, GUARD}`; RESIDENT_OWNER exige `lotId`. Email/DNI duplicado devuelve 409 con `code` distinguible (`EMAIL_TAKEN` / `PENDING_ACTIVATION_EXISTS` / `DNI_TAKEN`). |
 | US-04 | Como usuario quiero cerrar sesión en el dispositivo. | P1 | Logout invalida el refresh y borra la DB local si el rol es GUARD. |
 
 ### Épica B — Padrón catastral
@@ -1715,6 +1724,14 @@ estructural, va antes de construir encima; F (Fase 15) puede adelantarse.
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
 | 127 | Eliminar invitación recurrente | ambos | `refactor/invitation-remove-recurring` | US-74 | Sale el tipo `RECURRING` del dominio, la API y la UI; los campos de franja salen del payload del QR; migración de los existentes; spec actualizado. |
+
+### Fase 17 — Alta administrativa (US-03 v2)
+
+Reemplaza el flujo v1 de US-03 ("alta con contraseña temporal") por "alta con email de activación", en línea con las Épicas I..K/L v2. Cierra el hueco entre "admin autenticado" e "IssueActivationTokenUseCase", que hasta acá no tenía caller HTTP.
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 128 | Alta de usuario por admin | `securepassb` | `feature/admin-user-onboarding` | US-03 (v2), US-50..US-52 (integración) | `POST /admin/users` ADMIN-only. Body `{email, fullName, dni, role, lotId?}`. `role ∈ {RESIDENT_OWNER, GUARD}`; RESIDENT_OWNER exige lotId, GUARD lo prohíbe. `neighborhoodId` del JWT, nunca del body. Todo en una transacción (savepoint sobre el INSERT): user PENDING_ACTIVATION con password NULL + membership + family_member (si owner) + `issuer.issue(ACTIVATION)`. 409 con `code` distinguible: `EMAIL_TAKEN`, `PENDING_ACTIVATION_EXISTS` (con `existingUserId`), `DNI_TAKEN` (con `existingUserId`). 404 si el lote no pertenece al barrio del admin. `POST /admin/users/{id}/resend-activation` ADMIN-only, 3/hora por usuario objetivo, 409 si no es PENDING. |
 
 ---
 

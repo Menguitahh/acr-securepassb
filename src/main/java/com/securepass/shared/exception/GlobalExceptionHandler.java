@@ -58,6 +58,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(UserOnboardingConflictException.class)
+    public ProblemDetail handleOnboardingConflict(UserOnboardingConflictException ex) {
+        ProblemDetail pd = problem(HttpStatus.CONFLICT, "user-onboarding-conflict", ex.getMessage());
+        pd.setProperty("code", ex.code());
+        if (ex.existingUserId() != null) pd.setProperty("existingUserId", ex.existingUserId().toString());
+        return pd;
+    }
+
     @ExceptionHandler(TokenGoneException.class)
     public ResponseEntity<ProblemDetail> handleTokenGone(TokenGoneException ex) {
         // Body identico para no-encontrado, vencido y consumido: la respuesta
