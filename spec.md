@@ -1661,8 +1661,8 @@ estructural, va antes de construir encima; F (Fase 15) puede adelantarse.
 | 101 | Tokens de activación | `securepassb` | `feature/auth-activation-tokens` | US-51 | Migración: tabla `activation_tokens` (hash del token, user_id, propósito, expira, consumido); 256 bits de entropía; un solo uso garantizado por índice. |
 | 102 | Endpoints de activación | `securepassb` | `feature/auth-activation-endpoints` | US-52, US-54 | `GET /activation/{token}` valida y devuelve datos del usuario; `POST /activation/{token}` define contraseña y activa; 410 si vencido o consumido; página web estática de respaldo en `GET /activar/{token}` para requests no-app. |
 | 103 | Recuperación de contraseña | `securepassb` | `feature/auth-password-reset` | US-53 | `POST /auth/forgot-password` y `POST /auth/reset-password`; respuesta idéntica exista o no el email; rate limit 3 por hora por email. |
-| 104 | Pantalla de activación | `securepassf` | `feature/auth-activation-screen` | US-52 | Deep link `securepass://activar/{token}` y web fallback; formulario de contraseña con confirmación; mensajes claros de token vencido; entra directo al activar. |
-| 105 | Pantalla de recuperación | `securepassf` | `feature/auth-password-reset-screen` | US-53 | Enlace desde el login; mensaje neutro tras enviar. |
+| 104 | Página web de activación | `securepassb` | `feature/auth-activation-web` | US-52 | Página web server-rendered en `GET /activar/{token}` (no pantalla de app móvil); template único que despacha por `purpose` del GET; formulario de contraseña con confirmación; 410 muestra "contactá a la administración"; `Referrer-Policy: no-referrer` y redirección post-éxito con `replace` para no dejar el token en el historial. |
+| 105 | Página web de recuperación | `securepassb` | `feature/auth-activation-web` | US-53 | Mismo template que WBS-104; despacho por `purpose=PASSWORD_RESET` del GET; 410 linkea a `/forgot-password`; POST a `/api/v1/auth/reset-password`. |
 
 ### Fase 11 — Permisos por lote (Épica B v2)
 

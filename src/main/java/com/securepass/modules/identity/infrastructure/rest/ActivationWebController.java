@@ -1,7 +1,9 @@
 package com.securepass.modules.identity.infrastructure.rest;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,60 +11,41 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 /**
- * WBS-102: fallback web para {@code GET /activar/{token}} cuando el
- * enlace se abre desde un browser en vez de disparar el deep link de la
- * app. Una sola pagina HTML sin framework: pide instalar la app y muestra
- * el link para copiar. No es el dashboard.
+ * WBS-104/105: pagina web server-rendered para activacion y reset de
+ * contrasena. Un solo template; el JS lee purpose desde el GET y elige
+ * texto y endpoint. No hay app movil que intercepte el enlace en v1: esta
+ * es la primera pantalla del sistema para el residente recien dado de alta.
  */
 @Controller
 @RequestMapping("/activar")
 public class ActivationWebController {
 
-    private final String appDeepLinkScheme;
+    private final String html;
 
-    public ActivationWebController(
-            @Value("${securepass.activation.app-scheme:securepass}") String appDeepLinkScheme) {
-        this.appDeepLinkScheme = appDeepLinkScheme;
+    public ActivationWebController() {
+        this.html = load("templates/activar.html");
     }
 
     @GetMapping(value = "/{token}", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     @PreAuthorize("permitAll()")
-    public String page(@PathVariable String token) {
-        String safeToken = escapeHtml(token);
-        String deepLink = appDeepLinkScheme + "://activar/" + safeToken;
-        return """
-                <!doctype html>
-                <html lang="es">
-                  <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <meta name="robots" content="noindex, nofollow">
-                    <title>Activar cuenta - Securepass</title>
-                    <style>
-                      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 3rem auto; padding: 0 1rem; color: #1f2937; }
-                      h1 { font-size: 1.25rem; }
-                      .box { background: #f3f4f6; padding: 1rem; border-radius: 8px; word-break: break-all; font-family: ui-monospace, monospace; font-size: 0.9rem; }
-                      a.btn { display: inline-block; margin-top: 1rem; padding: 0.75rem 1rem; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; }
-                    </style>
-                  </head>
-                  <body>
-                    <h1>Activá tu cuenta desde el celular</h1>
-                    <p>Abrí este enlace desde tu teléfono con Securepass instalado. Si no tenés la app todavía, descargala e ingresá con este link:</p>
-                    <div class="box">%DEEPLINK%</div>
-                    <a class="btn" href="%DEEPLINK%">Abrir en la app</a>
-                  </body>
-                </html>
-                """.replace("%DEEPLINK%", deepLink);
+    public ResponseEntity<String> page(@PathVariable String token) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("Referrer-Policy", "no-referrer")
+                .contentType(MediaType.TEXT_HTML)
+                .body(html);
     }
 
-    private static String escapeHtml(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;");
+    private static String load(String path) {
+        try {
+            return new ClassPathResource(path).getContentAsString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("no pude cargar " + path, e);
+        }
     }
 }

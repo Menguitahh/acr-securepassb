@@ -39,7 +39,6 @@ securepass:
   activation:
     base-url: ${SECUREPASS_ACTIVATION_BASE_URL:http://localhost:8080}
     ttl-days: ${SECUREPASS_ACTIVATION_TTL_DAYS:7}
-    app-scheme: ${SECUREPASS_APP_SCHEME:securepass}
   password-reset:
     ttl-hours: ${SECUREPASS_PASSWORD_RESET_TTL_HOURS:2}
 
