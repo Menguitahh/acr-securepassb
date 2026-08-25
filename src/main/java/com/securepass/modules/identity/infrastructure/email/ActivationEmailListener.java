@@ -46,15 +46,18 @@ public class ActivationEmailListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onTokenIssued(ActivationTokenIssuedEvent event) {
         try {
-            String path = event.purpose() == TokenPurpose.PASSWORD_RESET ? "/reset" : "/activar";
-            String url = activationBaseUrl + path + "/" + URLEncoder.encode(event.plaintextToken(), StandardCharsets.UTF_8);
+            // Unificamos el path para ambos propositos: la app resuelve el
+            // proposito via GET /activation/{token} y rutea segun purpose.
+            // El fallback web /activar/{token} sirve la misma pagina "abrir
+            // en la app" para los dos casos.
+            String url = activationBaseUrl + "/activar/" + URLEncoder.encode(event.plaintextToken(), StandardCharsets.UTF_8);
             String template = event.purpose() == TokenPurpose.PASSWORD_RESET ? "password-reset.txt" : "activation.txt";
             String subject = subjectFor(event);
 
             Map<String, String> vars = new HashMap<>();
             vars.put("fullName", event.fullName());
             vars.put("url", url);
-            vars.put("validityDays", String.valueOf(daysBetween(Instant.now(), event.expiresAt())));
+            vars.put("validity", validityLabel(Instant.now(), event.expiresAt()));
             vars.put("invitedByLine", invitedByLine(event));
 
             String body = renderer.render(template, vars);
@@ -82,9 +85,16 @@ public class ActivationEmailListener {
         return "";
     }
 
-    private static long daysBetween(Instant a, Instant b) {
-        long days = Duration.between(a, b).toDays();
-        return days < 1 ? 1 : days;
+    private static String validityLabel(Instant from, Instant to) {
+        long seconds = Math.max(1, Duration.between(from, to).getSeconds());
+        long dayS = 86_400L;
+        long hourS = 3_600L;
+        if (seconds >= dayS) {
+            long days = (seconds + dayS - 1) / dayS;
+            return days == 1 ? "1 día" : days + " días";
+        }
+        long hours = (seconds + hourS - 1) / hourS;
+        return hours == 1 ? "1 hora" : hours + " horas";
     }
 
     private static String trimTrailingSlash(String s) {

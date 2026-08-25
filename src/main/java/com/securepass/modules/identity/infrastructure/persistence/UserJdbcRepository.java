@@ -71,6 +71,21 @@ public class UserJdbcRepository implements UserRepository {
         return rows == 1;
     }
 
+    @Override
+    public boolean updatePassword(UUID userId, String passwordHash) {
+        int rows = jdbc.sql("""
+                UPDATE users
+                   SET password_hash = :hash,
+                       updated_at = NOW()
+                 WHERE id = :id
+                   AND status = 'ACTIVE'
+                """)
+                .param("hash", passwordHash)
+                .param("id", userId)
+                .update();
+        return rows == 1;
+    }
+
     private User mapUser(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new User(
                 rs.getObject("id", UUID.class),

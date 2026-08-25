@@ -18,4 +18,11 @@ public interface UserRepository {
      * no admite activacion (por ejemplo, SUSPENDED).
      */
     boolean activateWithPassword(UUID userId, String passwordHash);
+
+    /**
+     * Recuperacion de contrasena (US-53): actualiza el hash sin tocar el
+     * status. Solo aplica a usuarios ACTIVE; un SUSPENDED o DELETED no
+     * puede resetear.
+     */
+    boolean updatePassword(UUID userId, String passwordHash);
 }

@@ -58,6 +58,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(TokenGoneException.class)
+    public ResponseEntity<ProblemDetail> handleTokenGone(TokenGoneException ex) {
+        // Body identico para no-encontrado, vencido y consumido: la respuesta
+        // no debe permitir distinguir si el token alguna vez fue valido. Fijamos
+        // `instance` a un URI generico porque el URI del request incluye el
+        // token del caller y Spring lo copia si lo dejamos null.
+        // Devolvemos ResponseEntity para evitar el post-procesado que hace
+        // ResponseEntityExceptionHandler sobre ProblemDetail crudo.
+        ProblemDetail pd = problem(HttpStatus.GONE, "token-gone", "Token invalido o vencido");
+        pd.setInstance(URI.create(TYPE_BASE + "token-gone"));
+        return ResponseEntity.status(HttpStatus.GONE).body(pd);
+    }
+
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ProblemDetail> handleRateLimit(RateLimitExceededException ex) {
         ProblemDetail pd = problem(HttpStatus.TOO_MANY_REQUESTS, "rate-limit-exceeded", "Demasiadas solicitudes");
