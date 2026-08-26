@@ -26,6 +26,15 @@ public class AddLotMemberUseCase {
         this.memberships = memberships;
     }
 
+    /**
+     * WBS-107: consulta si el user ya es miembro del lote antes de llamar
+     * a add(). Permite al caller decidir entre "sumar permiso" y
+     * "idempotente 200 sin cambios".
+     */
+    public boolean isMemberOfLot(UUID lotId, UUID userId) {
+        return members.find(lotId, userId).isPresent();
+    }
+
     public LotMember add(UUID neighborhoodId, UUID lotId, Command cmd) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         if (lotId == null) throw new IllegalArgumentException("lotId requerido");

@@ -35,4 +35,13 @@ public interface UserRepository {
      * puede resetear.
      */
     boolean updatePassword(UUID userId, String passwordHash);
+
+    /**
+     * WBS-107 / US-56: si el user existente no tiene email (caso trabajador
+     * o menor cargado sin cuenta), lo completa. UPDATE con guard
+     * "email IS NULL": si otro proceso lo lleno en el interin, esta
+     * operacion es no-op y retorna false. Nombre no se toca — la regla
+     * de email de US-56 es la unica que corrige datos existentes.
+     */
+    boolean completeEmail(UUID userId, String email);
 }

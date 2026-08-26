@@ -101,6 +101,21 @@ public class UserJdbcRepository implements UserRepository {
     }
 
     @Override
+    public boolean completeEmail(UUID userId, String email) {
+        int rows = jdbc.sql("""
+                UPDATE users
+                   SET email = :email,
+                       updated_at = NOW()
+                 WHERE id = :id
+                   AND email IS NULL
+                """)
+                .param("email", email)
+                .param("id", userId)
+                .update();
+        return rows == 1;
+    }
+
+    @Override
     public boolean updatePassword(UUID userId, String passwordHash) {
         int rows = jdbc.sql("""
                 UPDATE users

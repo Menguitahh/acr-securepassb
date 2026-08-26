@@ -572,7 +572,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/CreatedUserResponse"
+                  "$ref" : "#/components/schemas/OnboardUserResponse"
                 }
               }
             }
@@ -1917,7 +1917,7 @@
           }
         }
       },
-      "CreatedUserResponse" : {
+      "OnboardUserResponse" : {
         "type" : "object",
         "properties" : {
           "userId" : {
@@ -1928,6 +1928,18 @@
             "type" : "string"
           },
           "status" : {
+            "type" : "string"
+          },
+          "reused" : {
+            "type" : "boolean"
+          },
+          "changed" : {
+            "type" : "boolean"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "fullName" : {
             "type" : "string"
           }
         }

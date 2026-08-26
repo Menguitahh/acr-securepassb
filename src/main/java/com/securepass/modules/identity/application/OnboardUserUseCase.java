@@ -19,15 +19,19 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * WBS-128: alta de usuario por admin del barrio. Todo en una transaccion:
- * user + membership + (vinculo al lote si RESIDENT_OWNER) + emision del
- * token de activacion. Si algo falla, el listener AFTER_COMMIT no dispara
- * y no queda ninguna fila.
+ * WBS-128: alta de usuario por admin del barrio.
+ * WBS-107: si el DNI ya existe, reusa el user y suma el permiso en vez de
+ * fallar. Regla de email de US-56: gana el email existente si lo hay; si
+ * es null, se completa con el nuevo. Nombre no se pisa nunca.
  *
- * Los 409 salen de constraints de la base (email UNIQUE, document_number
- * UNIQUE partial) traducidas a UserOnboardingConflictException. Sin
- * pre-check con findByEmail: el pre-check tiene race entre el SELECT y
- * el INSERT si el admin hace doble click.
+ * Estados del user existente:
+ *   ACTIVE, PENDING_ACTIVATION -> reuso, suma permiso, reemite activacion
+ *                                 si estaba PENDING (el issuer revoca el
+ *                                 token viejo).
+ *   SUSPENDED, DELETED         -> 409 explicito. No se reactiva un user
+ *                                 marcado desde otro barrio sin coordinar.
+ *
+ * Todo en una transaccion. Si algo falla, ni user ni permiso ni token.
  */
 @Service
 public class OnboardUserUseCase {
@@ -53,72 +57,130 @@ public class OnboardUserUseCase {
         this.tx = new TransactionTemplate(txManager);
     }
 
-    public UUID onboard(UUID neighborhoodId, String actorFullName, String neighborhoodName, Command cmd) {
+    public Result onboard(UUID neighborhoodId, String actorFullName, String neighborhoodName, Command cmd) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         if (cmd == null) throw new IllegalArgumentException("cmd requerido");
-        // Command ya valido rol permitido, forma email/dni y invariante rol+lote.
 
         String email = cmd.email().trim().toLowerCase(Locale.ROOT);
+        String dni = cmd.dni().trim();
+
+        return tx.execute(status -> {
+            Optional<User> byDoc = users.findByDocument(dni);
+            if (byDoc.isPresent()) {
+                return reuseFlow(byDoc.get(), email, cmd, neighborhoodId, actorFullName, neighborhoodName);
+            }
+            return createFlow(email, dni, cmd, neighborhoodId, actorFullName, neighborhoodName, status);
+        });
+    }
+
+    private Result reuseFlow(User existing, String email, Command cmd, UUID neighborhoodId,
+                             String actorFullName, String neighborhoodName) {
+        switch (existing.status()) {
+            case SUSPENDED -> throw new UserOnboardingConflictException(
+                    "USER_SUSPENDED", existing.id(),
+                    "El usuario esta suspendido; coordinar con quien lo suspendio antes de darle acceso");
+            case DELETED -> throw new UserOnboardingConflictException(
+                    "USER_DELETED", existing.id(),
+                    "El usuario esta dado de baja");
+            default -> {} // ACTIVE o PENDING_ACTIVATION: continua
+        }
+
+        // Email: gana el viejo si lo tiene; se completa si es null.
+        // Complete PRIMERO — issuer.issue() requiere email non-null.
+        String finalEmail = existing.email();
+        boolean emailCompleted = false;
+        if (finalEmail == null || finalEmail.isBlank()) {
+            emailCompleted = users.completeEmail(existing.id(), email);
+            if (emailCompleted) {
+                finalEmail = email;
+            } else {
+                // Race: otro proceso lo lleno; releer para devolver el real.
+                finalEmail = users.findById(existing.id()).map(User::email).orElse(email);
+            }
+        }
+
+        // Sumar permiso — pre-check para saber si cambio o no (idempotencia).
+        boolean permissionChanged;
+        if (cmd.role() == Role.GUARD) {
+            if (memberships.exists(existing.id(), neighborhoodId, Role.GUARD)) {
+                permissionChanged = false;
+            } else {
+                memberships.grant(existing.id(), neighborhoodId, Role.GUARD);
+                permissionChanged = true;
+            }
+        } else {
+            if (addLotMember.isMemberOfLot(cmd.lotId(), existing.id())) {
+                permissionChanged = false;
+            } else {
+                // addLotMember.add() tira StateConflictException si el lote ya
+                // tiene otro titular. Ese error propaga: es un conflicto real,
+                // no idempotencia.
+                addLotMember.add(neighborhoodId, cmd.lotId(),
+                        new AddLotMemberUseCase.Command(existing.id(), "OWNER", true, true));
+                permissionChanged = true;
+            }
+        }
+
+        // Reemitir activacion solo si el reuso trajo cambio real (permiso
+        // nuevo o email completado). Sin eso, un doble alta idempotente
+        // seguiria mandando emails al user, y changed dejaria de reflejar
+        // "algo cambio en el sistema".
+        boolean changed = permissionChanged || emailCompleted;
+        if (existing.status() == UserStatus.PENDING_ACTIVATION && changed) {
+            issuer.issue(existing.id(), TokenPurpose.ACTIVATION, actorFullName, neighborhoodName);
+        }
+        return new Result(existing.id(), cmd.role(), existing.status(), true, changed,
+                finalEmail, existing.fullName());
+    }
+
+    private Result createFlow(String email, String dni, Command cmd, UUID neighborhoodId,
+                              String actorFullName, String neighborhoodName,
+                              org.springframework.transaction.TransactionStatus status) {
         UUID newUserId = UUID.randomUUID();
         User user = new User(newUserId, email, null, null, cmd.fullName().trim(),
-                cmd.dni().trim(), UserStatus.PENDING_ACTIVATION);
+                dni, UserStatus.PENDING_ACTIVATION);
 
-        // Todo en una sola transaccion. El INSERT del user va dentro de un
-        // SAVEPOINT: si dispara la constraint UNIQUE (email o document),
-        // rollback del savepoint deja la conexion sana para consultar cual
-        // constraint choco. La consulta post-DIE NO es un pre-check
-        // (la constraint ya se evaluo, no hay race), es un lookup de
-        // detalles para armar el codigo del 409.
-        return tx.execute(status -> {
-            Object savepoint = status.createSavepoint();
-            try {
-                users.create(user);
-                status.releaseSavepoint(savepoint);
-            } catch (DataIntegrityViolationException dive) {
-                status.rollbackToSavepoint(savepoint);
-                throw translateConflict(dive, email, cmd.dni().trim());
-            }
+        // SAVEPOINT alrededor del INSERT: si dispara UNIQUE (email — el DNI
+        // ya lo pre-chequeamos arriba con findByDocument, aunque puede haber
+        // race extremo de doble alta simultanea del mismo DNI), rollback del
+        // savepoint deja la conexion sana para consultar el detalle.
+        Object savepoint = status.createSavepoint();
+        try {
+            users.create(user);
+            status.releaseSavepoint(savepoint);
+        } catch (DataIntegrityViolationException dive) {
+            status.rollbackToSavepoint(savepoint);
+            throw translateConflict(dive, email, dni);
+        }
 
-            if (cmd.role() == Role.GUARD) {
-                memberships.grant(newUserId, neighborhoodId, Role.GUARD);
-            } else {
-                // RESIDENT_OWNER: reusa AddLotMemberUseCase, que valida que el
-                // lote exista y pertenezca al barrio (404 si no), impide dos
-                // titulares por lote, crea family_member y otorga la membresia.
-                // Si falla, la excepcion propaga y la tx entera se revierte.
-                addLotMember.add(neighborhoodId, cmd.lotId(),
-                        new AddLotMemberUseCase.Command(newUserId, "OWNER", true, true));
-            }
+        if (cmd.role() == Role.GUARD) {
+            memberships.grant(newUserId, neighborhoodId, Role.GUARD);
+        } else {
+            addLotMember.add(neighborhoodId, cmd.lotId(),
+                    new AddLotMemberUseCase.Command(newUserId, "OWNER", true, true));
+        }
 
-            issuer.issue(newUserId, TokenPurpose.ACTIVATION, actorFullName, neighborhoodName);
-            return newUserId;
-        });
+        issuer.issue(newUserId, TokenPurpose.ACTIVATION, actorFullName, neighborhoodName);
+        return new Result(newUserId, cmd.role(), UserStatus.PENDING_ACTIVATION, false, true,
+                email, cmd.fullName().trim());
     }
 
     private UserOnboardingConflictException translateConflict(
             DataIntegrityViolationException dive, String email, String dni) {
-        // Estrategia: consultar por email y por documento para saber cual
-        // constraint choco. No hay race con INSERT: la constraint ya fue
-        // evaluada, la lectura de aca en adelante es sobre el estado firme.
         Optional<User> byEmail = users.findByEmail(email);
         if (byEmail.isPresent()) {
-            User u = byEmail.get();
-            if (u.status() == UserStatus.PENDING_ACTIVATION) {
-                return new UserOnboardingConflictException(
-                        "PENDING_ACTIVATION_EXISTS", u.id(),
-                        "El email tiene un alta pendiente de activacion");
-            }
             return new UserOnboardingConflictException(
-                    "EMAIL_TAKEN", null, "El email ya esta registrado");
+                    "EMAIL_TAKEN", byEmail.get().id(),
+                    "El email ya esta registrado con otro DNI");
         }
-        Optional<User> byDni = users.findByDocument(dni);
-        if (byDni.isPresent()) {
+        // Race muy raro: alguien creo un user con el mismo DNI entre nuestro
+        // findByDocument y el INSERT. Re-tratamos como reuso mirando de nuevo.
+        Optional<User> byDoc = users.findByDocument(dni);
+        if (byDoc.isPresent()) {
             return new UserOnboardingConflictException(
-                    "DNI_TAKEN", byDni.get().id(),
-                    "El DNI ya esta registrado; vincula al usuario existente en vez de crear uno nuevo");
+                    "USER_SUSPENDED", byDoc.get().id(),
+                    "Race en el alta: reintentar");
         }
-        // Otra constraint (poco probable): re-lanzamos para que el handler
-        // generico devuelva 500 en vez de un 409 mentiroso.
         throw dive;
     }
 
@@ -139,4 +201,16 @@ public class OnboardUserUseCase {
             }
         }
     }
+
+    /**
+     * WBS-107: shape unificado creacion vs reuso. El frontend no ramifica
+     * por status HTTP para saber que campos leer.
+     *   reused=false, changed=true  -> user creado, permiso creado, token emitido.
+     *   reused=true,  changed=true  -> user existente; se sumo permiso, se
+     *                                  completo email, o se reemitio token.
+     *   reused=true,  changed=false -> user existente y permiso ya existia
+     *                                  con estos parametros; nada cambio.
+     */
+    public record Result(UUID userId, Role role, UserStatus status, boolean reused,
+                         boolean changed, String email, String fullName) {}
 }

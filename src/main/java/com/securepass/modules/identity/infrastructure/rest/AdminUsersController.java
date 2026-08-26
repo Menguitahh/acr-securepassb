@@ -62,21 +62,28 @@ public class AdminUsersController {
     }
 
     @PostMapping
-    public ResponseEntity<CreatedUserResponse> create(@Valid @RequestBody CreateUserRequest req) {
+    public ResponseEntity<OnboardUserResponse> create(@Valid @RequestBody CreateUserRequest req) {
         CurrentUser admin = guard.require();
         Role role = parseRole(req.role());
         assertRoleLotShape(role, req.lotId());
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
                 req.email(), req.fullName(), req.dni(), role, req.lotId());
-        UUID newUserId = onboard.onboard(
+        OnboardUserUseCase.Result result = onboard.onboard(
                 admin.neighborhoodId(),
                 actorName(admin),
                 neighborhoods.findName(admin.neighborhoodId()),
                 cmd);
 
-        return ResponseEntity.created(URI.create("/api/v1/admin/users/" + newUserId))
-                .body(new CreatedUserResponse(newUserId, role.name(), "PENDING_ACTIVATION"));
+        OnboardUserResponse body = new OnboardUserResponse(
+                result.userId(), result.role().name(), result.status().name(),
+                result.reused(), result.changed(), result.email(), result.fullName());
+
+        // 201 solo cuando creamos user; 200 para reuso (nada nuevo en `users`).
+        if (result.reused()) {
+            return ResponseEntity.ok(body);
+        }
+        return ResponseEntity.created(URI.create("/api/v1/admin/users/" + result.userId())).body(body);
     }
 
     @PostMapping("/{id}/resend-activation")
@@ -134,5 +141,15 @@ public class AdminUsersController {
             UUID lotId
     ) {}
 
-    public record CreatedUserResponse(UUID userId, String role, String status) {}
+    /**
+     * WBS-107: shape unificado creacion vs reuso. `reused=true` significa
+     * que el DNI ya existia y devolvemos el user existente en vez de 409;
+     * `changed=false` significa que ademas el permiso ya estaba (idempotente).
+     * `email` y `fullName` son los del user real (pueden diferir del pasado);
+     * el frontend TIENE que mostrarlos cuando reused=true para que el admin
+     * detecte divergencia de nombre o email.
+     */
+    public record OnboardUserResponse(UUID userId, String role, String status,
+                                      boolean reused, boolean changed,
+                                      String email, String fullName) {}
 }

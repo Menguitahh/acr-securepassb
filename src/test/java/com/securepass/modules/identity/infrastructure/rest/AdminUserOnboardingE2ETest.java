@@ -114,6 +114,10 @@ class AdminUserOnboardingE2ETest {
         UUID newId = UUID.fromString(j.get("userId").asText());
         assertThat(j.get("role").asText()).isEqualTo("RESIDENT_OWNER");
         assertThat(j.get("status").asText()).isEqualTo("PENDING_ACTIVATION");
+        assertThat(j.get("reused").asBoolean()).isFalse();
+        assertThat(j.get("changed").asBoolean()).isTrue();
+        assertThat(j.get("email").asText()).isEqualTo("nuevo1@a.com");
+        assertThat(j.get("fullName").asText()).isEqualTo("Nuevo Uno");
 
         assertThat(status(newId)).isEqualTo("PENDING_ACTIVATION");
         assertThat(passwordHash(newId)).isNull();
@@ -148,34 +152,193 @@ class AdminUserOnboardingE2ETest {
         assertThat(resp.statusCode()).isEqualTo(409);
         JsonNode j = json.readTree(resp.body());
         assertThat(j.get("code").asText()).isEqualTo("EMAIL_TAKEN");
-        assertThat(j.has("existingUserId")).isFalse();
+        // WBS-107: ahora incluye existingUserId para trazabilidad.
+        assertThat(UUID.fromString(j.get("existingUserId").asText())).isEqualTo(existingActive);
+    }
+
+    // ---- WBS-107: dedupe por DNI ----
+
+    @Test
+    void dniExistenteReusaUserYSumaPermisoDevuelve200() throws Exception {
+        // Reuso mismo-barrio: existingWithDni ya vive en barrioA (insertActive
+        // no le da membership; el alta le suma OWNER sobre lotA).
+        String body = """
+                {"email":"otro-email-%s@a.com","fullName":"Nombre Escrito Mal","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
+                """.formatted(UUID.randomUUID(), existingWithDniValue, lotA);
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), body);
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        JsonNode j = json.readTree(resp.body());
+        assertThat(UUID.fromString(j.get("userId").asText())).isEqualTo(existingWithDni);
+        assertThat(j.get("reused").asBoolean()).isTrue();
+        assertThat(j.get("changed").asBoolean()).isTrue();
+        // Gana el email viejo, no el pasado.
+        String realEmail = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, existingWithDni);
+        assertThat(j.get("email").asText()).isEqualTo(realEmail);
+        assertThat(j.get("fullName").asText()).isEqualTo("Con Dni"); // el viejo, no "Nombre Escrito Mal"
+
+        assertThat(hasMembership(existingWithDni, barrioA, "RESIDENT_OWNER")).isTrue();
+        assertThat(isFamilyOwner(lotA, existingWithDni)).isTrue();
+        assertThat(hasLotPermission(existingWithDni, lotA, "OWNER")).isTrue();
     }
 
     @Test
-    void conflicto409PendingActivationExistsIncluyeExistingUserId() throws Exception {
-        String email = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, existingPending);
-        String body = """
-                {"email":"%s","fullName":"Otro","dni":"30111004","role":"GUARD"}
-                """.formatted(email);
-        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), body);
+    void dniExistenteConMismoPermiso200Idempotente() throws Exception {
+        // Primero le sumamos OWNER sobre lotA.
+        post("/api/v1/admin/users", adminToken(), """
+                {"email":"first-%s@a.com","fullName":"X","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
+                """.formatted(UUID.randomUUID(), existingWithDniValue, lotA));
+        int fmBefore = familyMembersFor(existingWithDni);
+        int lpBefore = lotPermissionsFor(existingWithDni);
+        int msBefore = membershipsFor(existingWithDni, barrioA);
 
-        assertThat(resp.statusCode()).isEqualTo(409);
+        // Segundo alta: mismo DNI, mismo lote. Debe ser idempotente.
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"second-%s@a.com","fullName":"Y","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
+                """.formatted(UUID.randomUUID(), existingWithDniValue, lotA));
+
+        assertThat(resp.statusCode()).isEqualTo(200);
         JsonNode j = json.readTree(resp.body());
-        assertThat(j.get("code").asText()).isEqualTo("PENDING_ACTIVATION_EXISTS");
-        assertThat(UUID.fromString(j.get("existingUserId").asText())).isEqualTo(existingPending);
+        assertThat(j.get("reused").asBoolean()).isTrue();
+        assertThat(j.get("changed").asBoolean()).isFalse();
+        assertThat(familyMembersFor(existingWithDni)).isEqualTo(fmBefore);
+        assertThat(lotPermissionsFor(existingWithDni)).isEqualTo(lpBefore);
+        assertThat(membershipsFor(existingWithDni, barrioA)).isEqualTo(msBefore);
     }
 
     @Test
-    void conflicto409DniTakenIncluyeExistingUserId() throws Exception {
-        String body = """
-                {"email":"nuevo-dni-%s@a.com","fullName":"Otro","dni":"%s","role":"GUARD"}
-                """.formatted(UUID.randomUUID(), existingWithDniValue);
-        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), body);
+    void reusoCrossBarrioCreaTresFilasEnBarrioNuevo() throws Exception {
+        // El admin de barrioA da de alta un user cuyo DNI ya existe (existingWithDni).
+        // El endpoint solo permite altas en el barrio del admin. Simulamos
+        // "cross-barrio" agregando primero al user en barrioA por otra via
+        // (aca ya existe), y luego confirmando que un alta en un nuevo lote
+        // de barrioA acumula un lot_permission mas y mantiene el mismo user.
+        // Cross-barrio real (barrioB) requeriria un admin de barrioB — mismo
+        // codigo, distinto contexto.
+        int lpBefore = lotPermissionsFor(existingWithDni);
+
+        // Nuevo lote en barrioA
+        UUID lotA2 = UUID.randomUUID();
+        jdbc.update("INSERT INTO lots (id, neighborhood_id, code) VALUES (?, ?, 'A-02')", lotA2, barrioA);
+
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"multi-%s@a.com","fullName":"X","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
+                """.formatted(UUID.randomUUID(), existingWithDniValue, lotA2));
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        assertThat(lotPermissionsFor(existingWithDni)).isEqualTo(lpBefore + 1);
+        assertThat(isFamilyOwner(lotA2, existingWithDni)).isTrue();
+        assertThat(hasLotPermission(existingWithDni, lotA2, "OWNER")).isTrue();
+        // La membership del barrioA ya existia; sigue en 1.
+        assertThat(membershipsFor(existingWithDni, barrioA)).isEqualTo(1);
+    }
+
+    @Test
+    void reusoConEmailNullCompletaYReemiteActivacion() throws Exception {
+        // User con email NULL y phone presente (caso trabajador/menor futuro).
+        UUID emailNullUser = UUID.randomUUID();
+        String dniNull = randDni();
+        jdbc.update("""
+                INSERT INTO users (id, email, phone, password_hash, full_name, document_number, status)
+                VALUES (?, NULL, '+5491199999999', NULL, 'Sin Email', ?, 'PENDING_ACTIVATION')
+                """, emailNullUser, dniNull);
+
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"completado@a.com","fullName":"Sin Email","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
+                """.formatted(dniNull, lotA));
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        JsonNode j = json.readTree(resp.body());
+        assertThat(j.get("reused").asBoolean()).isTrue();
+        assertThat(j.get("changed").asBoolean()).isTrue();
+        assertThat(j.get("email").asText()).isEqualTo("completado@a.com");
+        String storedEmail = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, emailNullUser);
+        assertThat(storedEmail).isEqualTo("completado@a.com");
+        // PENDING_ACTIVATION -> reemite activacion.
+        verify(emailSender, timeout(2000)).send(any());
+        assertThat(activationTokensActiveFor(emailNullUser)).isEqualTo(1);
+    }
+
+    @Test
+    void reusoEmailDivergenteMantieneElExistente() throws Exception {
+        // existingWithDni tiene email "withdni-...@a.com". El admin escribe otro.
+        String realEmail = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, existingWithDni);
+
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"divergente-%s@a.com","fullName":"X","dni":"%s","role":"GUARD"}
+                """.formatted(UUID.randomUUID(), existingWithDniValue));
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        JsonNode j = json.readTree(resp.body());
+        assertThat(j.get("email").asText()).isEqualTo(realEmail);
+        // DB: no se pisa
+        assertThat(jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, existingWithDni))
+                .isEqualTo(realEmail);
+    }
+
+    @Test
+    void reusoPendingActivationInvalidaTokenViejoYEmiteNuevo() throws Exception {
+        // Sembrar token viejo en existingPending
+        UUID oldTokenId = UUID.randomUUID();
+        byte[] oldHash = new byte[32];
+        oldHash[0] = 42;
+        jdbc.update("""
+                INSERT INTO activation_tokens (id, user_id, purpose, token_hash, expires_at)
+                VALUES (?, ?, 'ACTIVATION', ?, NOW() + INTERVAL '7 days')
+                """, oldTokenId, existingPending, oldHash);
+        String existingPendingDni = jdbc.queryForObject(
+                "SELECT document_number FROM users WHERE id=?", String.class, existingPending);
+
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"otro-%s@a.com","fullName":"X","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
+                """.formatted(UUID.randomUUID(), existingPendingDni, lotA));
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        Boolean oldConsumed = jdbc.queryForObject(
+                "SELECT consumed_at IS NOT NULL FROM activation_tokens WHERE id=?",
+                Boolean.class, oldTokenId);
+        assertThat(oldConsumed).isTrue();
+        assertThat(activationTokensActiveFor(existingPending)).isEqualTo(1);
+    }
+
+    @Test
+    void suspended409UserSuspended() throws Exception {
+        UUID suspended = UUID.randomUUID();
+        String dni = randDni();
+        jdbc.update("""
+                INSERT INTO users (id, email, password_hash, full_name, document_number, status)
+                VALUES (?, ?, 'hash', 'Suspended', ?, 'SUSPENDED')
+                """, suspended, "susp-" + UUID.randomUUID() + "@a.com", dni);
+
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"otro-%s@a.com","fullName":"X","dni":"%s","role":"GUARD"}
+                """.formatted(UUID.randomUUID(), dni));
 
         assertThat(resp.statusCode()).isEqualTo(409);
         JsonNode j = json.readTree(resp.body());
-        assertThat(j.get("code").asText()).isEqualTo("DNI_TAKEN");
-        assertThat(UUID.fromString(j.get("existingUserId").asText())).isEqualTo(existingWithDni);
+        assertThat(j.get("code").asText()).isEqualTo("USER_SUSPENDED");
+        assertThat(UUID.fromString(j.get("existingUserId").asText())).isEqualTo(suspended);
+        // No suma permiso
+        assertThat(hasMembership(suspended, barrioA, "GUARD")).isFalse();
+    }
+
+    @Test
+    void deleted409UserDeleted() throws Exception {
+        UUID deleted = UUID.randomUUID();
+        String dni = randDni();
+        jdbc.update("""
+                INSERT INTO users (id, email, password_hash, full_name, document_number, status)
+                VALUES (?, ?, 'hash', 'Deleted', ?, 'DELETED')
+                """, deleted, "del-" + UUID.randomUUID() + "@a.com", dni);
+
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), """
+                {"email":"otro-%s@a.com","fullName":"X","dni":"%s","role":"GUARD"}
+                """.formatted(UUID.randomUUID(), dni));
+
+        assertThat(resp.statusCode()).isEqualTo(409);
+        JsonNode j = json.readTree(resp.body());
+        assertThat(j.get("code").asText()).isEqualTo("USER_DELETED");
+        assertThat(UUID.fromString(j.get("existingUserId").asText())).isEqualTo(deleted);
     }
 
     @Test
@@ -334,6 +497,27 @@ class AdminUserOnboardingE2ETest {
         Integer c = jdbc.queryForObject("SELECT COUNT(*) FROM family_members WHERE user_id=?",
                 Integer.class, userId);
         return c == null ? 0 : c;
+    }
+
+    private int lotPermissionsFor(UUID userId) {
+        Integer c = jdbc.queryForObject("SELECT COUNT(*) FROM lot_permissions WHERE user_id=?",
+                Integer.class, userId);
+        return c == null ? 0 : c;
+    }
+
+    private int membershipsFor(UUID userId, UUID barrio) {
+        Integer c = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM memberships WHERE user_id=? AND neighborhood_id=?",
+                Integer.class, userId, barrio);
+        return c == null ? 0 : c;
+    }
+
+    private boolean hasLotPermission(UUID userId, UUID lot, String type) {
+        Integer c = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM lot_permissions
+                 WHERE user_id=? AND lot_id=? AND permission_type=? AND active=TRUE
+                """, Integer.class, userId, lot, type);
+        return c != null && c > 0;
     }
 
     private int activationTokensFor(UUID userId) {
