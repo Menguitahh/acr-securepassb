@@ -3,7 +3,13 @@
 *.log
 node_modules/
 build/
+bin/
 .gradle/
+!gradle/wrapper/gradle-wrapper.jar
 .expo/
 .next/
 dist/
+.wbs-issues/
+.agents/
+.claude/
+skills-lock.json

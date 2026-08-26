@@ -1,0 +1,38 @@
+package com.securepass.modules.access.domain;
+
+import java.util.UUID;
+
+public sealed interface AccessDecision {
+
+    record Allowed(UUID invitationId, UUID jti, String guestName, String lotCode, int companions)
+            implements AccessDecision {
+        public Allowed {
+            if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
+            if (jti == null) throw new IllegalArgumentException("jti requerido");
+            if (guestName == null || guestName.isBlank()) throw new IllegalArgumentException("guestName requerido");
+            if (lotCode == null || lotCode.isBlank()) throw new IllegalArgumentException("lotCode requerido");
+            if (companions < 0) throw new IllegalArgumentException("companions >= 0");
+        }
+    }
+
+    // No lleva guestName: la identidad no esta verificada aun. Si el guardia
+    // ve el nombre antes de pedir el DNI, compara el documento contra la
+    // pantalla en vez de que el sistema compare a ciegas. La verificacion
+    // tiene que ser sistema contra dato; el nombre aparece en el enroll.
+    record NeedsEnrollment(UUID invitationId, String lotCode) implements AccessDecision {
+        public NeedsEnrollment {
+            if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
+            if (lotCode == null || lotCode.isBlank()) throw new IllegalArgumentException("lotCode requerido");
+        }
+    }
+
+    record Denied(DenialReason reason) implements AccessDecision {
+        public Denied {
+            if (reason == null) throw new IllegalArgumentException("reason requerido");
+        }
+
+        public static Denied of(DenialReason reason) {
+            return new Denied(reason);
+        }
+    }
+}

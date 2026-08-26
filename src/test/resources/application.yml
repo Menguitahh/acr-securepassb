@@ -1,0 +1,12 @@
+management:
+  health:
+    redis:
+      enabled: false
+
+securepass:
+  jwt:
+    secret: test-secret-that-is-long-enough-to-pass-hmac-32-byte-check
+    ttl-seconds: 900
+  refresh:
+    ttl-days: 30
+  master-key: REVWX09OTFlfS0VZXzMyX0JZVEVTX1hYWFhYWFhYWFg=

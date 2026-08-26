@@ -1,0 +1,86 @@
+package com.securepass.modules.access.application;
+
+import com.securepass.modules.access.domain.AccessLog;
+import com.securepass.modules.access.domain.Direction;
+import com.securepass.modules.access.domain.Stay;
+import com.securepass.modules.invitation.domain.Invitation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * BR-14: cada ingreso ALLOWED abre una `stay`; cada egreso ALLOWED cierra la
+ * `stay` abierta de esa invitacion. Pensado como hook llamado desde los flujos
+ * que persisten `access_logs` (validate/consume, enroll, sync). El open y el
+ * close son idempotentes: si ya hay stay abierta no crea otra (indice unico
+ * parcial `uq_open_stay_per_invitation`); si no hay abierta al egresar no
+ * inventa una (BR-07).
+ */
+@Service
+public class StayLifecycle {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StayLifecycle.class);
+
+    private final StayRepository stays;
+    private final ApplicationEventPublisher events;
+    private final LotStatusQuery lots;
+
+    public StayLifecycle(StayRepository stays, ApplicationEventPublisher events, LotStatusQuery lots) {
+        this.stays = stays;
+        this.events = events;
+        this.lots = lots;
+    }
+
+    public Optional<Stay> onAllowed(AccessLog log, Invitation invitation) {
+        if (log == null || !log.allowed()) return Optional.empty();
+        if (invitation == null) return Optional.empty();
+        if (invitation.residentPass()) return Optional.empty();
+
+        if (log.direction() == Direction.IN) return Optional.of(openStay(log, invitation));
+        if (log.direction() == Direction.OUT) return closeStay(log, invitation);
+        return Optional.empty();
+    }
+
+    private Stay openStay(AccessLog log, Invitation inv) {
+        Stay stay = new Stay(
+                UUID.randomUUID(), log.neighborhoodId(), inv.id(), log.lotId(),
+                inv.guestName(), inv.guestDocument(), log.companions(),
+                log.id(), null, log.capturedAt(), null, inv.validUntil(),
+                false, null);
+        Stay opened = stays.openIfNotOpen(stay);
+        // WBS-43 / US-25: notificar solo cuando este ingreso genero una stay
+        // nueva. Si `openIfNotOpen` colapso en una existente (mismo QR entrado
+        // dos veces rapido), evitar re-push. La `capturedAt` es la hora real
+        // del ingreso: para eventos offline no es "ahora", es la del scan.
+        if (opened.entryLogId().equals(log.id())) {
+            String lotCode = lots.find(log.lotId()).map(LotSnapshot::code).orElse(null);
+            events.publishEvent(new GuestArrivedEvent(
+                    log.neighborhoodId(),
+                    opened.id(),
+                    inv.id(),
+                    inv.createdBy(),
+                    inv.guestName(),
+                    lotCode,
+                    log.capturedAt(),
+                    log.syncedOffline()));
+        }
+        return opened;
+    }
+
+    private Optional<Stay> closeStay(AccessLog log, Invitation inv) {
+        Optional<Stay> open = stays.findOpenByInvitationId(inv.id());
+        if (open.isEmpty()) {
+            // BR-07: un egreso sin ingreso previo no bloquea; el log ya quedo
+            // registrado como MANUAL/GUEST. Aca simplemente no hay stay que cerrar.
+            LOG.info("stay.close.skipped invitation={} sin stay abierta", inv.id());
+            return Optional.empty();
+        }
+        Stay closed = open.get().close(log.id(), log.capturedAt(), false, log.guardId());
+        stays.close(closed);
+        return Optional.of(closed);
+    }
+}

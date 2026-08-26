@@ -18,6 +18,11 @@ Estos puntos estaban ambiguos en el brief. Se resuelven acá; si alguno no coinc
 | D-05 | Firma del QR | **Ed25519 (asimétrica)**, no HMAC. Razón en §5.1: el guardia valida offline, y con HMAC habría que guardar el secreto de firma en el teléfono, lo que permitiría falsificar invitaciones desde un dispositivo robado. |
 | D-06 | Lectura de DNI (PDF417) | Dentro del MVP, Fase 4. Acelera la visita imprevista en vez de frenarla, que es lo contrario del caso de la patente. |
 | D-07 | Alcance de código | Sin capas especulativas. No se implementa multi-tenant por schema, no se implementa event sourcing, no se implementa GraphQL. Un barrio por fila en `neighborhoods` y punto. |
+| D-08 | DNI del invitado | **Obligatorio** al crear la invitación. Deja de ser opcional. |
+| D-09 | Enrolamiento | El primer ingreso de un invitado exige QR **y** DNI, y el sistema verifica que coincidan. Los ingresos siguientes de ese mismo invitado solo requieren QR. |
+| D-10 | Egreso | Se registra con el mismo QR. Si el invitado no puede presentarlo, el guardia cierra la estadía desde la lista de presentes. El DNI no se pide de nuevo. |
+| D-11 | Ocupación en garita | La lista de quiénes están adentro pasa del dashboard admin (§7.5) a la app del guardia. El que necesita saber que alguien lleva ocho horas adentro está en la garita, no mirando un panel desde su casa. Sigue disponible también para el admin. |
+| D-12 | Alerta de permanencia | Se avisa al guardia 20 minutos **antes** del vencimiento, no después. El objetivo es prevenir la permanencia excedida, no reportarla. |
 
 ---
 
@@ -528,6 +533,13 @@ CREATE INDEX idx_devices_user ON devices (user_id);
 | BR-08 | Alerta de permanencia excedida: ingreso `ALLOWED` sin egreso correspondiente pasadas `stay_alert_minutes`. |
 | BR-09 | Un guardia no puede tener dos turnos abiertos simultáneos (garantizado por índice `uq_guard_open_shift`). |
 | BR-10 | El residente puede escanear su propio QR personal (permanente, `RECURRING` implícito) sin consumir cupo. |
+| BR-11 | El DNI es obligatorio en toda invitación. No viaja en el payload del QR: se resuelve server-side por `invitationId`. |
+| BR-12 | El primer ingreso de una invitación requiere QR y DNI. El DNI escaneado debe coincidir con `invitations.guest_document`; si no, `DOCUMENT_MISMATCH` y el intento se persiste. |
+| BR-13 | Una vez creado el enrolamiento, los ingresos siguientes de esa invitación solo requieren QR. El enrolamiento es por invitación, no por persona: un pase nuevo se enrola de nuevo. |
+| BR-14 | Cada ingreso permitido abre una `stay`. Cada egreso permitido cierra la `stay` abierta de esa invitación. |
+| BR-15 | El aviso de permanencia se dispara a `expected_until - stay_warning_minutes`. Se emite una sola vez por estadía (`warned_at`). |
+| BR-16 | Extender una invitación suma `extension_minutes` a `valid_until` e incrementa `extension_count`. Se rechaza si `extension_count >= max_extensions`. La extensión actualiza también `expected_until` de la estadía abierta. |
+| BR-17 | Solo el creador de la invitación o el titular del lote pueden extenderla. |
 
 ---
 
@@ -571,12 +583,47 @@ SP1.<payload_b64url>.<signature_b64url>
 | `t` | tipo: `S` single, `E` event, `R` recurring |
 | `f` / `u` | `validFrom` / `validUntil` (epoch segundos, UTC) |
 | `m` | `maxUses` |
+| `w` | `weekdays` — días de semana (1=lunes). Solo `RECURRING`. |
+| `df` / `du` | `dailyFrom` / `dailyUntil` — franja horaria `HH:mm`. Solo `RECURRING`. |
+
+Ejemplo para `t == "R"`:
+
+```json
+{
+  "v": 1,
+  "k": "np_2026a",
+  "j": "8f3c...",
+  "n": "b1a2...",
+  "l": "c9d8...",
+  "i": "7e6f...",
+  "t": "R",
+  "f": 1755523200,
+  "u": 1787155200,
+  "m": 1,
+  "w": [1,2,3,4,5],
+  "df": "08:00",
+  "du": "18:00"
+}
+```
+
+`w`, `df` y `du` solo se emiten cuando `t == "R"`; en `SINGLE` y `EVENT`
+se omiten, no van en null. Sin estos campos en el token, la validación
+offline de pases recurrentes es imposible: el dispositivo no tiene acceso
+al horario persistido en `invitations`.
 
 Restricciones:
 
 - Tamaño objetivo < 300 bytes → QR versión ≤ 10, ECC nivel M. Legible a 30 cm con cámara de gama baja.
 - El payload **no** lleva datos personales del invitado. El nombre se resuelve server-side. Un QR fotografiado y filtrado no expone identidad.
 - El token no es un JWT: se evita el header JSON de JWT que agrega ~40 bytes inútiles al QR.
+
+**Verificación del token en el server (orden estricto):**
+
+1. Parse del formato `SP1.<payload>.<sig>`.
+2. Lookup de la clave por `(neighborhoodId, kid)`.
+3. Verificación Ed25519 de la firma sobre los bytes del payload.
+4. **Coincidencia de `jti`**: el `jti` del payload debe ser igual al `jti` persistido en `invitations` para el `invitationId` del payload. Si no coincide, se rechaza como `INVALID_SIGNATURE` (un token firmado antes de una eventual rotación de `jti` no es válido). Esta comparación va **antes** que cualquier chequeo temporal.
+5. Recién después: revocación, lote, ventana, franja, cupo.
 
 ### 5.2 Anti-replay
 
@@ -732,6 +779,32 @@ Para `type: "RECURRING"` se agregan `weekdays: [1,2,3,4,5]`, `dailyFrom: "08:00"
 | GET | `/invitations?lotId=&status=&page=` | RESIDENT_*, ADMIN | Listar |
 | GET | `/invitations/{id}` | dueño del lote, ADMIN | Detalle + QR |
 | POST | `/invitations/{id}/revoke` | creador, owner del lote, ADMIN | Revocar |
+| GET | `/me/passes` | RESIDENT_* | Lista de QR personales del residente |
+
+**Pase personal del residente (US-16, BR-10).** Una entrada por lote donde el
+usuario es `family_members` activo. Token permanente (`residentPass=true`,
+`RECURRING` implícito, sin franja horaria efectiva y sin consumir cupo). Se
+invalida al desactivar la membresía del lote.
+
+```http
+GET /api/v1/me/passes
+```
+```json
+{
+  "passes": [
+    {
+      "lotId": "uuid",
+      "lotCode": "M4-L12",
+      "neighborhoodName": "Barrio X",
+      "qrToken": "SP1.eyJ2Ijox....abc",
+      "kid": "kid-1"
+    }
+  ]
+}
+```
+
+BR-03 no bloquea al titular (US-08): la validación de un `residentPass` en un
+lote `SUSPENDED` sigue permitiendo el ingreso.
 
 ### 7.3 Accesos (guardia)
 
@@ -770,6 +843,22 @@ POST /api/v1/access/validate
 }
 ```
 
+`200 OK` — requiere enrolamiento (BR-12, primer ingreso de la invitación):
+```json
+{
+  "result": "NEEDS_ENROLLMENT",
+  "invitationId": "uuid",
+  "lot": { "code": "M4-L12" }
+}
+```
+
+No lleva `guest.name`: la identidad no está verificada todavía. Si la app le
+mostrara el nombre al guardia antes de pedir el DNI, el guardia compararía el
+documento contra la pantalla en vez de que el sistema compare a ciegas. El
+nombre aparece recién en la respuesta de `POST /access/enroll`, ya verificado.
+La app continúa con el scan de DNI y llama a `/access/enroll` con un
+`clientEventId` nuevo (el de `validate` no se persiste).
+
 ```http
 POST /api/v1/access/sync
 ```
@@ -803,8 +892,83 @@ POST /api/v1/access/sync
 | POST | `/access/validate` | GUARD | Validación online |
 | POST | `/access/sync` | GUARD | Batch offline, idempotente por `clientEventId` |
 | POST | `/access/manual` | GUARD | Ingreso sin QR (proveedor, visita imprevista) |
+| GET | `/lots?q=` | GUARD | Autocompletar por `code` (parcial, case-insensitive) sobre lotes `ACTIVE` del barrio del turno activo; devuelve `[{id, code}]` con tope 10; necesario para armar el body de `/access/manual`, que pide `lotId` UUID |
 | GET | `/access/keys` | GUARD | Claves públicas Ed25519 activas del barrio |
+| GET | `/access/revoked?since=` | GUARD | `jti` revocados desde `since` (alimenta `revoked_cache` de §8.1) |
 | GET | `/access-logs?from=&to=&lotId=&result=&page=` | ADMIN, RESIDENT (solo su lote) | Bitácora |
+| POST | `/access/enroll` | GUARD | Verifica el DNI contra la invitación y crea el enrolamiento |
+| GET | `/stays/open` | GUARD, ADMIN | Quiénes están adentro ahora |
+| POST | `/stays/{id}/close` | GUARD | Cierre manual de estadía (US-39) |
+| POST | `/stays/{id}/notify-resident` | GUARD | Avisa al residente que invitó (US-41) |
+
+```http
+POST /api/v1/access/enroll
+```
+```json
+{
+  "token": "SP1.eyJ2Ijox....abc",
+  "documentNumber": "30123456",
+  "gateId": "uuid",
+  "clientEventId": "uuid",
+  "capturedAt": "2026-08-20T18:42:11Z"
+}
+```
+`200 OK` — permitido:
+```json
+{
+  "result": "ALLOWED",
+  "enrolledAt": "2026-08-20T18:42:11Z",
+  "enrollmentId": "uuid",
+  "guest": { "name": "María López", "document": "30123456" }
+}
+```
+`200 OK` — denegado (respuesta de negocio, no error HTTP):
+```json
+{
+  "result": "DENIED",
+  "reason": "DOCUMENT_MISMATCH",
+  "guest": { "name": null, "document": "99999999" }
+}
+```
+
+El body lleva el token firmado del QR, no `invitationId`. El backend
+verifica firma Ed25519 antes que el documento: el enrolamiento son dos
+factores (token + DNI) y ninguno se puede saltear. `reason` sigue el
+mismo vocabulario que `/access/validate` (`INVALID_SIGNATURE`,
+`REVOKED`, `DOCUMENT_MISMATCH`).
+
+```http
+GET /api/v1/stays/open
+```
+```json
+{
+  "stays": [
+    {
+      "id": "uuid",
+      "invitationId": "uuid",
+      "subjectName": "María López",
+      "lotCode": "M4-L12",
+      "enteredAt": "2026-08-20T18:42:11Z",
+      "expectedUntil": "2026-08-20T23:59:00Z",
+      "minutesRemaining": 47,
+      "warned": false,
+      "exitRequestedAt": null
+    }
+  ]
+}
+```
+
+`invitationId` puede ser `null` en estadías `MANUAL` (US-21, sin
+invitación asociada). El residente lo usa para invocar
+`/invitations/{id}/extend` y `/invitations/{id}/request-exit`; sin este
+campo el cliente no puede mapear una estadía a su invitación.
+
+Endpoints de residente para permanencia (US-42):
+
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| POST | `/invitations/{id}/extend` | RESIDENT_* | Extiende `valid_until` (US-42) |
+| POST | `/invitations/{id}/request-exit` | RESIDENT_* | Indica que la visita debe retirarse |
 
 ### 7.4 Turnos
 
@@ -824,10 +988,34 @@ POST /api/v1/access/sync
 | GET | `/admin/metrics/overstays` | Permanencias excedidas (BR-08) |
 | GET/POST/PATCH | `/admin/lots` | Padrón catastral |
 | POST | `/admin/lots/{id}/members` | Vincular usuario a lote |
-| GET/POST/PATCH | `/admin/users` | Altas de guardias y residentes |
+| POST | `/admin/users` | Alta de usuario (v2, WBS-128). Body `{email, fullName, dni, role, lotId?}` con `role ∈ {RESIDENT_OWNER, GUARD}`. 201 con `{userId, role, status: PENDING_ACTIVATION}`. Dispara email de activación. |
+| POST | `/admin/users/{id}/resend-activation` | Reenvía el email de activación (v2, WBS-128). 3/hora por usuario. 409 si el usuario no está en `PENDING_ACTIVATION`. |
 | GET | `/admin/reports/access-logs.csv` | Export |
 
-### 7.6 Códigos de error
+**Códigos de conflicto en `POST /admin/users`** (HTTP 409, campo `code` en el body para que el frontend ramifique):
+
+| `code` | Cuándo | `existingUserId` |
+|---|---|---|
+| `EMAIL_TAKEN` | El email ya existe en `ACTIVE` o `SUSPENDED`. | no |
+| `PENDING_ACTIVATION_EXISTS` | El email ya existe en `PENDING_ACTIVATION`. El admin puede reenviar la activación en vez de crear otro. | sí |
+| `DNI_TAKEN` | El DNI ya existe. La persona ya es usuaria (mudanza / titular en otro barrio); el admin debe vincularla con `POST /admin/lots/{id}/members` en vez de recrearla. | sí |
+
+### 7.6 Unidad familiar (titular)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/v1/family/lots/{lotId}/members` | Miembros del lote con nombre, contacto y permisos |
+| POST | `/api/v1/family/lots/{lotId}/members` | Titular vincula un usuario existente por email/teléfono |
+| PATCH | `/api/v1/family/lots/{lotId}/members/{userId}` | Titular cambia `canInvite` o da de baja un miembro |
+
+Reglas:
+
+- Solo el titular (`is_owner`) del lote crea o modifica miembros (BR-02). Cualquier miembro activo del lote y ADMIN pueden listar.
+- `POST` vincula un usuario ACTIVE existente: 404 si no existe, 409 si ya es miembro del lote. Si el usuario no tiene membresía en el barrio, se le otorga `RESIDENT_MEMBER`.
+- `PATCH` con `active=false` revoca en cascada las invitaciones ACTIVE del miembro para ese lote (US-07). El titular no se puede desactivar ni modificar a si mismo.
+- `can_invite` del titular siempre vale; el campo se gestiona solo para miembros.
+
+### 7.7 Códigos de error
 
 | HTTP | `type` | Cuándo |
 |---|---|---|
@@ -896,9 +1084,43 @@ export const validateOffline = (
   }
   if (ctx.localUses(parsed.payload.j) >= parsed.payload.m) return denied('ALREADY_USED')
 
-  return allowed(parsed.payload)
+  // Allowed explicito: espeja las condiciones de los guards.
+  if (noRevocado && dentroDeVentana && enFranja && cupoDisponible) {
+    return allowed(parsed.payload)
+  }
+
+  // Fail-closed: el default es denegar.
+  return denied('UNKNOWN')
 }
 ```
+
+**Default fail-closed.** La última línea es `denied('UNKNOWN')`, no un
+fall-through a `allowed`: si una condición nueva se agrega al token y
+falta su guard clause, el pase se deniega. El costo de un falso
+permitido (un desconocido adentro) es mayor que el de un falso denegado
+(un registro manual en garita). `UNKNOWN` se agrega a los motivos
+producibles offline.
+
+El dispositivo cachea los enrolamientos junto con las claves y los revocados:
+
+```sql
+CREATE TABLE enrollments_cache (
+  invitation_id  TEXT PRIMARY KEY,
+  enrolled_at    TEXT NOT NULL
+);
+```
+
+Guard clause nueva, **después** de todas las existentes y antes del `allowed`:
+
+```ts
+if (direction === 'IN' && !ctx.enrollments.has(parsed.payload.i)) {
+  return { status: 'needs_enrollment', invitationId: parsed.payload.i }
+}
+```
+
+`needs_enrollment` es un estado nuevo de `AccessDecision`, distinto de `allowed` y de `denied`: no deja pasar ni rechaza, pide el segundo factor. El default fail-closed de la función no cambia.
+
+El enrolamiento offline se encola en el outbox como cualquier otro evento. Si dos garitas enrolan el mismo invitado sin red, gana el de `capturedAt` menor y el otro se persiste como duplicado auditable.
 
 ### 8.3 Limitaciones aceptadas del modo offline
 
@@ -1142,13 +1364,28 @@ Ambos: bloqueo de merge si falla.
 
 Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesario, **P2** posterior.
 
+> **v2 — modelo funcional revisado.** A partir de la prueba en dispositivo de
+> agosto 2026, el modelo funcional pasa a ser `docs/modelo-funcional-v2.md`.
+> Las épicas I a O de esta sección (US-50 a US-74) son la ronda v2. Las
+> siguientes historias/reglas quedan **OBSOLETAS** por v2 y se conservan solo
+> por trazabilidad histórica:
+>
+> - **US-13** (pase recurrente) y el tipo `RECURRING` de invitación (§4.2,
+>   §5.1, BR-04, BR-10) → reemplazado por Épica L (trabajadores). Se elimina
+>   en WBS-127.
+> - **US-34, US-35, US-36** y **BR-13** (enrolamiento por invitación, §4.3) →
+>   reemplazado por Épica M (verificación por persona). La tabla de
+>   `guest_enrollments` migra a verificación por documento en WBS-122.
+> - **Fase 8** del WBS (WBS-59/60/61/62, enrolamiento por DNI por invitación)
+>   → superseded por WBS-122/123.
+
 ### Épica A — Identidad y acceso al sistema
 
 | ID | Historia | Prioridad | Criterios de aceptación |
 |---|---|---|---|
 | US-01 | Como usuario quiero iniciar sesión con email/teléfono y contraseña para acceder a mi rol. | P0 | Credenciales válidas devuelven access + refresh; inválidas devuelven 401 sin revelar si el usuario existe; 5 intentos fallidos en 15 min bloquean por IP+identificador. |
 | US-02 | Como usuario quiero permanecer logueado sin reingresar la contraseña cada vez. | P0 | Refresh rota en cada uso; reutilizar un refresh viejo invalida toda la familia; tokens en Keychain/Keystore. |
-| US-03 | Como admin quiero dar de alta guardias y residentes con su rol. | P0 | Alta genera contraseña temporal; el usuario debe cambiarla en el primer login; el email/teléfono duplicado devuelve 409. |
+| US-03 | Como admin quiero dar de alta guardias y residentes con su rol. | P0 | **v2 (WBS-128)**: alta crea usuario en `PENDING_ACTIVATION` sin contraseña y envía email de activación (Épica I v2). El "contraseña temporal + cambio en primer login" de v1 queda **obsoleto**. `role ∈ {RESIDENT_OWNER, GUARD}`; RESIDENT_OWNER exige `lotId`. Email/DNI duplicado devuelve 409 con `code` distinguible (`EMAIL_TAKEN` / `PENDING_ACTIVATION_EXISTS` / `DNI_TAKEN`). |
 | US-04 | Como usuario quiero cerrar sesión en el dispositivo. | P1 | Logout invalida el refresh y borra la DB local si el rol es GUARD. |
 
 ### Épica B — Padrón catastral
@@ -1204,6 +1441,86 @@ Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesa
 | US-31 | Como admin quiero alertas de permanencia excedida. | P1 | BR-08; listado con lote, invitado y horas transcurridas. |
 | US-32 | Como admin quiero exportar la bitácora. | P1 | CSV con rango de fechas; la exportación queda registrada en auditoría. |
 | US-33 | Como admin quiero ver la bitácora de turnos de guardias. | P2 | Turno, guardia, garita, cantidad de accesos, nota de entrega. |
+
+### Épica G — Enrolamiento y verificación de identidad
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-34 | Como residente debo especificar el DNI del invitado al crear la invitación, para que su identidad se verifique en garita. | P0 | Campo obligatorio; validación de formato de documento argentino (7-8 dígitos); invitación sin DNI devuelve 422; el DNI no viaja en el payload del QR (§5.1 sigue sin PII). |
+| US-35 | Como guardia, en el primer ingreso de un invitado escaneo QR y después DNI, y el sistema confirma que coinciden. | P0 | Tras un QR válido y no enrolado, la app pide el DNI; coincidencia registra el ingreso y crea el enrolamiento; no coincidencia deniega con `DOCUMENT_MISMATCH` y persiste el intento en la bitácora. |
+| US-36 | Como guardia, en los ingresos siguientes del mismo invitado alcanza el QR. | P0 | Si la invitación ya tiene enrolamiento, el flujo termina en el QR; el resultado indica "verificado el DD/MM"; funciona offline con el enrolamiento cacheado en SQLite. |
+| US-37 | Como guardia quiero registrar el egreso con el mismo QR. | P0 | Egreso con QR cierra la estadía abierta; no consume cupo (BR-06); si no hay estadía abierta, se acepta como `MANUAL` (BR-07). |
+
+### Épica H — Ocupación y permanencia en garita
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-38 | Como guardia quiero ver quiénes están adentro ahora. | P0 | Lista con nombre, código de lote y hora de ingreso; orden por hora de ingreso descendente; refresco automático; funciona offline con lo que el dispositivo tiene registrado. |
+| US-39 | Como guardia quiero cerrar la estadía de alguien desde la lista. | P1 | Vía de respaldo cuando el invitado no puede presentar el QR; requiere confirmación; el log queda marcado como cierre manual con el guardia que lo hizo. |
+| US-40 | Como guardia quiero un aviso 20 minutos antes de que venza una permanencia. | P0 | Notificación local en el dispositivo de garita; la fila correspondiente se resalta en la lista; el aviso no se repite una vez atendido. |
+| US-41 | Como guardia quiero avisarle al residente que invitó, desde ese aviso. | P0 | Un toque envía la notificación; el residente recibe nombre del invitado, hora de ingreso y minutos restantes; el envío queda registrado. |
+| US-42 | Como residente quiero recibir ese aviso y poder extender el pase o indicar que la visita se retire. | P0 | Push con dos acciones; extender prolonga `valid_until` según la política del barrio; "que se retire" notifica al guardia; la decisión aparece en la garita en menos de 5 s. |
+| US-43 | Como admin quiero un tope a las extensiones. | P1 | Configurable por barrio: máximo de extensiones por invitación y duración de cada una; alcanzado el tope, el residente ve el motivo. |
+
+### Épica I — Activación de cuentas por email (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-50 | Como sistema necesito enviar emails transaccionales. | P0 | Proveedor configurado por variable de entorno (Resend, `RESEND_API_KEY`); en desarrollo `LoggingEmailSender` escribe a log; fallo de envío no rompe la operación que lo disparó. |
+| US-51 | Como usuario nuevo recibo un email con un enlace para activar mi cuenta. | P0 | Enlace válido 7 días, un solo uso; token aleatorio de 256 bits (no el id del usuario); el email dice quién lo invitó y a qué barrio. |
+| US-52 | Como usuario nuevo defino mi contraseña desde ese enlace. | P0 | Mínimo 8 caracteres; al confirmar, la cuenta queda activa y entra directo; el token se consume y no sirve más. |
+| US-53 | Como usuario quiero recuperar mi contraseña si la olvido. | P1 | Mismo mecanismo de token; la respuesta se envía siempre igual, exista o no la cuenta, para no revelar quién está registrado. |
+| US-54 | Como quien dio de alta a alguien quiero reenviar la activación si venció. | P1 | Reenviar invalida el token anterior; visible en la pantalla desde donde se creó la cuenta. |
+
+### Épica J — Permisos por lote (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-55 | Como sistema debo resolver qué puede hacer alguien según sus permisos vigentes, no según un rol fijo. | P0 | Un usuario puede tener varios permisos en lotes distintos; el JWT lleva la lista; revocar uno no afecta a los demás. |
+| US-56 | Como sistema debo identificar a una persona por su DNI globalmente. | P0 | El DNI es único en todo el sistema (no por barrio): una persona = un `users`. Alta con DNI existente devuelve el usuario existente en vez de 409, y suma el permiso al lote/barrio nuevo si no lo tenía. Si el user existente tiene email, ese gana: el email pasado en la alta se ignora y la respuesta trae el email real (el admin ve que la persona ya está en el sistema y puede coordinar). Si el user existente no tiene email (caso trabajador/menor cargado sin cuenta), el email nuevo lo completa. Nombre y otros datos no se pisan. |
+
+### Épica K — Familia (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-57 | Como titular quiero agregar a un familiar mayor de 16 y que reciba su cuenta. | P0 | Nombre, DNI, edad, parentesco y email; se crea el usuario y se envía activación; si el DNI ya existe, se le suma el permiso. |
+| US-58 | Como titular quiero registrar a un menor de 16 sin cuenta. | P0 | Queda en el padrón del lote; no se pide email; no se crea usuario; la app explica por qué. |
+| US-59 | Como titular quiero quitarle el acceso a un familiar. | P1 | Confirmación explícita; sus invitaciones activas se revocan; el usuario sigue existiendo por si es residente en otro lote. |
+| US-60 | Como familiar quiero ver quiénes componen mi unidad familiar. | P1 | Misma pantalla que el titular, sin botones de gestión. |
+| US-61 | Como familiar quiero crear invitaciones igual que el titular. | P0 | Sin diferencias en el flujo de invitación. |
+
+### Épica L — Trabajadores (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-62 | Como titular quiero habilitar a un trabajador con sus días y horarios. | P0 | Nombre, DNI, tipo de servicio, días de la semana y franja horaria; si el DNI existe se le suma el permiso sin crear otro usuario ni otro QR. |
+| US-63 | Como titular quiero ver y editar los horarios de mis trabajadores. | P1 | Lista con nombre, servicio y horarios; edición sin recrear el permiso. |
+| US-64 | Como titular quiero quitarle el acceso a un trabajador. | P0 | Efecto inmediato online; tras la próxima sincronización offline; no afecta sus permisos en otros lotes. |
+| US-65 | Como trabajador quiero ver mi QR y dónde trabajo. | P0 | Pantalla única: nombre, servicio, QR grande, y la lista de casas con horarios. Nada más del barrio. |
+| US-66 | Como trabajador entro al barrio mostrando mi QR. | P0 | El sistema evalúa todos los permisos vigentes en ese momento; primera vez también DNI. |
+| US-67 | Como guardia veo a qué lote va el trabajador cuando tiene varios habilitados. | P0 | Si más de un permiso lo habilita, la app muestra los lotes y el guardia toca el correcto; si es uno solo, entra directo. |
+| US-68 | Como sistema rechazo al trabajador fuera de su horario. | P0 | Denegado con motivo `OUT_OF_SCHEDULE`; el intento queda en la bitácora; funciona offline. |
+
+### Épica M — Verificación de identidad por persona (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-69 | Como persona verificada una vez no vuelvo a mostrar el documento. | P0 | La verificación se guarda contra el DNI, no contra la invitación; vale para invitaciones futuras y para permisos de trabajador. |
+| US-70 | Como guardia veo si la persona ya está verificada antes de escanear el DNI. | P1 | El resultado del QR indica si requiere verificación; sin adelantar el nombre cuando todavía no está verificada. |
+
+### Épica N — Garita usable (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-71 | Como guardia quiero navegar entre escáner, presentes, registro y turno. | P0 | Barra superior sólida, legible sobre cualquier fondo de cámara; toques de 48 dp; el escáner sigue siendo la pantalla principal. |
+| US-72 | Como guardia quiero ver el registro de ingresos y egresos de mi turno. | P0 | Lista con hora, nombre, lote, dirección y resultado; los denegados con su motivo. |
+| US-73 | Como guardia quiero que la app no se trabe al navegar. | P0 | Sin crashes al montar o desmontar pantallas; el selector de fecha del turno no rompe la navegación. |
+
+### Épica O — Limpieza (v2)
+
+| ID | Historia | Prioridad | Criterios de aceptación |
+|---|---|---|---|
+| US-74 | Como equipo quiero eliminar el pase recurrente de invitación. | P1 | Los trabajadores lo reemplazan; migración de los recurrentes existentes a permisos de trabajador o revocación; el tipo desaparece de la API y de la app. |
 
 ---
 
@@ -1308,6 +1625,182 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 | 56 | Prueba de campo offline | `securepassf` | `test/offline-field-validation` | 200 escaneos sin red seguidos de sync: cero pérdidas, cero duplicados, cero falsos permitidos. |
 | 57 | Observabilidad | `securepassb` | `chore/observability-setup` | Logs estructurados JSON sin PII; métricas de accesos por minuto, tasa de denegados y latencia p95 expuestas en Actuator. |
 | 58 | Import de padrón | ambos | `feature/registry-csv-import` | US-09: preview antes de confirmar; errores por fila sin abortar el lote. |
+
+### Fase 8 — Enrolamiento por DNI
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 59 | DNI obligatorio en invitación | `securepassb` | `feature/invitation-required-document` | US-34 | Migración V4 con backfill; validación de formato; 422 sin DNI; el payload del QR sigue sin PII (test). |
+| 60 | Dominio y API de enrolamiento | `securepassb` | `feature/access-enrollment` | US-35, US-36 | `POST /access/enroll`; `DOCUMENT_MISMATCH` persiste el intento; enrolamiento único por invitación; BR-12 y BR-13 con tests. |
+| 61 | Enrolamiento en validación | `securepassb` | `feature/access-enrollment-gate` | US-35, US-36 | La validación devuelve `NEEDS_ENROLLMENT` si la invitación no está enrolada; los ingresos siguientes pasan directo. |
+| 62 | Enrolamiento offline | `securepassf` | `feature/scanner-offline-enrollment` | US-36 | `enrollments_cache` en SQLite; estado `needs_enrollment` en `validateOffline` con tests; encolado en outbox. |
+| 63 | Escaneo de DNI en garita | `securepassf` | `feature/scanner-document-pdf417` | US-22, US-35 | PDF417 con `expo-camera`; parser del DNI argentino en `lib.ts` con tests; fallback a carga manual a los 5 s; pantalla de mismatch clara. |
+| 64 | DNI en el alta de invitación | `securepassf` | `feature/invitation-guest-document` | US-34 | Campo obligatorio con validación en cliente; mensaje explicando para qué se usa. |
+
+### Fase 9 — Ocupación y permanencia
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 65 | Dominio de estadías | `securepassb` | `feature/stay-domain` | US-37 | Migración V4; ingreso abre `stay`, egreso la cierra; BR-14 con tests; índice único de estadía abierta verificado. |
+| 66 | API de presentes | `securepassb` | `feature/stay-open-list` | US-38 | `GET /stays/open` con nombre, lote, hora y minutos restantes; sin seq scan; aislamiento por barrio testeado. |
+| 67 | Cierre manual | `securepassb` | `feature/stay-manual-close` | US-39 | `POST /stays/{id}/close`; queda marcado `closed_manually` con el guardia; append-only respetado. |
+| 68 | Lista de presentes en garita | `securepassf` | `feature/guard-present-list` | US-38, US-39 | Lista con orden por ingreso; fila resaltada al acercarse el vencimiento; cierre manual con confirmación; funciona offline. |
+| 69 | Aviso de permanencia | `securepassf` | `feature/guard-stay-warning` | US-40 | Notificación local a `expected_until - stay_warning_minutes`; una sola vez por estadía; no depende de red. |
+| 70 | Aviso al residente | ambos | `feature/notification-stay-warning` | US-41 | `POST /stays/{id}/notify-resident`; push con nombre, hora y minutos restantes; envío registrado. |
+| 71 | Extensión de invitación | `securepassb` | `feature/invitation-extend` | US-42, US-43 | `POST /invitations/{id}/extend`; BR-16 y BR-17 con tests; tope por barrio; actualiza `expected_until` de la estadía abierta. |
+| 72 | Push accionable en residente | `securepassf` | `feature/resident-stay-response` | US-42 | Dos acciones en la notificación; la decisión llega a la garita en < 5 s; motivo visible al alcanzar el tope. |
+
+**Orden de ejecución:** 59, 60, 61 (backend) → 62, 63, 64 (frontend) → 65, 66, 67 (backend) → 68, 69 (frontend) → 70, 71, 72 (ambos).
+
+El 59 es bloqueante de todo lo demás: cambia el esquema. El 63 depende del 60 para tener contra qué verificar.
+
+---
+
+## Ronda v2 — Fases 10 a 16
+
+Basadas en `docs/modelo-funcional-v2.md` y `docs/historias-y-plan-v2.md`. Orden de
+dependencia: A (Fase 10) sostiene todo lo demás; B (Fase 11) es cambio
+estructural, va antes de construir encima; F (Fase 15) puede adelantarse.
+
+### Fase 10 — Activación de cuentas por email (Épica A v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 100 | Infraestructura de email | `securepassb` | `feature/notification-email-sender` | US-50 | Puerto `EmailSender` + adapter Resend detrás de flag + `LoggingEmailSender` para dev; plantillas en recursos; envío asíncrono con timeout, fuera de la ruta del request. |
+| 101 | Tokens de activación | `securepassb` | `feature/auth-activation-tokens` | US-51 | Migración: tabla `activation_tokens` (hash del token, user_id, propósito, expira, consumido); 256 bits de entropía; un solo uso garantizado por índice. |
+| 102 | Endpoints de activación | `securepassb` | `feature/auth-activation-endpoints` | US-52, US-54 | `GET /activation/{token}` valida y devuelve datos del usuario; `POST /activation/{token}` define contraseña y activa; 410 si vencido o consumido; página web estática de respaldo en `GET /activar/{token}` para requests no-app. |
+| 103 | Recuperación de contraseña | `securepassb` | `feature/auth-password-reset` | US-53 | `POST /auth/forgot-password` y `POST /auth/reset-password`; respuesta idéntica exista o no el email; rate limit 3 por hora por email. |
+| 104 | Página web de activación | `securepassb` | `feature/auth-activation-web` | US-52 | Página web server-rendered en `GET /activar/{token}` (no pantalla de app móvil); template único que despacha por `purpose` del GET; formulario de contraseña con confirmación; 410 muestra "contactá a la administración"; `Referrer-Policy: no-referrer` y redirección post-éxito con `replace` para no dejar el token en el historial. |
+| 105 | Página web de recuperación | `securepassb` | `feature/auth-activation-web` | US-53 | Mismo template que WBS-104; despacho por `purpose=PASSWORD_RESET` del GET; 410 linkea a `/forgot-password`; POST a `/api/v1/auth/reset-password`. |
+
+### Fase 11 — Permisos por lote (Épica B v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 106 | Migración de familia a permisos por lote + escritura dual | `securepassb` | `refactor/identity-lot-permissions` | US-55 | Tabla nueva `lot_permissions` (user, lot, tipo `OWNER/MEMBER/WORKER`, atributos JSONB) que reemplaza a `family_members` para la ocupación del lote. `memberships` queda para `ADMIN`/`GUARD` (gestión del barrio, sin lote). Migración copia `family_members` a `lot_permissions` sin pérdida. **Escritura dual habilitada en el mismo PR**: toda escritura sobre `family_members` (INSERT y UPDATE — no hay DELETE) replica en `lot_permissions` en la misma transacción. Fuente de verdad sigue siendo `family_members` (reads no cambian). Motivo: sin dual write, cada alta posterior a la migración dejaba a `lot_permissions` desincronizada; el drift silencioso invisible es peor que el trabajo extra de mantener las dos tablas. **WBS-108 debe invertir la fuente de verdad** (reads y writes pasan a `lot_permissions`) **y borrar el dual write** de los repositorios en el mismo PR. El drop de `family_members` viene en un PR posterior a WBS-108, cuando ningún caller la use. |
+| 107 | Alta con dedupe por DNI (admin) | `securepassb` | `feature/identity-document-dedupe` | US-56 | UNIQUE global sobre `document_number` (ya presente en V9 desde WBS-128). `POST /admin/users` devuelve el `users` existente en vez de 409 cuando el DNI ya existe (200 con `reused: true`); suma el permiso al lote correspondiente; idempotente si el permiso ya estaba (`changed: false`). Regla de email de US-56: si el user existente tiene email, ese gana; si no lo tiene, se completa. `SUSPENDED` y `DELETED` devuelven 409 explicito con `existingUserId` (no se reactivan silenciosamente). Response shape unificado `{userId, role, status, reused, changed, email, fullName}`. **Reemision de activacion condicional**: en el reuso de `PENDING_ACTIVATION` se reemite el token solo cuando hay cambio real (permiso nuevo o email completado), no en el reuso puramente idempotente. Motivo: un doble click del admin sobre "Alta" no debe traducirse en N emails al residente. Para reenviar activacion de forma explicita esta `POST /admin/users/{id}/resend-activation`, con su propio rate limit. **El endpoint "family" (agregar por DNI a la unidad familiar) queda para WBS-110**, no entra en 107. WORKER es Fase 13 (WBS-114). |
+| 108 | Autorización por permiso | `securepassb` | `refactor/auth-permission-checks` | US-55 | `@PreAuthorize` evalúa permisos sobre el lote del recurso, no rol global; el test de IDOR sigue verde; sin regresiones. |
+| 109 | Adaptación del cliente | `securepassf` | `refactor/auth-permission-model` | US-55 | El estado de sesión guarda la lista de permisos; el ruteo por rol pasa a ser por permiso; una persona con dos permisos elige contexto al entrar. |
+
+### Fase 12 — Familia (Épica C v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 110 | Alta de familiar con cuenta | `securepassb` | `feature/family-member-invite` | US-57 | Crea usuario si el DNI es nuevo, reusa si existe; dispara activación; solo el titular; valida edad ≥ 16 para pedir email. |
+| 111 | Padrón de menores | `securepassb` | `feature/family-minor-registry` | US-58 | Tabla de personas del lote sin usuario; edad obligatoria; no genera credenciales. |
+| 112 | Baja de familiar | `securepassb` | `feature/family-member-revoke` | US-59 | Revoca el permiso, no el usuario; cascada sobre invitaciones activas de ese lote. |
+| 113 | Pantalla de familia | `securepassf` | `feature/family-management-screen` | US-57, US-58, US-59, US-60 | Alta con validación de edad que cambia el formulario; lista con parentesco; modo lectura para familiares; baja con confirmación. |
+
+### Fase 13 — Trabajadores (Épica D v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 114 | Dominio de trabajadores | `securepassb` | `feature/worker-domain` | US-62 | Permiso tipo `WORKER` con servicio, días y franja; reuso de usuario por DNI; tests del caso multi-lote. |
+| 115 | API de gestión | `securepassb` | `feature/worker-management-api` | US-62, US-63, US-64 | Alta, listado, edición y baja; solo el titular del lote; dispara activación si el usuario es nuevo. |
+| 116 | QR permanente del trabajador | `securepassb` | `feature/worker-qr-token` | US-65, US-66 | Token sin invitación asociada, ligado al usuario; formato SP1; no consume cupo; se invalida al perder todos los permisos. |
+| 117 | Validación por franja multi-lote | `securepassb` | `feature/worker-schedule-validation` | US-67, US-68 | Resuelve todos los permisos vigentes; devuelve la lista de lotes habilitados; `OUT_OF_SCHEDULE` si ninguno; zona horaria del barrio. |
+| 118 | Validación offline del trabajador | `securepassf` | `feature/worker-offline-validation` | US-68 | Los permisos vigentes se cachean en SQLite; `validateOffline` evalúa la franja localmente; tests de dentro y fuera de horario. |
+| 119 | Selección de lote en garita | `securepassf` | `feature/guard-worker-lot-picker` | US-67 | Pantalla con los lotes habilitados cuando hay más de uno; toque único; sin lista larga. |
+| 120 | App del trabajador | `securepassf` | `feature/worker-app-screens` | US-65 | Home con QR y horarios; perfil; ruteo por permiso; sin acceso a nada más. |
+| 121 | Pantalla de trabajadores del titular | `securepassf` | `feature/worker-management-screen` | US-62, US-63, US-64 | Alta con selector de días y franja; lista; edición; baja con confirmación. |
+
+### Fase 14 — Verificación de identidad por persona (Épica E v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 122 | Migrar enrolamiento a persona | `securepassb` | `refactor/access-person-verification` | US-69 | Migración de `guest_enrollments` (por invitación) a verificación por documento y barrio; los datos existentes se conservan; una persona verificada no vuelve a requerirlo. |
+| 123 | Caché de verificados offline | `securepassf` | `refactor/scanner-person-verification` | US-69, US-70 | El caché pasa a indexarse por documento; `validateOffline` consulta por persona. |
+
+### Fase 15 — Garita usable (Épica F v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 124 | Fix del selector de fecha | `securepassf` | `fix/shift-datetimepicker-crash` | US-73 | Resolver `Cannot read property 'dismiss' of undefined` al desmontar; verificado navegando en dispositivo. |
+| 125 | Barra de navegación del guardia | `securepassf` | `feature/guard-navigation-bar` | US-71 | Barra sólida sobre la cámara; cuatro destinos; contraste verificado sobre fondo claro y oscuro. |
+| 126 | Registro del turno | `securepassf` | `feature/guard-shift-log-screen` | US-72 | Consume `GET /access-logs` filtrado por turno; agrupado por hora; denegados destacados. |
+
+### Fase 16 — Limpieza (Épica G v2)
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 127 | Eliminar invitación recurrente | ambos | `refactor/invitation-remove-recurring` | US-74 | Sale el tipo `RECURRING` del dominio, la API y la UI; los campos de franja salen del payload del QR; migración de los existentes; spec actualizado. |
+
+### Fase 17 — Alta administrativa (US-03 v2)
+
+Reemplaza el flujo v1 de US-03 ("alta con contraseña temporal") por "alta con email de activación", en línea con las Épicas I..K/L v2. Cierra el hueco entre "admin autenticado" e "IssueActivationTokenUseCase", que hasta acá no tenía caller HTTP.
+
+| # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
+|---|---|---|---|---|---|
+| 128 | Alta de usuario por admin | `securepassb` | `feature/admin-user-onboarding` | US-03 (v2), US-50..US-52 (integración) | `POST /admin/users` ADMIN-only. Body `{email, fullName, dni, role, lotId?}`. `role ∈ {RESIDENT_OWNER, GUARD}`; RESIDENT_OWNER exige lotId, GUARD lo prohíbe. `neighborhoodId` del JWT, nunca del body. Todo en una transacción (savepoint sobre el INSERT): user PENDING_ACTIVATION con password NULL + membership + family_member (si owner) + `issuer.issue(ACTIVATION)`. 409 con `code` distinguible: `EMAIL_TAKEN`, `PENDING_ACTIVATION_EXISTS` (con `existingUserId`), `DNI_TAKEN` (con `existingUserId`). 404 si el lote no pertenece al barrio del admin. `POST /admin/users/{id}/resend-activation` ADMIN-only, 3/hora por usuario objetivo, 409 si no es PENDING. |
+
+---
+
+### Mapeo WBS → issues de GitHub
+
+Los numeros del WBS de arriba (WBS-N) son la referencia estable. Los numeros
+de issue en GitHub se asignan por repositorio y no coinciden con el WBS. En
+commits y PRs se usan ambos: `WBS-N` en el cuerpo y `Refs: #<numero real>`.
+
+**Repo `securepassb`** (creado en batch del 2026-08-18):
+
+| WBS | Issue GitHub | Titulo |
+|-----|--------------|--------|
+| WBS-1  | securepassb#1  | Bootstrap del backend |
+| WBS-3  | securepassb#2  | CI y proteccion de ramas |
+| WBS-5  | securepassb#3  | Esquema de base de datos |
+| WBS-6  | securepassb#4  | Dominio de identidad |
+| WBS-7  | securepassb#5  | Login y JWT |
+| WBS-8  | securepassb#6  | Refresh con rotacion |
+| WBS-9  | securepassb#7  | Rate limiting |
+| WBS-10 | securepassb#8  | Autorizacion por rol y barrio |
+| WBS-11 | securepassb#9  | Gestion de lotes |
+| WBS-12 | securepassb#10 | Permisos de unidad familiar |
+| WBS-13 | securepassb#11 | Manejo global de errores |
+| WBS-14 | securepassb#12 | Contratos OpenAPI |
+| WBS-15 | securepassb#13 | Criptografia Ed25519 |
+| WBS-16 | securepassb#14 | Emision de token QR |
+| WBS-17 | securepassb#15 | Dominio de invitacion |
+| WBS-18 | securepassb#16 | API de invitaciones |
+| WBS-19 | securepassb#17 | Revocacion |
+| WBS-20 | securepassb#18 | Expiracion programada |
+| WBS-21 | securepassb#19 | QR personal de residente |
+| WBS-22 | securepassb#20 | Caso de uso de validacion |
+| WBS-23 | securepassb#21 | Anti-replay con Redis |
+| WBS-24 | securepassb#22 | Endpoint de validacion |
+| WBS-25 | securepassb#23 | Sync de eventos offline |
+| WBS-26 | securepassb#24 | Ingreso manual |
+| WBS-27 | securepassb#25 | Turnos de guardia |
+| WBS-28 | securepassb#26 | Bitacora consultable |
+| WBS-43 | securepassb#27 | Push de ingreso |
+| WBS-47 | securepassb#28 | Metricas de ocupacion |
+| WBS-48 | securepassb#29 | Afluencia por hora |
+| WBS-50 | securepassb#30 | Alertas de permanencia |
+| WBS-52 | securepassb#31 | Export de bitacora |
+| WBS-53 | securepassb#32 | Bitacora de turnos |
+| WBS-54 | securepassb#33 | Auditoria de seguridad |
+| WBS-55 | securepassb#34 | Indices y performance |
+| WBS-57 | securepassb#35 | Observabilidad |
+| WBS-58 | securepassb#36 | Import de padron |
+| WBS-59 | securepassb#60 | DNI obligatorio en invitacion |
+| WBS-60 | securepassb#61 | Dominio y API de enrolamiento |
+| WBS-61 | securepassb#62 | Enrolamiento en validacion |
+| WBS-65 | securepassb#63 | Dominio de estadias |
+| WBS-66 | securepassb#64 | API de presentes |
+| WBS-67 | securepassb#65 | Cierre manual |
+| WBS-70 | securepassb#66 | Aviso al residente |
+| WBS-71 | securepassb#67 | Extension de invitacion |
+
+**Repo `securepassf`** (creado en batch del 2026-08-20):
+
+| WBS | Issue GitHub | Titulo |
+|-----|--------------|--------|
+| WBS-62 | securepassf#27 | Enrolamiento offline |
+| WBS-63 | securepassf#28 | Escaneo de DNI en garita |
+| WBS-64 | securepassf#29 | DNI en el alta de invitacion |
+| WBS-68 | securepassf#30 | Lista de presentes en garita |
+| WBS-69 | securepassf#31 | Aviso de permanencia |
+| WBS-70 | securepassf#32 | Aviso al residente |
+| WBS-72 | securepassf#33 | Push accionable en residente |
 
 ---
 

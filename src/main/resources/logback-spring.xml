@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logs estructurados en JSON (WBS-57, spec 5.5). En dev local por consola
+  con pattern legible; en produccion activar spring.profiles.active=prod
+  para logs json linea por evento, listos para consumir por Datadog / Loki
+  / cualquier agente que parsee ndjson.
+-->
+<configuration>
+
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="securepassb"/>
+
+    <appender name="CONSOLE_TEXT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{40} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeContext>false</includeContext>
+            <customFields>{"app":"${appName}"}</customFields>
+        </encoder>
+    </appender>
+
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_TEXT"/>
+        </root>
+    </springProfile>
+
+</configuration>

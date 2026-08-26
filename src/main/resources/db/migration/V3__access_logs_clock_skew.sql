@@ -1,0 +1,2 @@
+ALTER TABLE access_logs
+    ADD COLUMN clock_skew BOOLEAN NOT NULL DEFAULT FALSE;

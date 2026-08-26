@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <link rel="icon" href="data:,">
+    <title>Securepass</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        max-width: 460px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+        color: #111827;
+        background: #f9fafb;
+        min-height: 100vh;
+      }
+      header { margin-bottom: 2rem; }
+      .brand {
+        font-weight: 700;
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+        color: #2563eb;
+      }
+      h1 { font-size: 1.5rem; margin: 0 0 0.5rem; line-height: 1.2; }
+      p { margin: 0.5rem 0 1rem; line-height: 1.5; color: #374151; }
+      .account {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin: 1rem 0 1.5rem;
+        font-size: 0.95rem;
+      }
+      .account strong { display: block; color: #1e3a8a; }
+      label { display: block; margin: 1rem 0 0.375rem; font-weight: 500; font-size: 0.9rem; }
+      input[type="password"] {
+        width: 100%;
+        padding: 0.75rem 0.875rem;
+        font-size: 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: white;
+      }
+      input:focus { outline: 2px solid #2563eb; outline-offset: 1px; border-color: #2563eb; }
+      button {
+        margin-top: 1.5rem;
+        width: 100%;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+      }
+      button:disabled { background: #93c5fd; cursor: not-allowed; }
+      .error {
+        margin-top: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+      .success h1 { color: #065f46; }
+      .gone h1 { color: #991b1b; }
+      ul { padding-left: 1.25rem; margin: 0.5rem 0 1rem; }
+      li { margin-bottom: 0.5rem; line-height: 1.5; color: #374151; }
+      .hint { font-size: 0.875rem; color: #6b7280; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <header><span class="brand">Securepass</span></header>
+
+    <section id="view-loading">
+      <p>Verificando enlace…</p>
+    </section>
+
+    <section id="view-form" hidden>
+      <h1 id="form-title"></h1>
+      <p id="form-intro"></p>
+      <div class="account">
+        <strong id="account-name"></strong>
+        <span id="account-email"></span>
+      </div>
+      <form id="form">
+        <input type="text" autocomplete="username" aria-hidden="true" tabindex="-1"
+               style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+        <label for="password">Contraseña nueva</label>
+        <input id="password" type="password" autocomplete="new-password" minlength="8" required>
+        <label for="confirm">Repetir contraseña</label>
+        <input id="confirm" type="password" autocomplete="new-password" minlength="8" required>
+        <div id="form-error" class="error" hidden></div>
+        <button id="submit" type="submit">Guardar</button>
+      </form>
+      <p class="hint">Mínimo 8 caracteres.</p>
+    </section>
+
+    <section id="view-success" class="success" hidden>
+      <h1 id="success-title"></h1>
+      <p id="success-intro"></p>
+    </section>
+
+    <section id="view-gone" class="gone" hidden>
+      <h1>Este enlace ya no sirve</h1>
+      <p>Los enlaces que mandamos por email son de un solo uso y sólo funcionan por unos días.</p>
+      <p>Qué hacer ahora:</p>
+      <ul>
+        <li>Si nunca terminaste de crear tu cuenta, contactá a la administración del barrio y pedile que te reenvíen la invitación.</li>
+        <li>Si querías cambiar tu contraseña, volvé a pedir un enlace nuevo desde la opción &laquo;olvidé mi contraseña&raquo;.</li>
+      </ul>
+    </section>
+
+    <script>
+      (function () {
+        const parts = location.pathname.split("/").filter(Boolean);
+        const token = parts[parts.length - 1];
+        const $ = (id) => document.getElementById(id);
+        const show = (id) => {
+          ["view-loading", "view-form", "view-success", "view-gone"].forEach((v) => $(v).hidden = v !== id);
+        };
+        const COPY = {
+          ACTIVATION: {
+            title: "Activá tu cuenta",
+            intro: "Elegí una contraseña para entrar a Securepass.",
+            success: "Listo, tu cuenta quedó activada",
+            successIntro: "Securepass es el sistema de control de accesos de tu barrio. La administración te va a indicar cómo empezar a usarlo.",
+            submit: (t, pw) => fetch("/api/v1/activation/" + encodeURIComponent(t), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password: pw })
+            })
+          },
+          PASSWORD_RESET: {
+            title: "Restablecer contraseña",
+            intro: "Elegí una contraseña nueva para tu cuenta.",
+            success: "Listo, tu contraseña quedó actualizada",
+            successIntro: "La próxima vez que entres a Securepass, usá tu email y esta contraseña nueva.",
+            submit: (t, pw) => fetch("/api/v1/auth/reset-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: t, password: pw })
+            })
+          }
+        };
+
+        let flow = null;
+
+        async function validate() {
+          try {
+            const res = await fetch("/api/v1/activation/" + encodeURIComponent(token), { headers: { "Accept": "application/json" } });
+            if (!res.ok) return show("view-gone");
+            const data = await res.json();
+            flow = COPY[data.purpose] || COPY.ACTIVATION;
+            $("form-title").textContent = flow.title;
+            $("form-intro").textContent = flow.intro;
+            $("account-name").textContent = data.fullName || "";
+            $("account-email").textContent = data.maskedEmail || "";
+            show("view-form");
+          } catch (_) {
+            show("view-gone");
+          }
+        }
+
+        function renderSuccess() {
+          $("success-title").textContent = flow.success;
+          $("success-intro").textContent = flow.successIntro;
+          history.replaceState(null, "", "/activar");
+          show("view-success");
+        }
+
+        $("form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const pw = $("password").value;
+          const confirm = $("confirm").value;
+          const err = $("form-error");
+          err.hidden = true;
+          if (pw.length < 8) { err.textContent = "La contraseña debe tener al menos 8 caracteres."; err.hidden = false; return; }
+          if (pw !== confirm) { err.textContent = "Las contraseñas no coinciden."; err.hidden = false; return; }
+          const btn = $("submit");
+          btn.disabled = true;
+          try {
+            const res = await flow.submit(token, pw);
+            if (res.status === 204 || res.ok) return renderSuccess();
+            if (res.status === 410 || res.status === 404) return show("view-gone");
+            let msg = "No pudimos guardar la contraseña. Probá de nuevo.";
+            try {
+              const body = await res.json();
+              if (body && (body.detail || body.title)) msg = body.detail || body.title;
+            } catch (_) {}
+            err.textContent = msg;
+            err.hidden = false;
+            btn.disabled = false;
+          } catch (_) {
+            err.textContent = "Error de conexión. Probá de nuevo.";
+            err.hidden = false;
+            btn.disabled = false;
+          }
+        });
+
+        validate();
+      })();
+    </script>
+  </body>
+</html>

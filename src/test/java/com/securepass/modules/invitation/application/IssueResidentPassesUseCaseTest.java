@@ -1,0 +1,111 @@
+package com.securepass.modules.invitation.application;
+
+import com.securepass.modules.invitation.domain.Invitation;
+import com.securepass.modules.invitation.domain.InvitationStatus;
+import com.securepass.modules.invitation.domain.InvitationType;
+import com.securepass.modules.invitation.domain.SigningKey;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.time.Instant;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class IssueResidentPassesUseCaseTest {
+
+    private ResidentLotsQuery lots;
+    private InvitationRepository invitations;
+    private SigningKeyRepository signingKeys;
+    private QrTokenIssuer qrTokenIssuer;
+    private IssueResidentPassesUseCase useCase;
+    private UUID userId;
+    private UUID neighborhoodId;
+
+    @BeforeEach
+    void setUp() {
+        lots = mock(ResidentLotsQuery.class);
+        invitations = mock(InvitationRepository.class);
+        signingKeys = mock(SigningKeyRepository.class);
+        qrTokenIssuer = mock(QrTokenIssuer.class);
+        useCase = new IssueResidentPassesUseCase(lots, invitations, signingKeys, qrTokenIssuer);
+        userId = UUID.randomUUID();
+        neighborhoodId = UUID.randomUUID();
+        when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.of(new SigningKey(
+                UUID.randomUUID(), neighborhoodId, "kid-active",
+                new byte[32], "enc", true, Instant.now(), null)));
+        when(qrTokenIssuer.issue(any())).thenReturn("SP1.token");
+    }
+
+    @Test
+    void sinLotesDevuelveListaVacia() {
+        when(lots.listActiveByUser(userId, neighborhoodId)).thenReturn(List.of());
+
+        assertThat(useCase.issue(userId, neighborhoodId)).isEmpty();
+        verify(invitations, never()).save(any());
+    }
+
+    @Test
+    void creaResidentPassCuandoNoExiste() {
+        UUID lotId = UUID.randomUUID();
+        when(lots.listActiveByUser(userId, neighborhoodId))
+                .thenReturn(List.of(new ResidentLot(lotId, "M4-L12", neighborhoodId, "Barrio X")));
+        when(invitations.findActiveResidentPass(userId, lotId)).thenReturn(Optional.empty());
+
+        List<ResidentPass> passes = useCase.issue(userId, neighborhoodId);
+
+        assertThat(passes).hasSize(1);
+        assertThat(passes.get(0).lotCode()).isEqualTo("M4-L12");
+        assertThat(passes.get(0).neighborhoodName()).isEqualTo("Barrio X");
+        assertThat(passes.get(0).qrToken()).isEqualTo("SP1.token");
+
+        ArgumentCaptor<Invitation> captor = ArgumentCaptor.forClass(Invitation.class);
+        verify(invitations).save(captor.capture());
+        Invitation saved = captor.getValue();
+        assertThat(saved.residentPass()).isTrue();
+        assertThat(saved.type()).isEqualTo(InvitationType.RECURRING);
+        assertThat(saved.createdBy()).isEqualTo(userId);
+        assertThat(saved.weekdays()).containsExactly(1, 2, 3, 4, 5, 6, 7);
+        assertThat(saved.dailyFrom()).isEqualTo(LocalTime.of(0, 0));
+    }
+
+    @Test
+    void reusaResidentPassExistenteSinCrearOtro() {
+        UUID lotId = UUID.randomUUID();
+        Invitation existing = new Invitation(
+                UUID.randomUUID(), neighborhoodId, lotId, userId,
+                InvitationType.RECURRING, InvitationStatus.ACTIVE,
+                "Residente", "00000000", 0, null,
+                Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2099-12-31T23:59:59Z"),
+                List.of(1, 2, 3, 4, 5, 6, 7), LocalTime.of(0, 0), LocalTime.of(23, 59, 59),
+                1, 0, "kid-active", UUID.randomUUID(), true, Instant.parse("2026-01-01T00:00:00Z"));
+        when(lots.listActiveByUser(userId, neighborhoodId))
+                .thenReturn(List.of(new ResidentLot(lotId, "M4-L12", neighborhoodId, "Barrio X")));
+        when(invitations.findActiveResidentPass(userId, lotId)).thenReturn(Optional.of(existing));
+
+        useCase.issue(userId, neighborhoodId);
+
+        verify(invitations, never()).save(any());
+    }
+
+    @Test
+    void sinSigningKeyLanzaIllegalState() {
+        UUID lotId = UUID.randomUUID();
+        when(lots.listActiveByUser(userId, neighborhoodId))
+                .thenReturn(List.of(new ResidentLot(lotId, "M4-L12", neighborhoodId, "Barrio X")));
+        when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.issue(userId, neighborhoodId))
+                .isInstanceOf(IllegalStateException.class);
+    }
+}

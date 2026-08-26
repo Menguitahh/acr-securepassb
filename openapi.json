@@ -1,0 +1,2628 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Securepass API",
+    "version" : "1.0.0"
+  },
+  "servers" : [
+    {
+      "url" : "/"
+    }
+  ],
+  "paths" : {
+    "/api/v1/stays/{id}/notify-resident" : {
+      "post" : {
+        "tags" : [
+          "notify-resident-controller"
+        ],
+        "operationId" : "notify",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotifyResidentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stays/{id}/close" : {
+      "post" : {
+        "tags" : [
+          "stays-controller"
+        ],
+        "operationId" : "close",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CloseStayRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClosedStayResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts/open" : {
+      "post" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "open",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OpenShiftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShiftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts/close" : {
+      "post" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "close_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CloseShiftRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShiftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations" : {
+      "get" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "list_1",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "status",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "enum" : [
+                "ACTIVE",
+                "USED",
+                "EXPIRED",
+                "REVOKED"
+              ]
+            }
+          },
+          {
+            "name" : "page",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32",
+              "default" : 0
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedInvitationsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/{id}/revoke" : {
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "revoke",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/{id}/request-exit" : {
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "requestExit",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RequestExitResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/{id}/extend" : {
+      "post" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "extend",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ExtendInvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/lots/{lotId}/members" : {
+      "get" : {
+        "tags" : [
+          "family-controller"
+        ],
+        "operationId" : "list_2",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/FamilyMemberResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "family-controller"
+        ],
+        "operationId" : "add",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddFamilyMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FamilyMemberResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices" : {
+      "post" : {
+        "tags" : [
+          "device-controller"
+        ],
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterDeviceRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeviceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset-password" : {
+      "post" : {
+        "tags" : [
+          "auth-controller"
+        ],
+        "operationId" : "resetPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh" : {
+      "post" : {
+        "tags" : [
+          "auth-controller"
+        ],
+        "operationId" : "refresh",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RefreshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "tags" : [
+          "auth-controller"
+        ],
+        "operationId" : "logout",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login" : {
+      "post" : {
+        "tags" : [
+          "auth-controller"
+        ],
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/forgot-password" : {
+      "post" : {
+        "tags" : [
+          "auth-controller"
+        ],
+        "operationId" : "forgotPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OnboardUserResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/resend-activation" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "resendActivation",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/lots" : {
+      "get" : {
+        "tags" : [
+          "admin-lots-controller"
+        ],
+        "operationId" : "list_3",
+        "parameters" : [
+          {
+            "name" : "page",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32",
+              "default" : 0
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/LotResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "admin-lots-controller"
+        ],
+        "operationId" : "create_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateLotRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LotResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/lots/{id}/members" : {
+      "get" : {
+        "tags" : [
+          "admin-lots-controller"
+        ],
+        "operationId" : "members",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/LotMemberResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "admin-lots-controller"
+        ],
+        "operationId" : "addMember",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddLotMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LotMemberResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activation/{token}" : {
+      "get" : {
+        "tags" : [
+          "activation-controller"
+        ],
+        "operationId" : "get",
+        "parameters" : [
+          {
+            "name" : "token",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ActivationLookupResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "activation-controller"
+        ],
+        "operationId" : "post",
+        "parameters" : [
+          {
+            "name" : "token",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ActivateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/access/validate" : {
+      "post" : {
+        "tags" : [
+          "access-validate-controller"
+        ],
+        "operationId" : "validate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ValidateAccessRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ValidateAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/sync" : {
+      "post" : {
+        "tags" : [
+          "access-sync-controller"
+        ],
+        "operationId" : "sync",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SyncAccessRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SyncAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/manual" : {
+      "post" : {
+        "tags" : [
+          "access-manual-controller"
+        ],
+        "operationId" : "manual",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ManualAccessRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ManualAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/enroll" : {
+      "post" : {
+        "tags" : [
+          "access-enroll-controller"
+        ],
+        "operationId" : "enroll",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EnrollRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EnrollResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/lots/{lotId}/members/{userId}" : {
+      "patch" : {
+        "tags" : [
+          "family-controller"
+        ],
+        "operationId" : "update",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "userId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateFamilyMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FamilyMemberResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/lots/{id}" : {
+      "patch" : {
+        "tags" : [
+          "admin-lots-controller"
+        ],
+        "operationId" : "update_1",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateLotRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LotResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stays/open" : {
+      "get" : {
+        "tags" : [
+          "stays-controller"
+        ],
+        "operationId" : "open_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OpenStaysResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts" : {
+      "get" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "list",
+        "parameters" : [
+          {
+            "name" : "gateId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "from",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ShiftResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shifts/current" : {
+      "get" : {
+        "tags" : [
+          "shift-controller"
+        ],
+        "operationId" : "current",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShiftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/passes" : {
+      "get" : {
+        "tags" : [
+          "me-passes-controller"
+        ],
+        "operationId" : "passes",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PassesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots" : {
+      "get" : {
+        "tags" : [
+          "guard-lots-controller"
+        ],
+        "operationId" : "search",
+        "parameters" : [
+          {
+            "name" : "q",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/LotAutocompleteResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/{id}" : {
+      "get" : {
+        "tags" : [
+          "invitation-controller"
+        ],
+        "operationId" : "detail",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/revoked" : {
+      "get" : {
+        "tags" : [
+          "access-keys-controller"
+        ],
+        "operationId" : "revoked",
+        "parameters" : [
+          {
+            "name" : "since",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RevokedTokenResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/keys" : {
+      "get" : {
+        "tags" : [
+          "access-keys-controller"
+        ],
+        "operationId" : "keys",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PublicKeyResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-logs" : {
+      "get" : {
+        "tags" : [
+          "access-logs-controller"
+        ],
+        "operationId" : "list_4",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "lotId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "result",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string"
+            }
+          },
+          {
+            "name" : "page",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32",
+              "default" : 0
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccessLogsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activar/{token}" : {
+      "get" : {
+        "tags" : [
+          "activation-web-controller"
+        ],
+        "operationId" : "page",
+        "parameters" : [
+          {
+            "name" : "token",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "text/html" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "NotifyResidentResponse" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "notifiedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "minutesRemaining" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "CloseStayRequest" : {
+        "required" : [
+          "gateId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "ClosedStayResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "exitLogId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "exitedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "closedManually" : {
+            "type" : "boolean"
+          },
+          "closedBy" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "OpenShiftRequest" : {
+        "required" : [
+          "gateId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "handoverNotes" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "ShiftResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guardId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "handoverNotes" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CloseShiftRequest" : {
+        "type" : "object",
+        "properties" : {
+          "handoverNotes" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "CreateInvitationRequest" : {
+        "required" : [
+          "guestDocument",
+          "guestName",
+          "lotId",
+          "type",
+          "validFrom",
+          "validUntil"
+        ],
+        "type" : "object",
+        "properties" : {
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [
+              "SINGLE",
+              "EVENT",
+              "RECURRING"
+            ]
+          },
+          "guestName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "guestDocument" : {
+            "pattern" : "^[0-9]{7,8}$",
+            "type" : "string"
+          },
+          "companions" : {
+            "maximum" : 20,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notes" : {
+            "maxLength" : 280,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "validFrom" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "dailyUntil" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "maxUses" : {
+            "minimum" : 1,
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "LocalTime" : {
+        "type" : "object",
+        "properties" : {
+          "hour" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "minute" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "second" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "nano" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "InvitationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodName" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [
+              "SINGLE",
+              "EVENT",
+              "RECURRING"
+            ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "USED",
+              "EXPIRED",
+              "REVOKED"
+            ]
+          },
+          "guestName" : {
+            "type" : "string"
+          },
+          "guestDocument" : {
+            "type" : "string"
+          },
+          "companions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "notes" : {
+            "type" : "string"
+          },
+          "validFrom" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "dailyUntil" : {
+            "$ref" : "#/components/schemas/LocalTime"
+          },
+          "maxUses" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "usedCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "qrToken" : {
+            "type" : "string"
+          },
+          "shareUrl" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RequestExitResponse" : {
+        "type" : "object",
+        "properties" : {
+          "invitationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "exitRequestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ExtendInvitationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "validUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "extensionCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "maxExtensions" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "AddFamilyMemberRequest" : {
+        "required" : [
+          "identifier"
+        ],
+        "type" : "object",
+        "properties" : {
+          "identifier" : {
+            "type" : "string"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "relation" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "FamilyMemberResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "relation" : {
+            "type" : "string"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "RegisterDeviceRequest" : {
+        "required" : [
+          "expoPushToken",
+          "platform"
+        ],
+        "type" : "object",
+        "properties" : {
+          "expoPushToken" : {
+            "maxLength" : 200,
+            "minLength" : 10,
+            "type" : "string"
+          },
+          "platform" : {
+            "type" : "string",
+            "enum" : [
+              "IOS",
+              "ANDROID"
+            ]
+          }
+        }
+      },
+      "DeviceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "platform" : {
+            "type" : "string",
+            "enum" : [
+              "IOS",
+              "ANDROID"
+            ]
+          },
+          "lastSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ResetPasswordRequest" : {
+        "required" : [
+          "password",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RefreshRequest" : {
+        "required" : [
+          "refreshToken"
+        ],
+        "type" : "object",
+        "properties" : {
+          "refreshToken" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RefreshResponse" : {
+        "type" : "object",
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          },
+          "refreshToken" : {
+            "type" : "string"
+          },
+          "expiresIn" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "LoginRequest" : {
+        "required" : [
+          "identifier",
+          "password"
+        ],
+        "type" : "object",
+        "properties" : {
+          "identifier" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string"
+          }
+        }
+      },
+      "LoginResponse" : {
+        "type" : "object",
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          },
+          "refreshToken" : {
+            "type" : "string"
+          },
+          "expiresIn" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/UserPayload"
+          }
+        }
+      },
+      "LotPayload" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "UserPayload" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "lots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LotPayload"
+            }
+          }
+        }
+      },
+      "ForgotPasswordRequest" : {
+        "required" : [
+          "email"
+        ],
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CreateUserRequest" : {
+        "required" : [
+          "dni",
+          "email",
+          "fullName",
+          "role"
+        ],
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "dni" : {
+            "pattern" : "\\d{7,8}",
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "OnboardUserResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "reused" : {
+            "type" : "boolean"
+          },
+          "changed" : {
+            "type" : "boolean"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CreateLotRequest" : {
+        "required" : [
+          "code"
+        ],
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "street" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "number" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "LotResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "street" : {
+            "type" : "string"
+          },
+          "number" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "SUSPENDED",
+              "VACANT"
+            ]
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "AddLotMemberRequest" : {
+        "required" : [
+          "userId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "relation" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "LotMemberResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "relation" : {
+            "type" : "string"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ActivateRequest" : {
+        "required" : [
+          "password"
+        ],
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ValidateAccessRequest" : {
+        "required" : [
+          "capturedAt",
+          "clientEventId",
+          "direction",
+          "gateId",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "direction" : {
+            "type" : "string",
+            "enum" : [
+              "IN",
+              "OUT"
+            ]
+          },
+          "companions" : {
+            "maximum" : 20,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
+      "GuestDetail" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "document" : {
+            "type" : "string"
+          },
+          "companions" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "InvitationDetail" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "type" : "string"
+          },
+          "usedCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "maxUses" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "remaining" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "LotDetail" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ValidateAccessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "result" : {
+            "type" : "string"
+          },
+          "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "invitationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guest" : {
+            "$ref" : "#/components/schemas/GuestDetail"
+          },
+          "lot" : {
+            "$ref" : "#/components/schemas/LotDetail"
+          },
+          "invitation" : {
+            "$ref" : "#/components/schemas/InvitationDetail"
+          }
+        }
+      },
+      "Event" : {
+        "required" : [
+          "capturedAt",
+          "clientEventId",
+          "direction",
+          "gateId",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "token" : {
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "direction" : {
+            "type" : "string",
+            "enum" : [
+              "IN",
+              "OUT"
+            ]
+          },
+          "companions" : {
+            "maximum" : 20,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "localDecision" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SyncAccessRequest" : {
+        "required" : [
+          "deviceId",
+          "events"
+        ],
+        "type" : "object",
+        "properties" : {
+          "deviceId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "events" : {
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Event"
+            }
+          }
+        }
+      },
+      "Conflict" : {
+        "type" : "object",
+        "properties" : {
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "serverResult" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clockSkew" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "SyncAccessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "accepted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "conflicts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Conflict"
+            }
+          }
+        }
+      },
+      "ManualAccessRequest" : {
+        "required" : [
+          "clientEventId",
+          "gateId",
+          "lotId",
+          "subjectDocument",
+          "subjectName"
+        ],
+        "type" : "object",
+        "properties" : {
+          "subjectName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "subjectDocument" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ManualAccessResponse" : {
+        "type" : "object",
+        "properties" : {
+          "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "subjectName" : {
+            "type" : "string"
+          },
+          "subjectDocument" : {
+            "type" : "string"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "EnrollRequest" : {
+        "required" : [
+          "clientEventId",
+          "documentNumber",
+          "gateId",
+          "token"
+        ],
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "pattern" : "^[0-9]{7,8}$",
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "EnrollResponse" : {
+        "type" : "object",
+        "properties" : {
+          "result" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "enrolledAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "enrollmentId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guest" : {
+            "$ref" : "#/components/schemas/Guest"
+          }
+        }
+      },
+      "Guest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "document" : {
+            "type" : "string"
+          }
+        }
+      },
+      "UpdateFamilyMemberRequest" : {
+        "type" : "object",
+        "properties" : {
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "UpdateLotRequest" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "SUSPENDED",
+              "VACANT"
+            ]
+          },
+          "street" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "number" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "Item" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "invitationId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "subjectName" : {
+            "type" : "string"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "enteredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expectedUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "minutesRemaining" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "warned" : {
+            "type" : "boolean"
+          },
+          "exitRequestedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "OpenStaysResponse" : {
+        "type" : "object",
+        "properties" : {
+          "stays" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Item"
+            }
+          }
+        }
+      },
+      "PassResponse" : {
+        "type" : "object",
+        "properties" : {
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "neighborhoodName" : {
+            "type" : "string"
+          },
+          "qrToken" : {
+            "type" : "string"
+          },
+          "kid" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PassesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "passes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PassResponse"
+            }
+          }
+        }
+      },
+      "LotAutocompleteResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PagedInvitationsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InvitationResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "ActivationLookupResponse" : {
+        "type" : "object",
+        "properties" : {
+          "maskedEmail" : {
+            "type" : "string"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "purpose" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "RevokedTokenResponse" : {
+        "type" : "object",
+        "properties" : {
+          "jti" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "revokedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "PublicKeyResponse" : {
+        "type" : "object",
+        "properties" : {
+          "kid" : {
+            "type" : "string"
+          },
+          "publicKey" : {
+            "type" : "string"
+          }
+        }
+      },
+      "AccessLogsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Item"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      }
+    }
+  }
+}
