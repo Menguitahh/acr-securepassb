@@ -19,12 +19,22 @@ public class LotMemberJdbcRepository implements LotMemberRepository {
         this.jdbc = jdbc;
     }
 
+    // WBS-108 PR1: reads migrados a lot_permissions (ver
+    // FamilyMemberJdbcRepository para el mapeo). El campo `id` que
+    // exponemos ahora es el id de la fila de lot_permissions, distinto del
+    // id que family_members tenia. Ningun caller lo usa como referencia
+    // estable fuera del domain object LotMember.
+
     @Override
     public Optional<LotMember> findOwner(UUID lotId) {
         return jdbc.sql("""
-                SELECT id, lot_id, user_id, relation, is_owner, can_invite, active, created_at
-                  FROM family_members
-                 WHERE lot_id = :lot AND is_owner = TRUE AND active = TRUE
+                SELECT id, lot_id, user_id,
+                       attributes->>'relation'              AS relation,
+                       (permission_type = 'OWNER')          AS is_owner,
+                       (attributes->>'can_invite')::boolean AS can_invite,
+                       active, created_at
+                  FROM lot_permissions
+                 WHERE lot_id = :lot AND permission_type = 'OWNER' AND active = TRUE
                  LIMIT 1
                 """)
                 .param("lot", lotId).query(mapper()).optional();
@@ -33,9 +43,16 @@ public class LotMemberJdbcRepository implements LotMemberRepository {
     @Override
     public Optional<LotMember> find(UUID lotId, UUID userId) {
         return jdbc.sql("""
-                SELECT id, lot_id, user_id, relation, is_owner, can_invite, active, created_at
-                  FROM family_members
+                SELECT id, lot_id, user_id,
+                       attributes->>'relation'              AS relation,
+                       (permission_type = 'OWNER')          AS is_owner,
+                       (attributes->>'can_invite')::boolean AS can_invite,
+                       active, created_at
+                  FROM lot_permissions
                  WHERE lot_id = :lot AND user_id = :u
+                   AND permission_type IN ('OWNER','MEMBER')
+                 ORDER BY CASE permission_type WHEN 'OWNER' THEN 0 ELSE 1 END
+                 LIMIT 1
                 """)
                 .param("lot", lotId).param("u", userId).query(mapper()).optional();
     }
@@ -43,10 +60,15 @@ public class LotMemberJdbcRepository implements LotMemberRepository {
     @Override
     public List<LotMember> listByLot(UUID lotId) {
         return jdbc.sql("""
-                SELECT id, lot_id, user_id, relation, is_owner, can_invite, active, created_at
-                  FROM family_members
+                SELECT id, lot_id, user_id,
+                       attributes->>'relation'              AS relation,
+                       (permission_type = 'OWNER')          AS is_owner,
+                       (attributes->>'can_invite')::boolean AS can_invite,
+                       active, created_at
+                  FROM lot_permissions
                  WHERE lot_id = :lot
-                 ORDER BY is_owner DESC, created_at
+                   AND permission_type IN ('OWNER','MEMBER')
+                 ORDER BY (permission_type = 'OWNER') DESC, created_at
                 """)
                 .param("lot", lotId).query(mapper()).list();
     }

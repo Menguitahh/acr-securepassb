@@ -35,11 +35,16 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
         UUID neighborhoodId = memberships.isEmpty() ? null : memberships.get(0).neighborhoodId();
         List<Role> roles = memberships.stream().map(MembershipRow::role).distinct().toList();
 
+        // WBS-108 PR1: reads migrados a lot_permissions (ver
+        // FamilyMemberJdbcRepository para el mapeo).
         List<LotSummary> lots = jdbc.sql("""
-                SELECT l.id, l.code, fm.can_invite, fm.is_owner
-                  FROM family_members fm
+                SELECT l.id, l.code,
+                       (fm.attributes->>'can_invite')::boolean AS can_invite,
+                       (fm.permission_type = 'OWNER')          AS is_owner
+                  FROM lot_permissions fm
                   JOIN lots l ON l.id = fm.lot_id
                  WHERE fm.user_id = :uid AND fm.active = TRUE
+                   AND fm.permission_type IN ('OWNER','MEMBER')
                  ORDER BY l.code
                 """)
                 .param("uid", userId)

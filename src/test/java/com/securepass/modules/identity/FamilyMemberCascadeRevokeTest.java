@@ -58,6 +58,12 @@ class FamilyMemberCascadeRevokeTest {
                        (?, ?, NULL, FALSE, TRUE, TRUE)
                 """, lotId, ownerId, lotId, memberId, lotId, otherMemberId);
         jdbc.update("""
+                INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+                VALUES (?, ?, 'OWNER', '{"can_invite": true, "relation": "OWNER"}'::jsonb, TRUE),
+                       (?, ?, 'MEMBER', '{"can_invite": true, "relation": "HIJO"}'::jsonb, TRUE),
+                       (?, ?, 'MEMBER', '{"can_invite": true, "relation": null}'::jsonb, TRUE)
+                """, ownerId, lotId, memberId, lotId, otherMemberId, lotId);
+        jdbc.update("""
                 INSERT INTO memberships (id, user_id, neighborhood_id, role, active)
                 VALUES (?, ?, ?, 'RESIDENT_OWNER', TRUE), (?, ?, ?, 'RESIDENT_MEMBER', TRUE)
                 """, UUID.randomUUID(), ownerId, neighborhoodId,

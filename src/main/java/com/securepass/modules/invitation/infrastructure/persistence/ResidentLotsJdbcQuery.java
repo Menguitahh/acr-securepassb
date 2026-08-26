@@ -19,13 +19,18 @@ public class ResidentLotsJdbcQuery implements ResidentLotsQuery {
 
     @Override
     public List<ResidentLot> listActiveByUser(UUID userId, UUID neighborhoodId) {
+        // WBS-108 PR1: reads migrados a lot_permissions.
+        // DISTINCT porque un mismo user puede tener OWNER+MEMBER sobre el
+        // mismo lote en teoria (aunque la migracion no lo produce hoy).
         return jdbc.sql("""
-                SELECT l.id AS lot_id, l.code AS lot_code, n.id AS n_id, n.name AS n_name
-                  FROM family_members fm
+                SELECT DISTINCT l.id AS lot_id, l.code AS lot_code,
+                                n.id AS n_id, n.name AS n_name
+                  FROM lot_permissions fm
                   JOIN lots l ON l.id = fm.lot_id
                   JOIN neighborhoods n ON n.id = l.neighborhood_id
                  WHERE fm.user_id = :uid
                    AND fm.active = TRUE
+                   AND fm.permission_type IN ('OWNER','MEMBER')
                    AND n.id = :nid
                    AND l.status = 'ACTIVE'
                  ORDER BY l.code

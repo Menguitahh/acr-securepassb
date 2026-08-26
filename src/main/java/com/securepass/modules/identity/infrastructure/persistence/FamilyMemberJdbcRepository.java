@@ -20,12 +20,33 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
         this.jdbc = jdbc;
     }
 
+    // WBS-108 PR1: reads de family_members migrados a lot_permissions.
+    // Escritura dual (WBS-106) sigue viva: cada INSERT/UPDATE toca las dos
+    // tablas. Fuente de verdad de READS ahora es lot_permissions. El drop
+    // de family_members viene en PR3 tras refactor de @PreAuthorize.
+    //
+    // Mapeo:
+    //   family_members.is_owner       <- (permission_type = 'OWNER')
+    //   family_members.can_invite     <- (attributes->>'can_invite')::boolean
+    //   family_members.relation       <- attributes->>'relation'
+    //
+    // Filtro permission_type IN ('OWNER','MEMBER'): WORKER (Fase 13) no
+    // es un family_member semantico. La escritura dual solo produce
+    // OWNER/MEMBER, asi que hoy no filtra nada extra.
+
     @Override
     public Optional<FamilyMember> find(UUID userId, UUID lotId) {
         return jdbc.sql("""
-                SELECT user_id, lot_id, relation, is_owner, can_invite, active
-                  FROM family_members
+                SELECT user_id, lot_id,
+                       attributes->>'relation'              AS relation,
+                       (permission_type = 'OWNER')          AS is_owner,
+                       (attributes->>'can_invite')::boolean AS can_invite,
+                       active
+                  FROM lot_permissions
                  WHERE user_id = :uid AND lot_id = :lid
+                   AND permission_type IN ('OWNER','MEMBER')
+                 ORDER BY CASE permission_type WHEN 'OWNER' THEN 0 ELSE 1 END
+                 LIMIT 1
                 """)
                 .param("uid", userId)
                 .param("lid", lotId)
@@ -36,10 +57,15 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
     @Override
     public List<FamilyMember> findByLot(UUID lotId) {
         return jdbc.sql("""
-                SELECT user_id, lot_id, relation, is_owner, can_invite, active
-                  FROM family_members
+                SELECT user_id, lot_id,
+                       attributes->>'relation'              AS relation,
+                       (permission_type = 'OWNER')          AS is_owner,
+                       (attributes->>'can_invite')::boolean AS can_invite,
+                       active
+                  FROM lot_permissions
                  WHERE lot_id = :lid
-                 ORDER BY is_owner DESC, created_at ASC
+                   AND permission_type IN ('OWNER','MEMBER')
+                 ORDER BY (permission_type = 'OWNER') DESC, created_at ASC
                 """)
                 .param("lid", lotId)
                 .query(this::mapMember)
