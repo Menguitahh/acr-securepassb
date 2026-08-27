@@ -3,6 +3,7 @@ package com.securepass.modules.invitation.application;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.exception.BusinessRuleViolationException;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -137,6 +138,24 @@ class CreateInvitationUseCaseTest {
                 .isInstanceOf(BusinessRuleViolationException.class);
     }
 
+    @Test
+    void sinSigningKeyLanzaNeighborhoodNotProvisioned() {
+        when(family.find(userId, lotId)).thenReturn(Optional.of(
+                new FamilyMembership(userId, lotId, false, true, true)));
+        when(lots.find(lotId)).thenReturn(Optional.of("ACTIVE"));
+        when(lots.findNeighborhoodId(lotId)).thenReturn(Optional.of(neighborhoodId));
+        when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, singleCommand()))
+                .isInstanceOf(NeighborhoodNotProvisionedException.class)
+                .satisfies(ex -> {
+                    NeighborhoodNotProvisionedException e = (NeighborhoodNotProvisionedException) ex;
+                    assertThat(e.neighborhoodId()).isEqualTo(neighborhoodId);
+                    assertThat(e.resource()).isEqualTo("signing key activa");
+                });
+        verifyNoInteractions(invitations, qrTokenIssuer);
+    }
+
     // BR-04 violacion en dominio se convierte a 422
     @Test
     void ventanaMuyLargaSeConvierteEnBusinessRuleViolation() {
@@ -198,18 +217,6 @@ class CreateInvitationUseCaseTest {
 
         assertThat(issued.invitation().type()).isEqualTo(InvitationType.RECURRING);
         assertThat(issued.invitation().weekdays()).containsExactly(1, 2, 3, 4, 5);
-    }
-
-    @Test
-    void sinSigningKeyActivaLanzaIllegalState() {
-        when(family.find(userId, lotId)).thenReturn(Optional.of(
-                new FamilyMembership(userId, lotId, false, true, true)));
-        when(lots.find(lotId)).thenReturn(Optional.of("ACTIVE"));
-        when(lots.findNeighborhoodId(lotId)).thenReturn(Optional.of(neighborhoodId));
-        when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, singleCommand()))
-                .isInstanceOf(IllegalStateException.class);
     }
 
     // BR-03: lote suspendido rechaza nueva invitacion

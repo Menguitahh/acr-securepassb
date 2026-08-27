@@ -5,6 +5,7 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.exception.BusinessRuleViolationException;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -65,8 +66,8 @@ public class CreateInvitationUseCase {
         }
 
         SigningKey key = signingKeys.findActive(actorNeighborhoodId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "no hay signing key activa para el barrio " + actorNeighborhoodId));
+                .orElseThrow(() -> new NeighborhoodNotProvisionedException(
+                        actorNeighborhoodId, "signing key activa"));
 
         UUID id = UUID.randomUUID();
         UUID jti = UUID.randomUUID();

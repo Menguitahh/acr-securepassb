@@ -79,6 +79,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.GONE).body(pd);
     }
 
+    @ExceptionHandler(NeighborhoodNotProvisionedException.class)
+    public ResponseEntity<ProblemDetail> handleNeighborhoodNotProvisioned(
+            NeighborhoodNotProvisionedException ex) {
+        // 503 sobre 409: el cliente no puede corregir el request, la accion la
+        // tiene que hacer un operador (crear signing key, politica de extension,
+        // etc). Sin Retry-After: no se resuelve solo.
+        ProblemDetail pd = problem(HttpStatus.SERVICE_UNAVAILABLE,
+                "neighborhood-not-provisioned",
+                "El barrio no esta aprovisionado para esta operacion");
+        pd.setProperty("code", "NEIGHBORHOOD_NOT_PROVISIONED");
+        pd.setProperty("neighborhoodId", ex.neighborhoodId().toString());
+        pd.setProperty("missing", ex.resource());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(pd);
+    }
+
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ProblemDetail> handleRateLimit(RateLimitExceededException ex) {
         ProblemDetail pd = problem(HttpStatus.TOO_MANY_REQUESTS, "rate-limit-exceeded", "Demasiadas solicitudes");
