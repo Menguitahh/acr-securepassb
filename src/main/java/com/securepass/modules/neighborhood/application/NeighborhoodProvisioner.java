@@ -68,6 +68,16 @@ public class NeighborhoodProvisioner {
      */
     @Transactional
     public ProvisionOutcome provision(Command cmd) {
+        return provision(cmd, null);
+    }
+
+    /**
+     * Overload que acepta {@link Ids} para fijar los UUIDs. Solo lo usa el
+     * seeder de dev (barrio con IDs conocidos para tests y flujos manuales).
+     * En prod se llama la variante sin ids y todo es aleatorio.
+     */
+    @Transactional
+    public ProvisionOutcome provision(Command cmd, Ids ids) {
         if (jdbc.sql("SELECT 1 FROM neighborhoods WHERE slug = :s")
                 .param("s", cmd.slug()).query(Integer.class).optional().isPresent()) {
             throw new NeighborhoodAlreadyExistsException("slug", cmd.slug());
@@ -77,7 +87,7 @@ public class NeighborhoodProvisioner {
             throw new NeighborhoodAlreadyExistsException("name", cmd.name());
         }
 
-        UUID neighborhoodId = UUID.randomUUID();
+        UUID neighborhoodId = (ids != null && ids.neighborhoodId() != null) ? ids.neighborhoodId() : UUID.randomUUID();
         jdbc.sql("""
                 INSERT INTO neighborhoods (id, name, slug, timezone)
                 VALUES (:id, :name, :slug, :tz)
@@ -90,7 +100,7 @@ public class NeighborhoodProvisioner {
 
         SigningKeyIssuer.IssuedKey signingKey = signingKeyIssuer.issueForNeighborhood(neighborhoodId);
 
-        UUID gateId = UUID.randomUUID();
+        UUID gateId = (ids != null && ids.gateId() != null) ? ids.gateId() : UUID.randomUUID();
         jdbc.sql("""
                 INSERT INTO gates (id, neighborhood_id, name, direction, active)
                 VALUES (:id, :nid, :name, 'BOTH', TRUE)
@@ -100,7 +110,7 @@ public class NeighborhoodProvisioner {
                 .param("name", cmd.gateName())
                 .update();
 
-        UUID adminUserId = UUID.randomUUID();
+        UUID adminUserId = (ids != null && ids.adminUserId() != null) ? ids.adminUserId() : UUID.randomUUID();
         try {
             users.create(new User(
                     adminUserId, cmd.adminEmail(), null, null,
@@ -177,4 +187,7 @@ public class NeighborhoodProvisioner {
     ) {}
 
     public record ProvisionOutcome(Result result, String activationTokenPlaintext) {}
+
+    /** UUIDs opcionales para fijar (dev-seed). null => aleatorio. */
+    public record Ids(UUID neighborhoodId, UUID gateId, UUID adminUserId) {}
 }

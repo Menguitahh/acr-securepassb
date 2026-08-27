@@ -51,7 +51,8 @@ mueve las rutas).
   para dev local (DB user/password, host de Postgres/Redis). Los
   secretos sensibles (`SECUREPASS_JWT_SECRET`, `SECUREPASS_MASTER_KEY`)
   **no tienen default** y la app no levanta sin ellos.
-- El seed de dev en `docs/seed.sql` documenta credenciales locales
+- El seed de dev (bean `DevSeedRunner`, activado solo con perfil `dev`
+  + `securepass.dev.seed=true`) documenta credenciales locales
   (repo privado, solo maquinas de desarrollador; ver `README.md`).
 - Ningun `password_hash` productivo ni token en el repo.
 

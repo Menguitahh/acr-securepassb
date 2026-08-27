@@ -49,34 +49,41 @@ Para generar valores reales:
 [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 } | ForEach-Object { [byte]$_ }))
 ```
 
-### 3. Seed de desarrollo
+### 3. Arrancar el backend con seed dev
 
-El endpoint de padron (WBS-11) todavia no existe, asi que los lotes y usuarios
-iniciales se cargan por SQL. Flyway se encarga del esquema al arrancar la app;
-el seed se corre despues, una vez que las migraciones esten aplicadas.
+El seed corre dentro de la app (bean `DevSeedRunner`) cuando estan activadas
+las dos barreras:
 
-```powershell
-# 1) Arrancar la app una vez para que Flyway aplique las migraciones.
-#    (dejarla corriendo en otra terminal, o Ctrl+C despues del startup)
-.\gradlew.bat bootRun
+1. Perfil Spring `dev` activo.
+2. Property `securepass.dev.seed=true` (default `false`).
 
-# 2) Cargar datos de prueba
-docker exec -i securepassb-postgres psql -U securepass -d securepass < docs/seed.sql
-```
+Con las dos: al arrancar, el runner llama al mismo `NeighborhoodProvisioner`
+que usa `./gradlew provisionNeighborhood` para crear el barrio + garita + admin
++ signing key, con los UUIDs fijos de siempre, y luego aplica un overlay SQL
+con lo que es dev-only (guard, owner, lote, permisos, activacion del admin).
 
-El seed es idempotente (`ON CONFLICT DO NOTHING`), correlo cuantas veces quieras.
-
-### 4. Arrancar el backend
+Idempotente: si el barrio dev ya existe, no hace nada.
 
 ```powershell
+$env:SPRING_PROFILES_ACTIVE = "dev"
+$env:SECUREPASS_DEV_SEED = "true"
 .\gradlew.bat bootRun
 ```
+
+En bash:
+
+```bash
+SPRING_PROFILES_ACTIVE=dev SECUREPASS_DEV_SEED=true ./gradlew bootRun
+```
+
+Sin la property, la app arranca vacia (util para probar el flujo de
+`provisionNeighborhood` a mano). Sin el perfil `dev`, la property se ignora.
 
 Escucha en `http://localhost:8080`. OpenAPI en `openapi.json`.
 
 ## Credenciales e IDs de dev
 
-Todos los IDs estan fijos en `docs/seed.sql`.
+Todos los IDs estan fijos en `DevSeedRunner` + `src/main/resources/dev/dev-overlay.sql`.
 
 | Rol            | Email             | Password    |
 |----------------|-------------------|-------------|
