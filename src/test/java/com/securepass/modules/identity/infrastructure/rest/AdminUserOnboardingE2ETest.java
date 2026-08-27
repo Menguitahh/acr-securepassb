@@ -142,6 +142,20 @@ class AdminUserOnboardingE2ETest {
     }
 
     @Test
+    void adminNoSePuedeCrearPorHttp() throws Exception {
+        // WBS-A (issue #129): el aprovisionamiento de ADMIN va SOLO por el
+        // NeighborhoodProvisioner CLI, nunca por HTTP. Este gate es la
+        // ultima red que impide escalada si alguien refactoriza el
+        // controller o cambia ALLOWED_ROLES por error.
+        String body = """
+                {"email":"escalate@x.com","fullName":"Escalate","dni":"30999888","role":"ADMIN"}
+                """;
+        HttpResponse<String> resp = post("/api/v1/admin/users", adminToken(), body);
+        assertThat(resp.statusCode()).isEqualTo(400);
+        assertThat(resp.body()).contains("role invalido");
+    }
+
+    @Test
     void conflicto409EmailTaken() throws Exception {
         String email = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, existingActive);
         String body = """

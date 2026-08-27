@@ -51,3 +51,39 @@ tasks.withType<Test> {
         environment("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
     }
 }
+
+// WBS-A (issue #129): entrypoint del aprovisionamiento de barrio nuevo.
+// Uso:
+//   ./gradlew provisionNeighborhood \
+//     -PbarrioName="Barrio X" -Pslug="barrio-x" \
+//     -PadminEmail="admin@x.com" -PadminFullName="Nombre" -PadminDni="30111222"
+// Opcionales: -Ptimezone, -PgateName
+//
+// ponytail: -PbarrioName (no -Pname). Gradle ya expone project.name como
+// propiedad implicita ("securepassb"), y findProperty("name") devuelve
+// eso cuando falta el override: el barrio termina llamandose el proyecto.
+tasks.register<JavaExec>("provisionNeighborhood") {
+    group = "operations"
+    description = "Aprovisiona un barrio nuevo (neighborhood + signing key + gate + admin PENDING)"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.securepass.tools.NeighborhoodProvisioningCli")
+    // Map: Gradle -P -> flag CLI del main.
+    val cliKeys = linkedMapOf(
+        "barrioName" to "name",
+        "slug" to "slug",
+        "timezone" to "timezone",
+        "gateName" to "gate-name",
+        "adminEmail" to "admin-email",
+        "adminFullName" to "admin-full-name",
+        "adminDni" to "admin-dni"
+    )
+    doFirst {
+        val list = mutableListOf<String>()
+        for ((gradleKey, cliKey) in cliKeys) {
+            val v = project.findProperty(gradleKey)?.toString().orEmpty()
+            if (v.isNotBlank()) list.add("--" + cliKey + "=" + v)
+        }
+        args = list
+    }
+    // Sin JVM args extras: hereda DB/secrets del entorno.
+}

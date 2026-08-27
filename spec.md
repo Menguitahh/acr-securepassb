@@ -17,7 +17,7 @@ Estos puntos estaban ambiguos en el brief. Se resuelven acá; si alguno no coinc
 | D-04 | Runtime mobile | Expo con compatibilidad **Expo Go**. Esto prohíbe librerías con código nativo custom: no VisionCamera, no MMKV, no WatermelonDB. Reemplazos definidos en §2.2. |
 | D-05 | Firma del QR | **Ed25519 (asimétrica)**, no HMAC. Razón en §5.1: el guardia valida offline, y con HMAC habría que guardar el secreto de firma en el teléfono, lo que permitiría falsificar invitaciones desde un dispositivo robado. |
 | D-06 | Lectura de DNI (PDF417) | Dentro del MVP, Fase 4. Acelera la visita imprevista en vez de frenarla, que es lo contrario del caso de la patente. |
-| D-07 | Alcance de código | Sin capas especulativas. No se implementa multi-tenant por schema, no se implementa event sourcing, no se implementa GraphQL. Un barrio por fila en `neighborhoods` y punto. |
+| D-07 | Alcance de código | Sin capas especulativas. No se implementa multi-tenant por schema, no se implementa event sourcing, no se implementa GraphQL. Un barrio por fila en `neighborhoods` y punto. Procedimiento de creación: §7.5.1. |
 | D-08 | DNI del invitado | **Obligatorio** al crear la invitación. Deja de ser opcional. |
 | D-09 | Enrolamiento | El primer ingreso de un invitado exige QR **y** DNI, y el sistema verifica que coincidan. Los ingresos siguientes de ese mismo invitado solo requieren QR. |
 | D-10 | Egreso | Se registra con el mismo QR. Si el invitado no puede presentarlo, el guardia cierra la estadía desde la lista de presentes. El DNI no se pide de nuevo. |
@@ -999,6 +999,51 @@ Endpoints de residente para permanencia (US-42):
 | `EMAIL_TAKEN` | El email ya existe en `ACTIVE` o `SUSPENDED`. | no |
 | `PENDING_ACTIVATION_EXISTS` | El email ya existe en `PENDING_ACTIVATION`. El admin puede reenviar la activación en vez de crear otro. | sí |
 | `DNI_TAKEN` | El DNI ya existe. La persona ya es usuaria (mudanza / titular en otro barrio); el admin debe vincularla con `POST /admin/lots/{id}/members` en vez de recrearla. | sí |
+
+### 7.5.1 Aprovisionamiento de barrio (operativo)
+
+Un barrio recién creado no puede emitir invitaciones hasta tener signing
+key, gate y admin. Estos cuatro recursos se aprovisionan juntos con el
+comando `provisionNeighborhood` de Gradle, que llama al bean
+`NeighborhoodProvisioner` en una sola transacción.
+
+```
+./gradlew provisionNeighborhood \
+  -PbarrioName="Barrio X" \
+  -Pslug="barrio-x" \
+  -PadminEmail="admin@x.com" \
+  -PadminFullName="Nombre Apellido" \
+  -PadminDni="30111222" \
+  [-Ptimezone="America/Argentina/Cordoba"] \
+  [-PgateName="Entrada Principal"]
+```
+
+Recursos creados en la misma transacción (rollback total si algo falla):
+
+1. Fila en `neighborhoods` con `name`, `slug`, `timezone`.
+2. Signing key Ed25519 activa (vía `SigningKeyIssuer`, misma lógica que
+   usan los tests). La privada queda cifrada AES-GCM con la master key
+   del entorno.
+3. Fila en `gates` con `direction='BOTH'` y `active=TRUE`.
+4. Usuario admin en `PENDING_ACTIVATION` sin password, con `memberships`
+   rol `ADMIN`. Se dispara email de activación (AFTER_COMMIT).
+
+Idempotencia: si `slug` o `name` ya existen, el comando falla con exit
+code 2 y no escribe nada. Es intencional — evita crear dos barrios con
+el mismo nombre por error humano.
+
+Salida (stdout, no en logs): resumen con IDs generados y el link de
+activación del admin. Ese link es una credencial que da acceso a definir
+la contraseña; no queda en logs ni se persiste plano, sólo se muestra al
+operador para tenerlo si el email no llega. La misma información va al
+log estructurado JSON pero sin el token.
+
+Exit codes: 0 OK, 1 error genérico, 2 barrio duplicado.
+
+**Alcance:** operativo. Un endpoint HTTP encima del mismo bean se agrega
+cuando haga falta autoservicio (super-admin cross-barrio) — hoy el
+onboarding es 1 por cliente-contrato y no lo justifica. El bean está
+listo para exponerse sin refactor.
 
 ### 7.6 Unidad familiar (titular)
 

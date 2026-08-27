@@ -45,7 +45,7 @@ public class IssueActivationTokenUseCase {
     }
 
     @Transactional
-    public void issue(UUID userId, TokenPurpose purpose, String invitedByName, String neighborhoodName) {
+    public String issue(UUID userId, TokenPurpose purpose, String invitedByName, String neighborhoodName) {
         if (userId == null) throw new IllegalArgumentException("userId requerido");
         if (purpose == null) throw new IllegalArgumentException("purpose requerido");
 
@@ -67,6 +67,10 @@ public class IssueActivationTokenUseCase {
         events.publishEvent(new ActivationTokenIssuedEvent(
                 userId, user.email(), user.fullName(), purpose,
                 g.plaintext(), expiresAt, invitedByName, neighborhoodName));
+        // Devolver el plaintext permite al NeighborhoodProvisioner mostrar el
+        // link al operador en stdout si el mail no llega. El plaintext SOLO
+        // se propaga al caller in-memory; no se loguea, no se persiste.
+        return g.plaintext();
     }
 
     private Duration ttlFor(TokenPurpose purpose) {
