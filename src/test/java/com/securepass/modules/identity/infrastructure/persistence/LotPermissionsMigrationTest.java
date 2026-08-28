@@ -96,6 +96,7 @@ class LotPermissionsMigrationTest {
         Flyway.configure()
                 .dataSource(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword())
                 .locations("classpath:db/migration")
+                .target("10")
                 .load()
                 .migrate();
 

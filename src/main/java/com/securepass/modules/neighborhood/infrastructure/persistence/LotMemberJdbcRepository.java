@@ -19,11 +19,10 @@ public class LotMemberJdbcRepository implements LotMemberRepository {
         this.jdbc = jdbc;
     }
 
-    // WBS-108 PR1: reads migrados a lot_permissions (ver
-    // FamilyMemberJdbcRepository para el mapeo). El campo `id` que
-    // exponemos ahora es el id de la fila de lot_permissions, distinto del
-    // id que family_members tenia. Ningun caller lo usa como referencia
-    // estable fuera del domain object LotMember.
+    // Reads y writes sobre lot_permissions (ver FamilyMemberJdbcRepository
+    // para el mapeo). El campo `id` es el id de la fila de lot_permissions;
+    // ningun caller lo usa como referencia estable fuera del domain object
+    // LotMember.
 
     @Override
     public Optional<LotMember> findOwner(UUID lotId) {
@@ -75,21 +74,6 @@ public class LotMemberJdbcRepository implements LotMemberRepository {
 
     @Override
     public void save(LotMember m) {
-        jdbc.sql("""
-                INSERT INTO family_members (id, lot_id, user_id, relation, is_owner, can_invite, active, created_at)
-                VALUES (:id, :lot, :u, :rel, :owner, :inv, :active, :created)
-                """)
-                .param("id", m.id())
-                .param("lot", m.lotId())
-                .param("u", m.userId())
-                .param("rel", m.relation())
-                .param("owner", m.isOwner())
-                .param("inv", m.canInvite())
-                .param("active", m.active())
-                .param("created", java.sql.Timestamp.from(m.createdAt()))
-                .update();
-        // WBS-106: escritura dual en lot_permissions dentro de la misma tx.
-        // Si falla, rollback total. Ver LotPermissionsDualWriteTest.
         jdbc.sql("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active, created_at)
                 VALUES (:u, :lot, :type,

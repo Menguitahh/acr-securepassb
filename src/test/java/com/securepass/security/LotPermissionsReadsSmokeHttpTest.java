@@ -29,10 +29,15 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * WBS-108 PR1: smoke HTTP que confirma que la fuente de verdad de READS
- * de family_members es lot_permissions.
+ * Smoke HTTP que confirma que la fuente de verdad de reads de "quien ocupa
+ * este lote y con que rol" es lot_permissions.
  *
- * Los outputs crudos (status + body) los pego en el PR.
+ * Post-drop de family_members: los casos que verificaban "solo en family_members
+ * no aparece" y "el alta escribe en ambas tablas" murieron con la tabla. Sobrevive:
+ *   - una fila insertada directo en lot_permissions aparece en el GET (prueba
+ *     que el read ruta HTTP -> lot_permissions esta viva)
+ *   - alta admin escribe lot_permissions y el read la ve (flujo end-to-end)
+ *   - smoke normal owner->invitacion->listar familia
  */
 @Testcontainers
 @Import(TestcontainersConfiguration.class)
@@ -56,8 +61,7 @@ class LotPermissionsReadsSmokeHttpTest {
     UUID barrio;
     UUID lot;
     UUID owner;
-    UUID onlyInLotPermissions;
-    UUID onlyInFamilyMembers;
+    UUID directLp;
     HttpClient http;
 
     @BeforeEach
@@ -67,8 +71,7 @@ class LotPermissionsReadsSmokeHttpTest {
         barrio = UUID.randomUUID();
         lot = UUID.randomUUID();
         owner = UUID.randomUUID();
-        onlyInLotPermissions = UUID.randomUUID();
-        onlyInFamilyMembers = UUID.randomUUID();
+        directLp = UUID.randomUUID();
 
         jdbc.update("INSERT INTO neighborhoods (id, name, slug) VALUES (?, 'B', ?)",
                 barrio, "b-" + UUID.randomUUID());
@@ -76,14 +79,8 @@ class LotPermissionsReadsSmokeHttpTest {
         signingKeyIssuer.issueForNeighborhood(barrio);
 
         insertUser(owner, "owner");
-        insertUser(onlyInLotPermissions, "only-lp");
-        insertUser(onlyInFamilyMembers, "only-fm");
+        insertUser(directLp, "direct-lp");
 
-        // owner: dual write completo (fila valida en ambas tablas)
-        jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lot, owner);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)
@@ -93,44 +90,24 @@ class LotPermissionsReadsSmokeHttpTest {
                 VALUES (?, ?, 'RESIDENT_OWNER', TRUE)
                 """, owner, barrio);
 
-        // SOLO en lot_permissions: DEBE aparecer en el listado
+        // Fila insertada directo en lot_permissions (sin pasar por el flujo
+        // de alta): tiene que aparecer en el GET de familia.
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
-                VALUES (?, ?, 'MEMBER', jsonb_build_object('can_invite', TRUE, 'relation', 'Solo LP'), TRUE)
-                """, onlyInLotPermissions, lot);
-
-        // SOLO en family_members: NO debe aparecer en el listado
-        jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'Solo FM', FALSE, TRUE, TRUE)
-                """, lot, onlyInFamilyMembers);
+                VALUES (?, ?, 'MEMBER', jsonb_build_object('can_invite', TRUE, 'relation', 'Directo'), TRUE)
+                """, directLp, lot);
     }
 
     @Test
-    void fila_solo_en_lot_permissions_aparece_por_HTTP() throws Exception {
-        // Guard: confirmar que la fila es huerfana de verdad (sin espejo en family_members).
-        // Si el fixture arrastrara un espejo por dual write, el test pasaria sin probar nada.
-        Integer mirror = jdbc.queryForObject(
-                "SELECT count(*) FROM family_members WHERE user_id = ? AND lot_id = ?",
-                Integer.class, onlyInLotPermissions, lot);
-        Integer lpRow = jdbc.queryForObject(
-                "SELECT count(*) FROM lot_permissions WHERE user_id = ? AND lot_id = ?",
-                Integer.class, onlyInLotPermissions, lot);
-        System.out.println("== SQL orphan check ==");
-        System.out.println("family_members(only-lp, lot) = " + mirror);
-        System.out.println("lot_permissions(only-lp, lot) = " + lpRow);
-        System.out.println();
-        assertThat(mirror).isZero();
-        assertThat(lpRow).isEqualTo(1);
-
+    void fila_directa_en_lot_permissions_aparece_por_HTTP() throws Exception {
         HttpResponse<String> resp = get("/api/v1/family/lots/" + lot + "/members", tokenOwner());
-        report("GET family (SOLO lot_permissions)", resp);
+        report("GET family (directa en lot_permissions)", resp);
         assertThat(resp.statusCode()).isEqualTo(200);
-        assertThat(resp.body()).contains(onlyInLotPermissions.toString());
+        assertThat(resp.body()).contains(directLp.toString());
     }
 
     @Test
-    void alta_admin_por_HTTP_escribe_en_ambas_tablas_y_read_sale_de_lot_permissions() throws Exception {
+    void alta_admin_por_HTTP_escribe_lot_permissions_y_read_la_ve() throws Exception {
         UUID admin = UUID.randomUUID();
         insertUser(admin, "admin");
         jdbc.update("""
@@ -158,35 +135,17 @@ class LotPermissionsReadsSmokeHttpTest {
         assertThat(m.find()).isTrue();
         UUID nuevoId = UUID.fromString(m.group(1));
 
-        // Dual write: la alta admin debe dejar fila en las DOS tablas.
-        Integer fmCount = jdbc.queryForObject(
-                "SELECT count(*) FROM family_members WHERE user_id = ? AND lot_id = ?",
-                Integer.class, nuevoId, lotAlta);
         Integer lpCount = jdbc.queryForObject(
                 "SELECT count(*) FROM lot_permissions WHERE user_id = ? AND lot_id = ? AND permission_type = 'OWNER'",
                 Integer.class, nuevoId, lotAlta);
-        System.out.println("== SQL dual write check ==");
-        System.out.println("family_members(nuevo, lot) = " + fmCount);
-        System.out.println("lot_permissions(nuevo, lot, OWNER) = " + lpCount);
-        System.out.println();
-        assertThat(fmCount).isEqualTo(1);
         assertThat(lpCount).isEqualTo(1);
 
-        // Read desde lot_permissions: el nuevo owner aparece en el listado.
         String ownerNuevoToken = jwt.issue(
                 nuevoId, barrio, List.of(Role.RESIDENT_OWNER), List.of(lotAlta)).token();
         HttpResponse<String> list = get("/api/v1/family/lots/" + lotAlta + "/members", ownerNuevoToken);
         report("GET family (post alta admin)", list);
         assertThat(list.statusCode()).isEqualTo(200);
         assertThat(list.body()).contains(nuevoId.toString());
-    }
-
-    @Test
-    void fila_solo_en_family_members_NO_aparece_por_HTTP() throws Exception {
-        HttpResponse<String> resp = get("/api/v1/family/lots/" + lot + "/members", tokenOwner());
-        report("GET family (SOLO family_members)", resp);
-        assertThat(resp.statusCode()).isEqualTo(200);
-        assertThat(resp.body()).doesNotContain(onlyInFamilyMembers.toString());
     }
 
     @Test

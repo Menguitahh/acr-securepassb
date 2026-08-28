@@ -80,10 +80,6 @@ class NeighborhoodNotProvisionedHttpTest {
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)
                 """, owner, lot);
-        jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lot, owner);
     }
 
     @Test

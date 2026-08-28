@@ -117,11 +117,11 @@ class IdorIsolationTest {
         lotA = createLot.create(barrioA, new CreateLotUseCase.Command("A-1", null, null));
         lotB = createLot.create(barrioB, new CreateLotUseCase.Command("B-1", null, null));
 
-        // Residente B es family_member en su barrio.
+        // Residente B es owner del lotB (via lot_permissions).
         jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lotB.id(), residentB);
+                INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+                VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)
+                """, residentB, lotB.id());
 
         // Invitation y stay abierta en barrio B, para que A intente tocarlas.
         invitationB = UUID.randomUUID();

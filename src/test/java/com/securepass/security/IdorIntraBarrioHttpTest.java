@@ -120,10 +120,6 @@ class IdorIntraBarrioHttpTest {
         insertLotOwnership(residentB, lotB);
         // memberOfLotB: miembro (no owner) de lotB, para PATCH
         jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'Hijo/a', FALSE, TRUE, TRUE)
-                """, lotB, memberOfLotB);
-        jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'MEMBER', jsonb_build_object('can_invite', TRUE, 'relation', 'Hijo/a'), TRUE)
                 """, memberOfLotB, lotB);
@@ -271,10 +267,6 @@ class IdorIntraBarrioHttpTest {
     }
 
     private void insertLotOwnership(UUID userId, UUID lotId) {
-        jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lotId, userId);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)

@@ -20,19 +20,13 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
         this.jdbc = jdbc;
     }
 
-    // WBS-108 PR1: reads de family_members migrados a lot_permissions.
-    // Escritura dual (WBS-106) sigue viva: cada INSERT/UPDATE toca las dos
-    // tablas. Fuente de verdad de READS ahora es lot_permissions. El drop
-    // de family_members viene en PR3 tras refactor de @PreAuthorize.
-    //
-    // Mapeo:
+    // Reads y writes sobre lot_permissions. Mapeo:
     //   family_members.is_owner       <- (permission_type = 'OWNER')
     //   family_members.can_invite     <- (attributes->>'can_invite')::boolean
     //   family_members.relation       <- attributes->>'relation'
     //
-    // Filtro permission_type IN ('OWNER','MEMBER'): WORKER (Fase 13) no
-    // es un family_member semantico. La escritura dual solo produce
-    // OWNER/MEMBER, asi que hoy no filtra nada extra.
+    // Filtro permission_type IN ('OWNER','MEMBER'): WORKER (Fase 13) no es un
+    // family_member semantico.
 
     @Override
     public Optional<FamilyMember> find(UUID userId, UUID lotId) {
@@ -75,21 +69,6 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
     @Override
     public void save(FamilyMember member) {
         jdbc.sql("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (:lot, :user, :relation, :owner, :canInvite, :active)
-                """)
-                .param("lot", member.lotId())
-                .param("user", member.userId())
-                .param("relation", member.relation())
-                .param("owner", member.isOwner())
-                .param("canInvite", member.canInvite())
-                .param("active", member.active())
-                .update();
-        // WBS-106: escritura dual en lot_permissions dentro de la misma tx.
-        // Si esto falla, la tx entera hace rollback y family_members tampoco
-        // queda. Es intencional: silenciar el fallo reintroduciria el drift
-        // que la migracion intenta prevenir. Ver LotPermissionsDualWriteTest.
-        jdbc.sql("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (:user, :lot, :type,
                         jsonb_build_object('can_invite', :canInvite::boolean, 'relation', :relation),
@@ -106,21 +85,8 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
 
     @Override
     public void update(UUID userId, UUID lotId, boolean canInvite, boolean active) {
-        jdbc.sql("""
-                UPDATE family_members
-                   SET can_invite = :canInvite,
-                       active = :active
-                 WHERE user_id = :uid AND lot_id = :lid
-                """)
-                .param("canInvite", canInvite)
-                .param("active", active)
-                .param("uid", userId)
-                .param("lid", lotId)
-                .update();
-        // WBS-106: escritura dual. family_members tiene UNIQUE (lot, user)
-        // total, asi que a lo sumo existe una fila en lot_permissions para
-        // este (user, lot) — no restrinjo por permission_type. Cubre el
-        // path de desactivacion (active=false), que es el unico DELETE
+        // A lo sumo una fila (owner o member) por (user, lot). No restrinjo
+        // por permission_type: cubre el path de desactivacion, unico DELETE
         // efectivo del sistema.
         jdbc.sql("""
                 UPDATE lot_permissions

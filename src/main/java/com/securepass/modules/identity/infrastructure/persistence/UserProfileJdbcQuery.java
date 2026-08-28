@@ -35,8 +35,7 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
         UUID neighborhoodId = memberships.isEmpty() ? null : memberships.get(0).neighborhoodId();
         List<Role> roles = memberships.stream().map(MembershipRow::role).distinct().toList();
 
-        // WBS-108 PR1: reads migrados a lot_permissions (ver
-        // FamilyMemberJdbcRepository para el mapeo).
+        // Reads sobre lot_permissions (ver FamilyMemberJdbcRepository para el mapeo).
         List<LotSummary> lots = jdbc.sql("""
                 SELECT l.id, l.code,
                        (fm.attributes->>'can_invite')::boolean AS can_invite,

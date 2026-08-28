@@ -96,18 +96,10 @@ class IdorIntraBarrioTest {
 
         // residentA es owner de lotA; residentB es owner de lotB.
         jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lotA.id(), residentA);
-        jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)
                 """, residentA, lotA.id());
 
-        jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lotB.id(), residentB);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)

@@ -95,19 +95,11 @@ class LotPermissionGateHttpTest {
 
         // owner del lote
         jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE)
-                """, lot, owner);
-        jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)
                 """, owner, lot);
 
         // member con permiso MEMBER (no OWNER)
-        jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'Hijo/a', FALSE, TRUE, TRUE)
-                """, lot, member);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'MEMBER', jsonb_build_object('can_invite', TRUE, 'relation', 'Hijo/a'), TRUE)

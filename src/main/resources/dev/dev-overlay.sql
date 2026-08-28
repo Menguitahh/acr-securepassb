@@ -4,8 +4,7 @@
 --
 -- Este overlay agrega lo que no es parte del provisioning de un barrio real:
 --   - guard y owner con passwords conocidas (dev)
---   - lot A-001 y su vinculo con owner
---   - lot_permissions del owner (mirror WBS-106)
+--   - lot A-001 y el lot_permissions OWNER del owner
 -- Y ademas activa al admin del seed con hash conocido.
 --
 -- Passwords: admin123 / guard123 / resident123 (BCrypt cost 12).
@@ -46,15 +45,6 @@ VALUES ('33333333-3333-3333-3333-333333333333',
         'A-001', 'Calle Falsa', '123', 'ACTIVE')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-VALUES ('33333333-3333-3333-3333-333333333333',
-        'cccccccc-cccc-cccc-cccc-cccccccccccc',
-        'OWNER', TRUE, TRUE, TRUE)
-ON CONFLICT (lot_id, user_id) DO NOTHING;
-
--- Mirror lot_permissions (WBS-106). Ver comentario original en el seed viejo:
--- family_members insertado por SQL no pasa por FamilyMemberJdbcRepository.save,
--- entonces hay que replicar aca o WBS-108 rompe el permiso del owner del seed.
 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
 VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc',
         '33333333-3333-3333-3333-333333333333',

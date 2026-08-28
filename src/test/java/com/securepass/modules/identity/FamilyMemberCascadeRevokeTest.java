@@ -53,11 +53,6 @@ class FamilyMemberCascadeRevokeTest {
         seedUser(memberId, "member@dev.local", "Miembro Test");
         seedUser(otherMemberId, "other@dev.local", "Otro Test");
         jdbc.update("""
-                INSERT INTO family_members (lot_id, user_id, relation, is_owner, can_invite, active)
-                VALUES (?, ?, 'OWNER', TRUE, TRUE, TRUE), (?, ?, 'HIJO', FALSE, TRUE, TRUE),
-                       (?, ?, NULL, FALSE, TRUE, TRUE)
-                """, lotId, ownerId, lotId, memberId, lotId, otherMemberId);
-        jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', '{"can_invite": true, "relation": "OWNER"}'::jsonb, TRUE),
                        (?, ?, 'MEMBER', '{"can_invite": true, "relation": "HIJO"}'::jsonb, TRUE),

@@ -122,7 +122,7 @@ class AdminUserOnboardingE2ETest {
         assertThat(status(newId)).isEqualTo("PENDING_ACTIVATION");
         assertThat(passwordHash(newId)).isNull();
         assertThat(hasMembership(newId, barrioA, "RESIDENT_OWNER")).isTrue();
-        assertThat(isFamilyOwner(lotA, newId)).isTrue();
+        assertThat(hasLotPermission(newId, lotA, "OWNER")).isTrue();
         assertThat(activationTokensFor(newId)).isEqualTo(1);
         verify(emailSender, timeout(2000)).send(any());
     }
@@ -137,7 +137,7 @@ class AdminUserOnboardingE2ETest {
         assertThat(resp.statusCode()).isEqualTo(201);
         UUID newId = UUID.fromString(json.readTree(resp.body()).get("userId").asText());
         assertThat(hasMembership(newId, barrioA, "GUARD")).isTrue();
-        assertThat(familyMembersFor(newId)).isZero();
+        assertThat(lotPermissionsFor(newId)).isZero();
         verify(emailSender, timeout(2000)).send(any());
     }
 
@@ -192,7 +192,7 @@ class AdminUserOnboardingE2ETest {
         assertThat(j.get("fullName").asText()).isEqualTo("Con Dni"); // el viejo, no "Nombre Escrito Mal"
 
         assertThat(hasMembership(existingWithDni, barrioA, "RESIDENT_OWNER")).isTrue();
-        assertThat(isFamilyOwner(lotA, existingWithDni)).isTrue();
+        assertThat(hasLotPermission(existingWithDni, lotA, "OWNER")).isTrue();
         assertThat(hasLotPermission(existingWithDni, lotA, "OWNER")).isTrue();
     }
 
@@ -202,7 +202,6 @@ class AdminUserOnboardingE2ETest {
         post("/api/v1/admin/users", adminToken(), """
                 {"email":"first-%s@a.com","fullName":"X","dni":"%s","role":"RESIDENT_OWNER","lotId":"%s"}
                 """.formatted(UUID.randomUUID(), existingWithDniValue, lotA));
-        int fmBefore = familyMembersFor(existingWithDni);
         int lpBefore = lotPermissionsFor(existingWithDni);
         int msBefore = membershipsFor(existingWithDni, barrioA);
 
@@ -215,7 +214,6 @@ class AdminUserOnboardingE2ETest {
         JsonNode j = json.readTree(resp.body());
         assertThat(j.get("reused").asBoolean()).isTrue();
         assertThat(j.get("changed").asBoolean()).isFalse();
-        assertThat(familyMembersFor(existingWithDni)).isEqualTo(fmBefore);
         assertThat(lotPermissionsFor(existingWithDni)).isEqualTo(lpBefore);
         assertThat(membershipsFor(existingWithDni, barrioA)).isEqualTo(msBefore);
     }
@@ -241,7 +239,7 @@ class AdminUserOnboardingE2ETest {
 
         assertThat(resp.statusCode()).isEqualTo(200);
         assertThat(lotPermissionsFor(existingWithDni)).isEqualTo(lpBefore + 1);
-        assertThat(isFamilyOwner(lotA2, existingWithDni)).isTrue();
+        assertThat(hasLotPermission(existingWithDni, lotA2, "OWNER")).isTrue();
         assertThat(hasLotPermission(existingWithDni, lotA2, "OWNER")).isTrue();
         // La membership del barrioA ya existia; sigue en 1.
         assertThat(membershipsFor(existingWithDni, barrioA)).isEqualTo(1);
@@ -497,20 +495,6 @@ class AdminUserOnboardingE2ETest {
                  WHERE user_id=? AND neighborhood_id=? AND role=? AND active=TRUE
                 """, Integer.class, userId, barrio, role);
         return count != null && count > 0;
-    }
-
-    private boolean isFamilyOwner(UUID lot, UUID userId) {
-        Integer count = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM family_members
-                 WHERE lot_id=? AND user_id=? AND is_owner=TRUE AND active=TRUE
-                """, Integer.class, lot, userId);
-        return count != null && count > 0;
-    }
-
-    private int familyMembersFor(UUID userId) {
-        Integer c = jdbc.queryForObject("SELECT COUNT(*) FROM family_members WHERE user_id=?",
-                Integer.class, userId);
-        return c == null ? 0 : c;
     }
 
     private int lotPermissionsFor(UUID userId) {
