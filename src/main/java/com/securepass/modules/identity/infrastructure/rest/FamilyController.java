@@ -42,14 +42,14 @@ public class FamilyController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("hasRole('ADMIN') or @lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).MEMBER)")
     public List<FamilyMemberResponse> list(@PathVariable UUID lotId) {
         CurrentUser actor = accessGuard.require();
         return listUseCase.list(actor, lotId).stream().map(FamilyMemberResponse::from).toList();
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('RESIDENT_OWNER')")
+    @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")
     public ResponseEntity<FamilyMemberResponse> add(
             @PathVariable UUID lotId,
             @Valid @RequestBody AddFamilyMemberRequest request) {
@@ -62,7 +62,7 @@ public class FamilyController {
     }
 
     @PatchMapping("/{userId}")
-    @PreAuthorize("hasRole('RESIDENT_OWNER')")
+    @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")
     public FamilyMemberResponse update(
             @PathVariable UUID lotId,
             @PathVariable UUID userId,

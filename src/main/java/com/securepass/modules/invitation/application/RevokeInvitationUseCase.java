@@ -29,6 +29,8 @@ public class RevokeInvitationUseCase {
         Invitation invitation = invitations.findById(invitationId)
                 .orElseThrow(() -> new ResourceNotFoundException("invitacion", invitationId));
 
+        // Unico guardian cross-barrio para ADMIN: el @PreAuthorize deja pasar
+        // hasRole('ADMIN') sin evaluar lot_permissions. No borrar.
         if (!invitation.neighborhoodId().equals(actor.neighborhoodId())) {
             throw new AccessDeniedException("recurso de otro barrio");
         }

@@ -7,6 +7,7 @@ import com.securepass.modules.access.application.ListOpenStaysUseCase;
 import com.securepass.modules.access.application.ManualAccessUseCase;
 import com.securepass.modules.access.application.OpenShiftQuery;
 import com.securepass.modules.access.application.StayRepository;
+import com.securepass.modules.identity.application.ListFamilyMembersUseCase;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.invitation.application.CreateInvitationUseCase;
 import com.securepass.modules.invitation.application.ExtendInvitationUseCase;
@@ -71,6 +72,7 @@ class IdorIsolationTest {
     @Autowired IssueResidentPassesUseCase issuePasses;
     @Autowired ManualAccessUseCase manualAccess;
     @Autowired ListShiftsUseCase listShifts;
+    @Autowired ListFamilyMembersUseCase listFamily;
 
     // El shift lookup en manual access requiere turno abierto: mockearlo a
     // true para no seedear turnos y aislar la prueba al IDOR.
@@ -228,6 +230,20 @@ class IdorIsolationTest {
     @Test
     void revokeInvitationCrossBarrio_403() {
         assertThatThrownBy(() -> revokeInvitation.revoke(adminA(), invitationB))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void adminNoPuedeListarFamiliaDeOtroBarrio() {
+        assertThatThrownBy(() -> listFamily.list(adminA(), lotB.id()))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void adminConLoteInexistente_esFailClosed_noExplota() {
+        // Fail-closed: si no se puede resolver el barrio del lote, se deniega.
+        // Antes tiraba IllegalStateException del repo -> 500.
+        assertThatThrownBy(() -> listFamily.list(adminA(), UUID.randomUUID()))
                 .isInstanceOf(AccessDeniedException.class);
     }
 

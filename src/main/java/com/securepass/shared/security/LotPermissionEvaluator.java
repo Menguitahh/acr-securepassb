@@ -24,15 +24,49 @@ import java.util.UUID;
  * Este bean queda escrito y testeado en PR2 tramo 1; el tramo 2 lo cablea
  * en los {@code @PreAuthorize} de los controllers.
  */
-@Component
+@Component("lotPerm")
 public class LotPermissionEvaluator {
 
     private static final Logger log = LoggerFactory.getLogger(LotPermissionEvaluator.class);
 
     private final JdbcClient jdbc;
+    private final AccessGuard accessGuard;
 
-    public LotPermissionEvaluator(JdbcClient jdbc) {
+    public LotPermissionEvaluator(JdbcClient jdbc, AccessGuard accessGuard) {
         this.jdbc = jdbc;
+        this.accessGuard = accessGuard;
+    }
+
+    /**
+     * Overload para SpEL: resuelve el userId del {@link AccessGuard}. Fail-closed
+     * cuando no hay contexto autenticado (contexto vacio, principal anonimo o
+     * de tipo inesperado). El evaluator subyacente {@link #hasAtLeast(UUID, UUID, LotPermissionType)}
+     * ya devuelve false para argumentos null.
+     */
+    public boolean hasAtLeast(UUID lotId, LotPermissionType minimum) {
+        CurrentUser user = accessGuard.tryCurrent();
+        if (user == null) return false;
+        return hasAtLeast(user.userId(), lotId, minimum);
+    }
+
+    /**
+     * Overload para endpoints por id de invitacion (extend/revoke/exit/detail):
+     * resuelve el lotId de la invitacion y delega. Un SELECT extra por request
+     * en el gate (el use case vuelve a cargar la invitacion), aceptable para
+     * mantener el SpEL en una linea. Fail-closed si la invitacion no existe.
+     */
+    public boolean hasAtLeastForInvitation(UUID invitationId, LotPermissionType minimum) {
+        if (invitationId == null) return false;
+        UUID lotId;
+        try {
+            lotId = jdbc.sql("SELECT lot_id FROM invitations WHERE id = :id")
+                    .param("id", invitationId).query(UUID.class).optional().orElse(null);
+        } catch (DataAccessException e) {
+            log.warn("lookup invitations.lot_id fallo invitation={}: {}", invitationId, e.getMessage());
+            return false;
+        }
+        if (lotId == null) return false;
+        return hasAtLeast(lotId, minimum);
     }
 
     public boolean hasAtLeast(UUID userId, UUID lotId, LotPermissionType minimum) {

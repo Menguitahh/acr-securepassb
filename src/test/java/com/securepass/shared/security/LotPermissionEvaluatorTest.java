@@ -36,7 +36,7 @@ class LotPermissionEvaluatorTest {
         when(statement.param(anyString(), any())).thenReturn(statement);
         when(statement.query(eq(String.class))).thenReturn(mapped);
 
-        evaluator = new LotPermissionEvaluator(jdbc);
+        evaluator = new LotPermissionEvaluator(jdbc, new com.securepass.shared.security.AccessGuard());
     }
 
     // La query filtra por active=TRUE en SQL. Estos tests operan sobre lo

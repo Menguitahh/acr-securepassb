@@ -70,7 +70,7 @@ public class InvitationController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("@lotPerm.hasAtLeast(#request.lotId, T(com.securepass.shared.security.LotPermissionType).MEMBER)")
     public ResponseEntity<InvitationResponse> create(@Valid @RequestBody CreateInvitationRequest request) {
         CurrentUser actor = accessGuard.require();
         IssuedInvitation issued = createUseCase.create(actor.userId(), actor.neighborhoodId(), request.toCommand());
@@ -80,7 +80,7 @@ public class InvitationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("hasRole('ADMIN') or #lotId == null or @lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).MEMBER)")
     public PagedInvitationsResponse list(
             @RequestParam(required = false) UUID lotId,
             @RequestParam(required = false) InvitationStatus status,
@@ -90,7 +90,7 @@ public class InvitationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("hasRole('ADMIN') or @lotPerm.hasAtLeastForInvitation(#id, T(com.securepass.shared.security.LotPermissionType).MEMBER)")
     public InvitationResponse detail(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         Invitation invitation = getUseCase.get(actor, id);
@@ -103,14 +103,14 @@ public class InvitationController {
     }
 
     @PostMapping("/{id}/extend")
-    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("@lotPerm.hasAtLeastForInvitation(#id, T(com.securepass.shared.security.LotPermissionType).OWNER)")
     public ExtendInvitationResponse extend(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         return ExtendInvitationResponse.from(extendUseCase.extend(actor.neighborhoodId(), actor.userId(), id));
     }
 
     @PostMapping("/{id}/request-exit")
-    @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("@lotPerm.hasAtLeastForInvitation(#id, T(com.securepass.shared.security.LotPermissionType).OWNER)")
     public RequestExitResponse requestExit(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         return RequestExitResponse.from(
@@ -118,7 +118,7 @@ public class InvitationController {
     }
 
     @PostMapping("/{id}/revoke")
-    @PreAuthorize("hasAnyRole('ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
+    @PreAuthorize("hasRole('ADMIN') or @lotPerm.hasAtLeastForInvitation(#id, T(com.securepass.shared.security.LotPermissionType).OWNER)")
     public InvitationResponse revoke(@PathVariable UUID id) {
         CurrentUser actor = accessGuard.require();
         Invitation revoked = revokeUseCase.revoke(actor, id);

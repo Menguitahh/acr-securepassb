@@ -25,7 +25,22 @@ public class ListFamilyMembersUseCase {
         if (actor == null) throw new IllegalArgumentException("actor requerido");
         if (lotId == null) throw new IllegalArgumentException("lotId requerido");
 
-        if (!actor.hasRole(Role.ADMIN)) {
+        if (actor.hasRole(Role.ADMIN)) {
+            // Unico guardian cross-barrio para ADMIN: el @PreAuthorize deja pasar
+            // hasRole('ADMIN') sin evaluar lot_permissions, y un ADMIN del barrio A
+            // no tiene ninguna entrada que lo pare de leer familia del B. No borrar.
+            // Fail-closed: si el lote no existe o no se puede resolver, se deniega
+            // (evita 500 por lote inventado).
+            UUID lotNeighborhood;
+            try {
+                lotNeighborhood = family.neighborhoodIdOfLot(lotId);
+            } catch (RuntimeException e) {
+                throw new AccessDeniedException("no se pudo determinar el barrio del lote");
+            }
+            if (lotNeighborhood == null || !lotNeighborhood.equals(actor.neighborhoodId())) {
+                throw new AccessDeniedException("recurso de otro barrio");
+            }
+        } else {
             FamilyMember membership = family.find(actor.userId(), lotId)
                     .orElseThrow(() -> new ResourceNotFoundException("lote", lotId));
             if (!membership.active()) {
