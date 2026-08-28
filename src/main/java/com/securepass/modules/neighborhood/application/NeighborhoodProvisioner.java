@@ -114,7 +114,7 @@ public class NeighborhoodProvisioner {
         try {
             users.create(new User(
                     adminUserId, cmd.adminEmail(), null, null,
-                    cmd.adminFullName(), cmd.adminDni(), UserStatus.PENDING_ACTIVATION));
+                    cmd.adminFullName(), cmd.adminDni(), null, UserStatus.PENDING_ACTIVATION));
         } catch (org.springframework.dao.DataIntegrityViolationException dive) {
             // Email o DNI ya existente en users (cross-barrio). Rollback via
             // @Transactional. Mensaje claro: no es del provisioning per se,

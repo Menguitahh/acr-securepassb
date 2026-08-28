@@ -6,11 +6,16 @@ import com.securepass.modules.identity.domain.UserStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public class UserJdbcRepository implements UserRepository {
+
+    private static final String SELECT_COLS =
+            "id, email, phone, password_hash, full_name, document_number, birth_date, status";
 
     private final JdbcClient jdbc;
 
@@ -20,12 +25,7 @@ public class UserJdbcRepository implements UserRepository {
 
     @Override
     public Optional<User> findByIdentifier(String identifier) {
-        return jdbc.sql("""
-                SELECT id, email, phone, password_hash, full_name, document_number, status
-                  FROM users
-                 WHERE email = :id OR phone = :id
-                 LIMIT 1
-                """)
+        return jdbc.sql("SELECT " + SELECT_COLS + " FROM users WHERE email = :id OR phone = :id LIMIT 1")
                 .param("id", identifier)
                 .query(this::mapUser)
                 .optional();
@@ -33,11 +33,7 @@ public class UserJdbcRepository implements UserRepository {
 
     @Override
     public Optional<User> findById(UUID id) {
-        return jdbc.sql("""
-                SELECT id, email, phone, password_hash, full_name, document_number, status
-                  FROM users
-                 WHERE id = :id
-                """)
+        return jdbc.sql("SELECT " + SELECT_COLS + " FROM users WHERE id = :id")
                 .param("id", id)
                 .query(this::mapUser)
                 .optional();
@@ -45,11 +41,7 @@ public class UserJdbcRepository implements UserRepository {
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return jdbc.sql("""
-                SELECT id, email, phone, password_hash, full_name, document_number, status
-                  FROM users
-                 WHERE email = :email
-                """)
+        return jdbc.sql("SELECT " + SELECT_COLS + " FROM users WHERE email = :email")
                 .param("email", email)
                 .query(this::mapUser)
                 .optional();
@@ -58,11 +50,7 @@ public class UserJdbcRepository implements UserRepository {
     @Override
     public Optional<User> findByDocument(String documentNumber) {
         if (documentNumber == null || documentNumber.isBlank()) return Optional.empty();
-        return jdbc.sql("""
-                SELECT id, email, phone, password_hash, full_name, document_number, status
-                  FROM users
-                 WHERE document_number = :doc
-                """)
+        return jdbc.sql("SELECT " + SELECT_COLS + " FROM users WHERE document_number = :doc")
                 .param("doc", documentNumber)
                 .query(this::mapUser)
                 .optional();
@@ -71,8 +59,8 @@ public class UserJdbcRepository implements UserRepository {
     @Override
     public void create(User user) {
         jdbc.sql("""
-                INSERT INTO users (id, email, phone, password_hash, full_name, document_number, status)
-                VALUES (:id, :email, :phone, :hash, :fullName, :doc, :status)
+                INSERT INTO users (id, email, phone, password_hash, full_name, document_number, birth_date, status)
+                VALUES (:id, :email, :phone, :hash, :fullName, :doc, :birth, :status)
                 """)
                 .param("id", user.id())
                 .param("email", user.email())
@@ -80,6 +68,7 @@ public class UserJdbcRepository implements UserRepository {
                 .param("hash", user.passwordHash())
                 .param("fullName", user.fullName())
                 .param("doc", user.documentNumber())
+                .param("birth", user.birthDate() == null ? null : Date.valueOf(user.birthDate()))
                 .param("status", user.status().name())
                 .update();
     }
@@ -131,6 +120,8 @@ public class UserJdbcRepository implements UserRepository {
     }
 
     private User mapUser(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+        Date bd = rs.getDate("birth_date");
+        LocalDate birthDate = bd == null ? null : bd.toLocalDate();
         return new User(
                 rs.getObject("id", UUID.class),
                 rs.getString("email"),
@@ -138,6 +129,7 @@ public class UserJdbcRepository implements UserRepository {
                 rs.getString("password_hash"),
                 rs.getString("full_name"),
                 rs.getString("document_number"),
+                birthDate,
                 UserStatus.valueOf(rs.getString("status")));
     }
 }

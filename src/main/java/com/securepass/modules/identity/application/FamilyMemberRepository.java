@@ -18,6 +18,14 @@ public interface FamilyMemberRepository {
 
     void update(UUID userId, UUID lotId, boolean canInvite, boolean active);
 
+    /**
+     * WBS-110: reactiva un permiso MEMBER inactivo del lote, actualizando
+     * tambien {@code can_invite} y {@code relation} porque el titular pudo
+     * cambiar de opinion sobre ambos al re-agregar. {@code update()} no toca
+     * {@code relation}, por eso este metodo aparte.
+     */
+    void reactivate(UUID userId, UUID lotId, boolean canInvite, String relation);
+
     UUID neighborhoodIdOfLot(UUID lotId);
 
     Optional<Membership> findMembership(UUID userId, UUID neighborhoodId, Role role);

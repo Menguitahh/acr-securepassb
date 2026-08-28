@@ -51,7 +51,7 @@ class LoginUseCaseTest {
         userId = UUID.randomUUID();
         neighborhoodId = UUID.randomUUID();
         activeUser = new User(userId, "juan@mail.com", null, encoder.encode(RAW_PASSWORD),
-                "Juan Perez", "30123456", UserStatus.ACTIVE);
+                "Juan Perez", "30123456", null, UserStatus.ACTIVE);
     }
 
     @Test
@@ -107,7 +107,7 @@ class LoginUseCaseTest {
     @Test
     void usuarioSuspendidoDevuelveInvalidCredentials() {
         User suspended = new User(userId, "juan@mail.com", null, encoder.encode(RAW_PASSWORD),
-                "Juan Perez", null, UserStatus.SUSPENDED);
+                "Juan Perez", null, null, UserStatus.SUSPENDED);
         when(users.findByIdentifier("juan@mail.com")).thenReturn(Optional.of(suspended));
 
         LoginUseCase.Result result = useCase.login("juan@mail.com", RAW_PASSWORD);

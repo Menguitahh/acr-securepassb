@@ -45,7 +45,7 @@ class RefreshTokenUseCaseTest {
         useCase = new RefreshTokenUseCase(store, users, profiles, jwt, generator);
         userId = UUID.randomUUID();
         familyId = UUID.randomUUID();
-        activeUser = new User(userId, "a@b.com", null, "hash-irrelevante", "Ana", null, UserStatus.ACTIVE);
+        activeUser = new User(userId, "a@b.com", null, "hash-irrelevante", "Ana", null, null, UserStatus.ACTIVE);
     }
 
     @Test
@@ -105,7 +105,7 @@ class RefreshTokenUseCaseTest {
 
     @Test
     void usuarioSuspendidoRevocaFamiliaYFalla() {
-        User suspended = new User(userId, "a@b.com", null, "hash", "Ana", null, UserStatus.SUSPENDED);
+        User suspended = new User(userId, "a@b.com", null, "hash", "Ana", null, null, UserStatus.SUSPENDED);
         when(store.consume("raw")).thenReturn(new RefreshTokenStore.Consumed(familyId, userId));
         when(users.findById(userId)).thenReturn(Optional.of(suspended));
 

@@ -34,7 +34,7 @@ class ResendActivationUseCaseTest {
     @Test
     void reemiteSiElUsuarioEstaPending() {
         when(users.findById(userId)).thenReturn(Optional.of(new User(
-                userId, "u@d.c", null, null, "U", null, UserStatus.PENDING_ACTIVATION)));
+                userId, "u@d.c", null, null, "U", null, null, UserStatus.PENDING_ACTIVATION)));
         useCase.resend(userId, "Admin", "Barrio");
         verify(issuer).issue(eq(userId), eq(TokenPurpose.ACTIVATION), eq("Admin"), eq("Barrio"));
     }
@@ -50,7 +50,7 @@ class ResendActivationUseCaseTest {
     @Test
     void conflictoSiElUsuarioYaEstaActive() {
         when(users.findById(userId)).thenReturn(Optional.of(new User(
-                userId, "u@d.c", null, "hash", "U", null, UserStatus.ACTIVE)));
+                userId, "u@d.c", null, "hash", "U", null, null, UserStatus.ACTIVE)));
         assertThatThrownBy(() -> useCase.resend(userId, "A", "B"))
                 .isInstanceOf(StateConflictException.class);
         verifyNoInteractions(issuer);
@@ -59,7 +59,7 @@ class ResendActivationUseCaseTest {
     @Test
     void conflictoSiSuspended() {
         when(users.findById(userId)).thenReturn(Optional.of(new User(
-                userId, "u@d.c", null, "hash", "U", null, UserStatus.SUSPENDED)));
+                userId, "u@d.c", null, "hash", "U", null, null, UserStatus.SUSPENDED)));
         assertThatThrownBy(() -> useCase.resend(userId, "A", "B"))
                 .isInstanceOf(StateConflictException.class);
     }

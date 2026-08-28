@@ -79,6 +79,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.GONE).body(pd);
     }
 
+    @ExceptionHandler(AgeUnderMinimumException.class)
+    public ProblemDetail handleAgeUnderMinimum(AgeUnderMinimumException ex) {
+        // 400 con guia: el titular tiene que ir al padron de menores. No usamos
+        // 422 (BR-violation) porque la app tiene que ramificar el formulario.
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST,
+                "age-under-minimum",
+                "El familiar es menor de " + ex.minAge() + "; cargalo en el padron de menores del lote");
+        pd.setProperty("code", "AGE_UNDER_16");
+        pd.setProperty("minAge", ex.minAge());
+        pd.setProperty("redirectTo", "/api/v1/family/lots/" + ex.lotId() + "/minors");
+        return pd;
+    }
+
+    @ExceptionHandler(EmailRequiredException.class)
+    public ProblemDetail handleEmailRequired(EmailRequiredException ex) {
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "email-required", ex.getMessage());
+        pd.setProperty("code", "EMAIL_REQUIRED");
+        return pd;
+    }
+
     @ExceptionHandler(NeighborhoodNotProvisionedException.class)
     public ResponseEntity<ProblemDetail> handleNeighborhoodNotProvisioned(
             NeighborhoodNotProvisionedException ex) {

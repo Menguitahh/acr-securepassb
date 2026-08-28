@@ -41,7 +41,7 @@ class LookupActivationUseCaseTest {
                 UUID.randomUUID(), userId, TokenPurpose.ACTIVATION, hash,
                 now.plusSeconds(3600), null, now)));
         when(users.findById(userId)).thenReturn(Optional.of(new User(
-                userId, "a@b.c", null, "hash", "Ana", null, UserStatus.PENDING_ACTIVATION)));
+                userId, "a@b.c", null, "hash", "Ana", null, null, UserStatus.PENDING_ACTIVATION)));
 
         LookupActivationUseCase.Result r = useCase.lookup(plaintext);
         assertThat(r).isInstanceOf(LookupActivationUseCase.Valid.class);

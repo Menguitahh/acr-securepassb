@@ -383,7 +383,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/FamilyMemberResponse"
+                  "$ref" : "#/components/schemas/AddFamilyMemberResponse"
                 }
               }
             }
@@ -1670,24 +1670,43 @@
       },
       "AddFamilyMemberRequest" : {
         "required" : [
-          "identifier"
+          "birthDate",
+          "canInvite",
+          "dni",
+          "fullName"
         ],
         "type" : "object",
         "properties" : {
-          "identifier" : {
+          "fullName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
             "type" : "string"
           },
-          "canInvite" : {
-            "type" : "boolean"
+          "dni" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "birthDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "email" : {
+            "maxLength" : 160,
+            "minLength" : 0,
+            "type" : "string"
           },
           "relation" : {
             "maxLength" : 30,
             "minLength" : 0,
             "type" : "string"
+          },
+          "canInvite" : {
+            "type" : "boolean"
           }
         }
       },
-      "FamilyMemberResponse" : {
+      "AddFamilyMemberResponse" : {
         "type" : "object",
         "properties" : {
           "userId" : {
@@ -1700,20 +1719,38 @@
           "email" : {
             "type" : "string"
           },
-          "phone" : {
-            "type" : "string"
-          },
           "relation" : {
             "type" : "string"
-          },
-          "isOwner" : {
-            "type" : "boolean"
           },
           "canInvite" : {
             "type" : "boolean"
           },
           "active" : {
             "type" : "boolean"
+          },
+          "reused" : {
+            "type" : "boolean"
+          },
+          "changed" : {
+            "type" : "boolean"
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [
+              "CREATED_USER_AND_PERMISSION",
+              "ADDED_PERMISSION",
+              "REACTIVATED_PERMISSION",
+              "ALREADY_MEMBER"
+            ]
+          },
+          "userStatus" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "PENDING_ACTIVATION",
+              "SUSPENDED",
+              "DELETED"
+            ]
           }
         }
       },
@@ -2411,6 +2448,36 @@
       "UpdateFamilyMemberRequest" : {
         "type" : "object",
         "properties" : {
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "FamilyMemberResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "relation" : {
+            "type" : "string"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          },
           "canInvite" : {
             "type" : "boolean"
           },

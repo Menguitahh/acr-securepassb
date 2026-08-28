@@ -181,20 +181,11 @@ class IdorIntraBarrioTest {
     }
 
     // ---------- 5. agregar miembro a lotB ----------
-    @Test
-    void residentAagregarMiembroALotB_rechaza() {
-        // Necesitamos un user candidato para agregar.
-        UUID candidate = UUID.randomUUID();
-        insertUser(candidate);
-        String candidateEmail = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, candidate);
-
-        assertThatThrownBy(() -> addFamily.add(actorResidentA(), lotB.id(),
-                candidateEmail, false, "Hijo/a"))
-                .as("residentA NO debe poder agregar miembro a lotB")
-                .isInstanceOfAny(
-                        org.springframework.security.access.AccessDeniedException.class,
-                        com.securepass.shared.exception.ResourceNotFoundException.class);
-    }
+    // WBS-108 movio la defensa al gate (@PreAuthorize lotPerm.hasAtLeast OWNER)
+    // y WBS-110 cambio el contrato del alta (por DNI + activacion, no por
+    // identifier). El use case ya no valida ownership: la cobertura vive en
+    // IdorIntraBarrioHttpTest.POST_family_lots_lotB_members. Sin gate en el
+    // use case, cualquier test aca seria una defensa que no existe.
 
     // ---------- 6. leer access logs filtrando por lotB ----------
     @Test

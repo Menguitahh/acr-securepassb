@@ -138,7 +138,7 @@ public class OnboardUserUseCase {
                               org.springframework.transaction.TransactionStatus status) {
         UUID newUserId = UUID.randomUUID();
         User user = new User(newUserId, email, null, null, cmd.fullName().trim(),
-                dni, UserStatus.PENDING_ACTIVATION);
+                dni, null, UserStatus.PENDING_ACTIVATION);
 
         // SAVEPOINT alrededor del INSERT: si dispara UNIQUE (email — el DNI
         // ya lo pre-chequeamos arriba con findByDocument, aunque puede haber

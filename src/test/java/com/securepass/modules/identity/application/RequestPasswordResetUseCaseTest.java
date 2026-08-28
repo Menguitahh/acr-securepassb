@@ -31,7 +31,7 @@ class RequestPasswordResetUseCaseTest {
     @Test
     void emiteTokenSiElUsuarioEstaActivo() {
         when(users.findByEmail("a@b.c")).thenReturn(Optional.of(new User(
-                userId, "a@b.c", null, "hash", "Ana", null, UserStatus.ACTIVE)));
+                userId, "a@b.c", null, "hash", "Ana", null, null, UserStatus.ACTIVE)));
 
         useCase.request("A@B.C");
 
@@ -50,7 +50,7 @@ class RequestPasswordResetUseCaseTest {
     @Test
     void noHaceNadaSiElUsuarioNoEstaActivo() {
         when(users.findByEmail("a@b.c")).thenReturn(Optional.of(new User(
-                userId, "a@b.c", null, "hash", "Ana", null, UserStatus.PENDING_ACTIVATION)));
+                userId, "a@b.c", null, "hash", "Ana", null, null, UserStatus.PENDING_ACTIVATION)));
 
         useCase.request("a@b.c");
 

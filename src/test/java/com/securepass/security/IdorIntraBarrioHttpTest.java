@@ -186,13 +186,12 @@ class IdorIntraBarrioHttpTest {
     // ---------- 6. POST agregar miembro al lotB ----------
     @Test
     void POST_family_lots_lotB_members() throws Exception {
-        // Un candidato nuevo para agregar
-        UUID candidate = UUID.randomUUID();
-        insertUser(candidate);
-        String candidateEmail = jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, candidate);
+        // WBS-110: body por DNI + activacion. Aca no importa que la carga sea
+        // real, importa que el gate rechace antes de tocar la DB.
         String body = """
-                {"identifier":"%s","canInvite":false,"relation":"Hijo/a"}
-                """.formatted(candidateEmail);
+                {"fullName":"Nuevo","dni":"39999999","birthDate":"1990-01-01",
+                 "email":"nuevo@dev.local","relation":"Hijo/a","canInvite":false}
+                """;
         HttpResponse<String> resp = post("/api/v1/family/lots/" + lotB + "/members", tokenResidentA(), body);
         report("POST /family/lots/{lotB}/members", resp);
     }

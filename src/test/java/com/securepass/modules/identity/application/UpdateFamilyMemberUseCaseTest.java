@@ -47,7 +47,7 @@ class UpdateFamilyMemberUseCaseTest {
         when(family.find(ownerId, lotId))
                 .thenReturn(Optional.of(new FamilyMember(ownerId, lotId, null, true, true, true)));
         when(users.findById(memberId)).thenReturn(Optional.of(
-                new User(memberId, "maria@dev.local", null, "hash", "Maria", null, UserStatus.ACTIVE)));
+                new User(memberId, "maria@dev.local", null, "hash", "Maria", null, null, UserStatus.ACTIVE)));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.securepass.modules.identity.domain;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -10,6 +11,7 @@ public record User(
         String passwordHash,
         String fullName,
         String documentNumber,
+        LocalDate birthDate,
         UserStatus status
 ) {
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
@@ -17,6 +19,9 @@ public record User(
     private static final int EMAIL_MAX = 160;
     private static final int PHONE_MAX = 30;
     private static final int DOCUMENT_MAX = 20;
+    // WBS-110: cota simple para atrapar birth_date con tipeo obvio (ano 999
+    // o del futuro). No es una validacion actuarial, es una red antierrores.
+    private static final LocalDate BIRTH_DATE_MIN = LocalDate.of(1900, 1, 1);
 
     public User {
         if (id == null) throw new IllegalArgumentException("id requerido");
@@ -47,6 +52,14 @@ public record User(
         }
         if (documentNumber != null && documentNumber.length() > DOCUMENT_MAX) {
             throw new IllegalArgumentException("documentNumber excede " + DOCUMENT_MAX);
+        }
+        if (birthDate != null) {
+            if (birthDate.isAfter(LocalDate.now())) {
+                throw new IllegalArgumentException("birthDate en el futuro");
+            }
+            if (birthDate.isBefore(BIRTH_DATE_MIN)) {
+                throw new IllegalArgumentException("birthDate anterior a " + BIRTH_DATE_MIN);
+            }
         }
     }
 

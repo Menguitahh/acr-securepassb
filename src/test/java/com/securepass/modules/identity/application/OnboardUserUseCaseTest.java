@@ -124,7 +124,7 @@ class OnboardUserUseCaseTest {
     void reusoActiveConPermisoNuevo() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, "real@x.com", null, "hash", "Nombre Real", "30111222", UserStatus.ACTIVE)));
+                existing, "real@x.com", null, "hash", "Nombre Real", "30111222", null, UserStatus.ACTIVE)));
         when(addLotMember.isMemberOfLot(lotId, existing)).thenReturn(false);
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
@@ -146,7 +146,7 @@ class OnboardUserUseCaseTest {
     void reusoIdempotenteConPermisoYaExistente() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, "real@x.com", null, "hash", "Nombre Real", "30111222", UserStatus.ACTIVE)));
+                existing, "real@x.com", null, "hash", "Nombre Real", "30111222", null, UserStatus.ACTIVE)));
         when(addLotMember.isMemberOfLot(lotId, existing)).thenReturn(true);
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
@@ -166,7 +166,7 @@ class OnboardUserUseCaseTest {
         // changed=false y NO se reemite email de activacion.
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, "e@x.com", null, null, "N", "30111222", UserStatus.PENDING_ACTIVATION)));
+                existing, "e@x.com", null, null, "N", "30111222", null, UserStatus.PENDING_ACTIVATION)));
         when(addLotMember.isMemberOfLot(lotId, existing)).thenReturn(true);
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
@@ -182,7 +182,7 @@ class OnboardUserUseCaseTest {
     void reusoGuardIdempotenteCuandoMembershipExiste() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111223")).thenReturn(Optional.of(new User(
-                existing, "g@x.com", null, "hash", "G", "30111223", UserStatus.ACTIVE)));
+                existing, "g@x.com", null, "hash", "G", "30111223", null, UserStatus.ACTIVE)));
         when(memberships.exists(existing, neighborhoodId, Role.GUARD)).thenReturn(true);
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
@@ -198,7 +198,7 @@ class OnboardUserUseCaseTest {
     void reusoEmailNullCompletaYReemite() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, null, "+549...", null, "N", "30111222", UserStatus.PENDING_ACTIVATION)));
+                existing, null, "+549...", null, "N", "30111222", null, UserStatus.PENDING_ACTIVATION)));
         when(users.completeEmail(existing, "nuevo@x.com")).thenReturn(true);
         when(addLotMember.isMemberOfLot(lotId, existing)).thenReturn(false);
 
@@ -217,7 +217,7 @@ class OnboardUserUseCaseTest {
     void reusoPendingActivationReemiteToken() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, "e@x.com", null, null, "N", "30111222", UserStatus.PENDING_ACTIVATION)));
+                existing, "e@x.com", null, null, "N", "30111222", null, UserStatus.PENDING_ACTIVATION)));
         when(addLotMember.isMemberOfLot(lotId, existing)).thenReturn(false);
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
@@ -233,7 +233,7 @@ class OnboardUserUseCaseTest {
     void suspended409ConCodigo() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, "e@x.com", null, "hash", "N", "30111222", UserStatus.SUSPENDED)));
+                existing, "e@x.com", null, "hash", "N", "30111222", null, UserStatus.SUSPENDED)));
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
                 "otro@x.com", "N", "30111222", Role.RESIDENT_OWNER, lotId);
@@ -249,7 +249,7 @@ class OnboardUserUseCaseTest {
     void deleted409ConCodigo() {
         UUID existing = UUID.randomUUID();
         when(users.findByDocument("30111222")).thenReturn(Optional.of(new User(
-                existing, "e@x.com", null, "hash", "N", "30111222", UserStatus.DELETED)));
+                existing, "e@x.com", null, "hash", "N", "30111222", null, UserStatus.DELETED)));
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
                 "otro@x.com", "N", "30111222", Role.GUARD, null);
@@ -269,7 +269,7 @@ class OnboardUserUseCaseTest {
         when(users.findByDocument("30111223")).thenReturn(Optional.empty());
         doThrow(new DataIntegrityViolationException("dup")).when(users).create(any());
         when(users.findByEmail("a@b.c")).thenReturn(Optional.of(new User(
-                existingEmail, "a@b.c", null, "hash", "Otro", "30111222", UserStatus.ACTIVE)));
+                existingEmail, "a@b.c", null, "hash", "Otro", "30111222", null, UserStatus.ACTIVE)));
 
         OnboardUserUseCase.Command cmd = new OnboardUserUseCase.Command(
                 "a@b.c", "Nuevo", "30111223", Role.GUARD, null);

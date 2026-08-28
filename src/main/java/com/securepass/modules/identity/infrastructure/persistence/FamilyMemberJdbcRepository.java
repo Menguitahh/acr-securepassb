@@ -103,6 +103,29 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
     }
 
     @Override
+    public void reactivate(UUID userId, UUID lotId, boolean canInvite, String relation) {
+        // Filtro por MEMBER: no permitimos "reactivar" un OWNER desde el flujo
+        // de alta de familiar. Un titular inactivo es otra historia (baja del
+        // titular) que se maneja aparte.
+        jdbc.sql("""
+                UPDATE lot_permissions
+                   SET attributes = jsonb_set(
+                                        jsonb_set(attributes, '{can_invite}', to_jsonb(:canInvite::boolean)),
+                                        '{relation}',
+                                        to_jsonb(:relation::text)),
+                       active = TRUE,
+                       updated_at = now()
+                 WHERE user_id = :uid AND lot_id = :lid
+                   AND permission_type = 'MEMBER'
+                """)
+                .param("canInvite", canInvite)
+                .param("relation", relation)
+                .param("uid", userId)
+                .param("lid", lotId)
+                .update();
+    }
+
+    @Override
     public UUID neighborhoodIdOfLot(UUID lotId) {
         return jdbc.sql("SELECT neighborhood_id FROM lots WHERE id = :id")
                 .param("id", lotId)

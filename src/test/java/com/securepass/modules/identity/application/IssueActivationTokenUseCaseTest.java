@@ -36,7 +36,7 @@ class IssueActivationTokenUseCaseTest {
         events = mock(ApplicationEventPublisher.class);
         useCase = new IssueActivationTokenUseCase(users, tokens, generator, events, 7, 2);
         userId = UUID.randomUUID();
-        user = new User(userId, "u@dev.local", null, "hash", "Ana", null, UserStatus.PENDING_ACTIVATION);
+        user = new User(userId, "u@dev.local", null, "hash", "Ana", null, null, UserStatus.PENDING_ACTIVATION);
         when(users.findById(userId)).thenReturn(Optional.of(user));
     }
 
@@ -88,7 +88,7 @@ class IssueActivationTokenUseCaseTest {
 
     @Test
     void rechazaSiElUsuarioNoTieneEmail() {
-        User sinEmail = new User(userId, null, "+5491199999999", "hash", "Sin Email", null, UserStatus.PENDING_ACTIVATION);
+        User sinEmail = new User(userId, null, "+5491199999999", "hash", "Sin Email", null, null, UserStatus.PENDING_ACTIVATION);
         when(users.findById(userId)).thenReturn(Optional.of(sinEmail));
 
         assertThatThrownBy(() -> useCase.issue(userId, TokenPurpose.ACTIVATION, "x", "y"))

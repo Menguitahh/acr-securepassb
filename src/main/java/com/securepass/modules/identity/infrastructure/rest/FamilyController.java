@@ -3,10 +3,14 @@ package com.securepass.modules.identity.infrastructure.rest;
 import com.securepass.modules.identity.application.AddFamilyMemberUseCase;
 import com.securepass.modules.identity.application.FamilyMemberView;
 import com.securepass.modules.identity.application.ListFamilyMembersUseCase;
+import com.securepass.modules.identity.application.NeighborhoodNameQuery;
 import com.securepass.modules.identity.application.UpdateFamilyMemberUseCase;
+import com.securepass.modules.identity.application.UserRepository;
+import com.securepass.modules.identity.domain.User;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,16 +32,22 @@ public class FamilyController {
     private final ListFamilyMembersUseCase listUseCase;
     private final AddFamilyMemberUseCase addUseCase;
     private final UpdateFamilyMemberUseCase updateUseCase;
+    private final UserRepository users;
+    private final NeighborhoodNameQuery neighborhoods;
     private final AccessGuard accessGuard;
 
     public FamilyController(
             ListFamilyMembersUseCase listUseCase,
             AddFamilyMemberUseCase addUseCase,
             UpdateFamilyMemberUseCase updateUseCase,
+            UserRepository users,
+            NeighborhoodNameQuery neighborhoods,
             AccessGuard accessGuard) {
         this.listUseCase = listUseCase;
         this.addUseCase = addUseCase;
         this.updateUseCase = updateUseCase;
+        this.users = users;
+        this.neighborhoods = neighborhoods;
         this.accessGuard = accessGuard;
     }
 
@@ -48,17 +58,26 @@ public class FamilyController {
         return listUseCase.list(actor, lotId).stream().map(FamilyMemberResponse::from).toList();
     }
 
+    // WBS-110: gate del titular. Sin este @PreAuthorize, cualquier RESIDENT_MEMBER
+    // podria dar de alta familiares en un lote donde solo tiene permiso MEMBER.
     @PostMapping
     @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")
-    public ResponseEntity<FamilyMemberResponse> add(
+    public ResponseEntity<AddFamilyMemberResponse> add(
             @PathVariable UUID lotId,
             @Valid @RequestBody AddFamilyMemberRequest request) {
         CurrentUser actor = accessGuard.require();
-        FamilyMemberView member = addUseCase.add(
-                actor, lotId, request.identifier(), request.canInvite(), request.relation());
-        return ResponseEntity
-                .created(URI.create("/api/v1/family/lots/" + lotId + "/members/" + member.userId()))
-                .body(FamilyMemberResponse.from(member));
+        AddFamilyMemberUseCase.Result result = addUseCase.add(
+                actor, lotId, request.toCommand(),
+                actorName(actor),
+                neighborhoods.findName(actor.neighborhoodId()));
+        AddFamilyMemberResponse body = AddFamilyMemberResponse.from(result);
+        if (result.changed()) {
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .location(URI.create("/api/v1/family/lots/" + lotId + "/members/" + result.userId()))
+                    .body(body);
+        }
+        return ResponseEntity.ok(body);
     }
 
     @PatchMapping("/{userId}")
@@ -71,5 +90,9 @@ public class FamilyController {
         FamilyMemberView member = updateUseCase.update(
                 actor, lotId, userId, request.canInvite(), request.active());
         return FamilyMemberResponse.from(member);
+    }
+
+    private String actorName(CurrentUser actor) {
+        return users.findById(actor.userId()).map(User::fullName).orElse("Titular");
     }
 }
