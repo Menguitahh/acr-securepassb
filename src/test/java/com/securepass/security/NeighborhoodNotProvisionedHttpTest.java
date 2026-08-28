@@ -28,9 +28,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Barrio sin signing key: POST /invitations debe responder 503 con
- * code NEIGHBORHOOD_NOT_PROVISIONED, no 500 ciego. Regresion del smoke
- * que golpeo con el seed dev (issue #128).
+ * Barrio sin signing key: los endpoints que necesitan firmar QR deben
+ * responder 503 con code NEIGHBORHOOD_NOT_PROVISIONED, no 500 ciego.
+ * Regresion del smoke que golpeo con el seed dev (issue #128).
+ *
+ * Cubre POST /invitations, GET /me/passes y GET /invitations/{id}, los
+ * tres caminos que golpean la signing key en el mismo request.
  */
 @Testcontainers
 @Import(TestcontainersConfiguration.class)
@@ -107,6 +110,70 @@ class NeighborhoodNotProvisionedHttpTest {
         assertThat(resp.body()).contains("\"neighborhoodId\":\"" + barrio + "\"");
         assertThat(resp.body()).contains("\"missing\":\"signing key activa\"");
         assertThat(resp.body()).contains("neighborhood-not-provisioned");
+        assertThat(resp.body()).doesNotContain("internal-error");
+    }
+
+    @Test
+    void getMePasses_sinSigningKey_devuelve503_con_code() throws Exception {
+        String token = jwt.issue(owner, barrio, List.of(Role.RESIDENT_OWNER), List.of(lot)).token();
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/me/passes"))
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .timeout(Duration.ofSeconds(5))
+                .build();
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("== GET /me/passes sin signing key => HTTP " + resp.statusCode() + " ==");
+        System.out.println(resp.body());
+
+        assertThat(resp.statusCode()).isEqualTo(503);
+        assertThat(resp.body()).contains("\"code\":\"NEIGHBORHOOD_NOT_PROVISIONED\"");
+        assertThat(resp.body()).contains("\"neighborhoodId\":\"" + barrio + "\"");
+        assertThat(resp.body()).contains("\"missing\":\"signing key activa\"");
+        assertThat(resp.body()).doesNotContain("internal-error");
+    }
+
+    @Test
+    void getInvitationById_sinSigningKey_devuelve503_con_code() throws Exception {
+        // La invitacion ya existe (fue creada antes de que borraran la signing key
+        // o durante una ventana en la que existia). GET /{id} vuelve a firmar el QR
+        // en cada request, por eso golpea el mismo camino.
+        UUID invId = UUID.randomUUID();
+        Instant now = Instant.now();
+        jdbc.update("""
+                INSERT INTO invitations (
+                    id, neighborhood_id, lot_id, created_by, type, status,
+                    guest_name, guest_document, companions,
+                    valid_from, valid_until,
+                    max_uses, used_count, token_kid, jti, resident_pass, created_at)
+                VALUES (?, ?, ?, ?, 'SINGLE', 'ACTIVE',
+                        'Invitado', '30111222', 0,
+                        ?, ?,
+                        1, 0, 'kid-orphan', ?, FALSE, ?)
+                """, invId, barrio, lot, owner,
+                java.sql.Timestamp.from(now.minusSeconds(60)),
+                java.sql.Timestamp.from(now.plusSeconds(3600)),
+                UUID.randomUUID(),
+                java.sql.Timestamp.from(now));
+
+        String token = jwt.issue(owner, barrio, List.of(Role.RESIDENT_OWNER), List.of(lot)).token();
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/invitations/" + invId))
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .timeout(Duration.ofSeconds(5))
+                .build();
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("== GET /invitations/{id} sin signing key => HTTP " + resp.statusCode() + " ==");
+        System.out.println(resp.body());
+
+        assertThat(resp.statusCode()).isEqualTo(503);
+        assertThat(resp.body()).contains("\"code\":\"NEIGHBORHOOD_NOT_PROVISIONED\"");
+        assertThat(resp.body()).contains("\"neighborhoodId\":\"" + barrio + "\"");
+        assertThat(resp.body()).contains("\"missing\":\"signing key activa\"");
         assertThat(resp.body()).doesNotContain("internal-error");
     }
 }

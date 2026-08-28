@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -42,8 +43,8 @@ public class IssueResidentPassesUseCase {
         if (lots.isEmpty()) return List.of();
 
         SigningKey key = signingKeys.findActive(neighborhoodId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "no hay signing key activa para el barrio " + neighborhoodId));
+                .orElseThrow(() -> new NeighborhoodNotProvisionedException(
+                        neighborhoodId, "signing key activa"));
 
         return lots.stream()
                 .map(lot -> toPass(userId, lot, key))

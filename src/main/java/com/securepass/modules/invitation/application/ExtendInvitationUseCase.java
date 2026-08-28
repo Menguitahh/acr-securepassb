@@ -4,6 +4,7 @@ import com.securepass.modules.access.application.StayRepository;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.shared.exception.BusinessRuleViolationException;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -59,9 +60,14 @@ public class ExtendInvitationUseCase {
                     "solo ACTIVE se puede extender, estado: " + inv.status());
         }
 
+        // Mismo code NEIGHBORHOOD_NOT_PROVISIONED que signing key: cliente no puede
+        // corregir, lo resuelve el operador; `missing` discrimina el recurso.
+        // ponytail: rama defensiva bajo V4 (max_extensions/extension_minutes son
+        // NOT NULL DEFAULT en `neighborhoods`); si una migracion futura permite NULL,
+        // agregar test HTTP con seed de barrio con esas columnas en NULL.
         NeighborhoodExtensionPolicy policy = policies.find(inv.neighborhoodId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "sin politica de extension para barrio " + inv.neighborhoodId()));
+                .orElseThrow(() -> new NeighborhoodNotProvisionedException(
+                        inv.neighborhoodId(), "politica de extension"));
 
         int current = invitations.findExtensionCount(invitationId);
         if (current >= policy.maxExtensions()) {

@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.crypto.AesGcmCipher;
 import com.securepass.shared.crypto.Ed25519Signer;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -30,8 +31,8 @@ public class QrTokenIssuer {
     public String issue(IssueCommand cmd) {
         if (cmd == null) throw new IllegalArgumentException("cmd requerido");
         SigningKey key = keys.findActive(cmd.neighborhoodId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "no hay signing key activa para el barrio " + cmd.neighborhoodId()));
+                .orElseThrow(() -> new NeighborhoodNotProvisionedException(
+                        cmd.neighborhoodId(), "signing key activa"));
 
         boolean recurring = cmd.type() == InvitationType.RECURRING;
         List<Integer> weekdays = recurring ? validateWeekdays(cmd.weekdays()) : null;

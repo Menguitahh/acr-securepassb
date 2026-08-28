@@ -9,6 +9,7 @@ import com.securepass.shared.crypto.Ed25519KeyFactory;
 import com.securepass.shared.crypto.Ed25519KeyPair;
 import com.securepass.shared.crypto.Ed25519Verifier;
 import com.securepass.shared.crypto.MasterKey;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -110,15 +111,19 @@ class QrTokenIssuerTest {
     }
 
     @Test
-    void sinClaveActivaFalla() {
+    void sinClaveActivaLanzaNeighborhoodNotProvisioned() {
         UUID otro = UUID.randomUUID();
         when(repo.findActive(otro)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> issuer.issue(new QrTokenIssuer.IssueCommand(
                 otro, lotId, invitationId, jti, InvitationType.SINGLE,
                 Instant.now(), Instant.now().plusSeconds(3600), 1, null, null, null)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("signing key");
+                .isInstanceOf(NeighborhoodNotProvisionedException.class)
+                .satisfies(ex -> {
+                    NeighborhoodNotProvisionedException e = (NeighborhoodNotProvisionedException) ex;
+                    assertThat(e.neighborhoodId()).isEqualTo(otro);
+                    assertThat(e.resource()).isEqualTo("signing key activa");
+                });
     }
 
     @Test

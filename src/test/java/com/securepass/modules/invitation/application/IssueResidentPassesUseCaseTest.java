@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -99,13 +100,19 @@ class IssueResidentPassesUseCaseTest {
     }
 
     @Test
-    void sinSigningKeyLanzaIllegalState() {
+    void sinSigningKeyLanzaNeighborhoodNotProvisioned() {
         UUID lotId = UUID.randomUUID();
         when(lots.listActiveByUser(userId, neighborhoodId))
                 .thenReturn(List.of(new ResidentLot(lotId, "M4-L12", neighborhoodId, "Barrio X")));
         when(signingKeys.findActive(neighborhoodId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> useCase.issue(userId, neighborhoodId))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(NeighborhoodNotProvisionedException.class)
+                .satisfies(ex -> {
+                    NeighborhoodNotProvisionedException e = (NeighborhoodNotProvisionedException) ex;
+                    assertThat(e.neighborhoodId()).isEqualTo(neighborhoodId);
+                    assertThat(e.resource()).isEqualTo("signing key activa");
+                });
+        verify(invitations, never()).save(any());
     }
 }

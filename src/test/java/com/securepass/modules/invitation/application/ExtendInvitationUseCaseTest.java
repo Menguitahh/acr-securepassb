@@ -5,6 +5,7 @@ import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.shared.exception.BusinessRuleViolationException;
+import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -142,6 +143,23 @@ class ExtendInvitationUseCaseTest {
 
         assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void sinPoliticaExtensionLanzaNeighborhoodNotProvisioned() {
+        Invitation inv = invitation(actorUserId, InvitationStatus.ACTIVE);
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(inv));
+        when(policies.find(neighborhoodId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
+                .isInstanceOf(NeighborhoodNotProvisionedException.class)
+                .satisfies(ex -> {
+                    NeighborhoodNotProvisionedException e = (NeighborhoodNotProvisionedException) ex;
+                    assertThat(e.neighborhoodId()).isEqualTo(neighborhoodId);
+                    assertThat(e.resource()).isEqualTo("politica de extension");
+                });
+        verify(invitations, never()).applyExtension(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+        verify(stays, never()).updateExpectedUntilByInvitation(any(), any());
     }
 
     @Test
