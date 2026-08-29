@@ -142,12 +142,85 @@
         }
       }
     },
+    "/api/v1/lots/{lotId}/workers" : {
+      "get" : {
+        "tags" : [
+          "worker-controller"
+        ],
+        "operationId" : "list_1",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/WorkerResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "worker-controller"
+        ],
+        "operationId" : "add",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddWorkerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AddWorkerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations" : {
       "get" : {
         "tags" : [
           "invitation-controller"
         ],
-        "operationId" : "list_1",
+        "operationId" : "list_2",
         "parameters" : [
           {
             "name" : "lotId",
@@ -446,7 +519,7 @@
         "tags" : [
           "family-controller"
         ],
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "parameters" : [
           {
             "name" : "lotId",
@@ -478,7 +551,7 @@
         "tags" : [
           "family-controller"
         ],
-        "operationId" : "add",
+        "operationId" : "add_1",
         "parameters" : [
           {
             "name" : "lotId",
@@ -732,7 +805,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "list_3",
+        "operationId" : "list_4",
         "parameters" : [
           {
             "name" : "page",
@@ -1044,12 +1117,100 @@
         }
       }
     },
+    "/api/v1/lots/{lotId}/workers/{userId}" : {
+      "delete" : {
+        "tags" : [
+          "worker-controller"
+        ],
+        "operationId" : "delete",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "userId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UpdateWorkerResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [
+          "worker-controller"
+        ],
+        "operationId" : "update",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "userId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateWorkerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UpdateWorkerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/family/lots/{lotId}/members/{userId}" : {
       "patch" : {
         "tags" : [
           "family-controller"
         ],
-        "operationId" : "update",
+        "operationId" : "update_1",
         "parameters" : [
           {
             "name" : "lotId",
@@ -1099,7 +1260,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [
           {
             "name" : "id",
@@ -1373,7 +1534,7 @@
         "tags" : [
           "access-logs-controller"
         ],
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "parameters" : [
           {
             "name" : "from",
@@ -1610,6 +1771,116 @@
             "maxLength" : 1000,
             "minLength" : 0,
             "type" : "string"
+          }
+        }
+      },
+      "AddWorkerRequest" : {
+        "required" : [
+          "dailyFrom",
+          "dailyUntil",
+          "dni",
+          "email",
+          "fullName",
+          "service",
+          "weekdays"
+        ],
+        "type" : "object",
+        "properties" : {
+          "fullName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "dni" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "email" : {
+            "maxLength" : 160,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "service" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          },
+          "dailyOrderValid" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "AddWorkerResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "service" : {
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "reused" : {
+            "type" : "boolean"
+          },
+          "changed" : {
+            "type" : "boolean"
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [
+              "CREATED_USER_AND_PERMISSION",
+              "ADDED_PERMISSION",
+              "REACTIVATED_PERMISSION",
+              "ALREADY_ACTIVE"
+            ]
+          },
+          "userStatus" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "PENDING_ACTIVATION",
+              "SUSPENDED",
+              "DELETED"
+            ]
           }
         }
       },
@@ -2702,6 +2973,89 @@
           }
         }
       },
+      "UpdateWorkerRequest" : {
+        "type" : "object",
+        "properties" : {
+          "service" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "nonEmpty" : {
+            "type" : "boolean"
+          },
+          "scheduleBundled" : {
+            "type" : "boolean"
+          },
+          "dailyOrderValid" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "UpdateWorkerResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "service" : {
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
+          },
+          "outcome" : {
+            "type" : "string",
+            "enum" : [
+              "UPDATED",
+              "DEACTIVATED",
+              "ALREADY_INACTIVE",
+              "ALREADY_ACTIVE"
+            ]
+          }
+        }
+      },
       "UpdateFamilyMemberRequest" : {
         "type" : "object",
         "properties" : {
@@ -2868,6 +3222,43 @@
           },
           "code" : {
             "type" : "string"
+          }
+        }
+      },
+      "WorkerResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "service" : {
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "type" : "string"
+          },
+          "active" : {
+            "type" : "boolean"
           }
         }
       },
