@@ -1,7 +1,6 @@
 package com.securepass.modules.identity.infrastructure.rest;
 
 import com.securepass.modules.identity.application.AddFamilyMemberUseCase;
-import com.securepass.modules.identity.application.FamilyMemberView;
 import com.securepass.modules.identity.application.ListFamilyMembersUseCase;
 import com.securepass.modules.identity.application.NeighborhoodNameQuery;
 import com.securepass.modules.identity.application.UpdateFamilyMemberUseCase;
@@ -82,14 +81,14 @@ public class FamilyController {
 
     @PatchMapping("/{userId}")
     @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")
-    public FamilyMemberResponse update(
+    public UpdateFamilyMemberResponse update(
             @PathVariable UUID lotId,
             @PathVariable UUID userId,
             @Valid @RequestBody UpdateFamilyMemberRequest request) {
         CurrentUser actor = accessGuard.require();
-        FamilyMemberView member = updateUseCase.update(
+        UpdateFamilyMemberUseCase.Result result = updateUseCase.update(
                 actor, lotId, userId, request.canInvite(), request.active());
-        return FamilyMemberResponse.from(member);
+        return UpdateFamilyMemberResponse.from(result);
     }
 
     private String actorName(CurrentUser actor) {

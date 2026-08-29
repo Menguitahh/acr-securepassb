@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,24 +56,43 @@ class UpdateFamilyMemberUseCaseTest {
         when(family.find(memberId, lotId))
                 .thenReturn(Optional.of(new FamilyMember(memberId, lotId, null, false, false, true)));
 
-        FamilyMemberView view = useCase.update(owner, lotId, memberId, true, null);
+        UpdateFamilyMemberUseCase.Result r = useCase.update(owner, lotId, memberId, true, null);
 
-        assertThat(view.canInvite()).isTrue();
-        assertThat(view.active()).isTrue();
+        assertThat(r.view().canInvite()).isTrue();
+        assertThat(r.view().active()).isTrue();
+        assertThat(r.outcome()).isEqualTo(UpdateFamilyMemberUseCase.Outcome.TOGGLED_CAN_INVITE);
+        assertThat(r.revokedInvitationsCount()).isZero();
         verify(family).update(memberId, lotId, true, true);
-        verify(revoker, never()).revokeActiveByLotAndUser(lotId, memberId, ownerId);
+        verify(revoker, never()).revokeActiveByLotAndUser(any(), any(), any());
     }
 
     @Test
-    void darDeBajaRevocaInvitacionesEnCascada() {
+    void darDeBajaRevocaEnCascadaYReportaCount() {
         when(family.find(memberId, lotId))
                 .thenReturn(Optional.of(new FamilyMember(memberId, lotId, null, false, true, true)));
+        when(revoker.revokeActiveByLotAndUser(lotId, memberId, ownerId)).thenReturn(3);
 
-        FamilyMemberView view = useCase.update(owner, lotId, memberId, null, false);
+        UpdateFamilyMemberUseCase.Result r = useCase.update(owner, lotId, memberId, null, false);
 
-        assertThat(view.active()).isFalse();
+        assertThat(r.view().active()).isFalse();
+        assertThat(r.outcome()).isEqualTo(UpdateFamilyMemberUseCase.Outcome.REVOKED_MEMBER);
+        assertThat(r.revokedInvitationsCount()).isEqualTo(3);
         verify(revoker).revokeActiveByLotAndUser(lotId, memberId, ownerId);
         verify(family).update(memberId, lotId, true, false);
+    }
+
+    // Idempotencia: ya inactivo, no re-revoca ni ensucia revoked_at.
+    @Test
+    void darDeBajaCuandoYaEstaInactivoEsIdempotente() {
+        when(family.find(memberId, lotId))
+                .thenReturn(Optional.of(new FamilyMember(memberId, lotId, null, false, false, false)));
+
+        UpdateFamilyMemberUseCase.Result r = useCase.update(owner, lotId, memberId, null, false);
+
+        assertThat(r.view().active()).isFalse();
+        assertThat(r.outcome()).isEqualTo(UpdateFamilyMemberUseCase.Outcome.ALREADY_INACTIVE);
+        assertThat(r.revokedInvitationsCount()).isZero();
+        verify(revoker, never()).revokeActiveByLotAndUser(any(), any(), any());
     }
 
     @Test
@@ -80,9 +100,11 @@ class UpdateFamilyMemberUseCaseTest {
         when(family.find(memberId, lotId))
                 .thenReturn(Optional.of(new FamilyMember(memberId, lotId, null, false, true, false)));
 
-        useCase.update(owner, lotId, memberId, null, true);
+        UpdateFamilyMemberUseCase.Result r = useCase.update(owner, lotId, memberId, null, true);
 
-        verify(revoker, never()).revokeActiveByLotAndUser(lotId, memberId, ownerId);
+        assertThat(r.outcome()).isEqualTo(UpdateFamilyMemberUseCase.Outcome.TOGGLED_CAN_INVITE);
+        assertThat(r.revokedInvitationsCount()).isZero();
+        verify(revoker, never()).revokeActiveByLotAndUser(any(), any(), any());
         verify(family).update(memberId, lotId, true, true);
     }
 
@@ -94,6 +116,7 @@ class UpdateFamilyMemberUseCaseTest {
         assertThatThrownBy(() -> useCase.update(owner, lotId, memberId, null, false))
                 .isInstanceOf(StateConflictException.class)
                 .hasMessageContaining("titular no se modifica");
+        verify(revoker, never()).revokeActiveByLotAndUser(any(), any(), any());
     }
 
     @Test
@@ -120,5 +143,6 @@ class UpdateFamilyMemberUseCaseTest {
     void requiereAlMenosUnCampo() {
         assertThatThrownBy(() -> useCase.update(owner, lotId, memberId, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
+        verify(revoker, never()).revokeActiveByLotAndUser(any(), any(), any());
     }
 }

@@ -1,7 +1,6 @@
 package com.securepass.modules.identity;
 
 import com.securepass.TestcontainersConfiguration;
-import com.securepass.modules.identity.application.FamilyMemberView;
 import com.securepass.modules.identity.application.UpdateFamilyMemberUseCase;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.security.CurrentUser;
@@ -49,9 +48,11 @@ class FamilyMemberCascadeRevokeTest {
                 neighborhoodId, "barrio-" + UUID.randomUUID());
         jdbc.update("INSERT INTO lots (id, neighborhood_id, code) VALUES (?, ?, 'A-001')",
                 lotId, neighborhoodId);
-        seedUser(ownerId, "owner@dev.local", "Titular Test");
-        seedUser(memberId, "member@dev.local", "Miembro Test");
-        seedUser(otherMemberId, "other@dev.local", "Otro Test");
+        // Emails con el UUID adentro: Testcontainers reusa el postgres entre
+        // tests, un email fijo choca con users_email_key.
+        seedUser(ownerId, "owner-" + ownerId + "@t.local", "Titular Test");
+        seedUser(memberId, "member-" + memberId + "@t.local", "Miembro Test");
+        seedUser(otherMemberId, "other-" + otherMemberId + "@t.local", "Otro Test");
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', '{"can_invite": true, "relation": "OWNER"}'::jsonb, TRUE),
@@ -72,12 +73,71 @@ class FamilyMemberCascadeRevokeTest {
         CurrentUser owner = new CurrentUser(
                 ownerId, neighborhoodId, List.of(Role.RESIDENT_OWNER), List.of(lotId));
 
-        FamilyMemberView updated = updateUseCase.update(owner, lotId, memberId, null, false);
+        UpdateFamilyMemberUseCase.Result result = updateUseCase.update(owner, lotId, memberId, null, false);
 
-        assertThat(updated.active()).isFalse();
+        assertThat(result.view().active()).isFalse();
+        assertThat(result.outcome()).isEqualTo(UpdateFamilyMemberUseCase.Outcome.REVOKED_MEMBER);
+        assertThat(result.revokedInvitationsCount()).isEqualTo(1);
         assertThat(statusOf(memberInvitationId)).isEqualTo("REVOKED");
         assertThat(statusOf(otherInvitationId)).isEqualTo("ACTIVE");
         assertThat(revokedBy(memberInvitationId)).isEqualTo(ownerId);
+    }
+
+    // Seguridad: el resident_pass del familiar tiene que caer en la cascada.
+    // Es el QR permanente que YA ESTA en su telefono; si no lo revocamos, el
+    // jti no aparece en /access/revoked, el device del guardia no se entera y
+    // la persona sigue entrando. Ver comentario LOAD-BEARING en
+    // ActiveInvitationJdbcRevoker.
+    @Test
+    void darDeBajaRevocaElResidentPassDelMiembro() {
+        CurrentUser owner = new CurrentUser(
+                ownerId, neighborhoodId, List.of(Role.RESIDENT_OWNER), List.of(lotId));
+        UUID residentPassId = UUID.randomUUID();
+        seedResidentPass(residentPassId, memberId);
+
+        UpdateFamilyMemberUseCase.Result result = updateUseCase.update(owner, lotId, memberId, null, false);
+
+        assertThat(result.outcome()).isEqualTo(UpdateFamilyMemberUseCase.Outcome.REVOKED_MEMBER);
+        assertThat(result.revokedInvitationsCount()).isEqualTo(2); // regular + resident_pass
+        assertThat(statusOf(residentPassId)).isEqualTo("REVOKED");
+        assertThat(revokedBy(residentPassId)).isEqualTo(ownerId);
+    }
+
+    // Aislamiento: la cascada esta scopeada al lote del PATCH. Si el familiar
+    // creo una invitacion en OTRO lote (por ser residente ahi), no se toca.
+    @Test
+    void darDeBajaNoTocaInvitacionesDelMismoUserEnOtroLote() {
+        CurrentUser owner = new CurrentUser(
+                ownerId, neighborhoodId, List.of(Role.RESIDENT_OWNER), List.of(lotId));
+        UUID otherLotId = UUID.randomUUID();
+        UUID crossLotInvitationId = UUID.randomUUID();
+        jdbc.update("INSERT INTO lots (id, neighborhood_id, code) VALUES (?, ?, 'B-002')",
+                otherLotId, neighborhoodId);
+        jdbc.update("""
+                INSERT INTO invitations (
+                    id, neighborhood_id, lot_id, created_by, type, status, guest_name,
+                    guest_document, valid_from, valid_until, max_uses, used_count, token_kid
+                ) VALUES (?, ?, ?, ?, 'SINGLE', 'ACTIVE', 'Invitado', '30123456',
+                          now() - interval '1 hour', now() + interval '1 hour', 1, 0, 'kid-test')
+                """, crossLotInvitationId, neighborhoodId, otherLotId, memberId);
+
+        updateUseCase.update(owner, lotId, memberId, null, false);
+
+        assertThat(statusOf(memberInvitationId)).isEqualTo("REVOKED");
+        assertThat(statusOf(crossLotInvitationId)).isEqualTo("ACTIVE");
+    }
+
+    private void seedResidentPass(UUID id, UUID userId) {
+        jdbc.update("""
+                INSERT INTO invitations (
+                    id, neighborhood_id, lot_id, created_by, type, status, guest_name,
+                    guest_document, valid_from, valid_until, weekdays, daily_from, daily_until,
+                    max_uses, used_count, token_kid, resident_pass
+                ) VALUES (?, ?, ?, ?, 'RECURRING', 'ACTIVE', 'Residente', '00000000',
+                          now() - interval '1 hour', '2099-12-31'::timestamptz,
+                          ARRAY[1,2,3,4,5,6,7]::smallint[], '00:00'::time, '23:59:59'::time,
+                          1, 0, 'kid-pass', TRUE)
+                """, id, neighborhoodId, lotId, userId);
     }
 
     private void seedUser(UUID id, String email, String name) {
