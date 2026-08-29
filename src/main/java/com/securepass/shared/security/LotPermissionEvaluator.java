@@ -1,11 +1,14 @@
 package com.securepass.shared.security;
 
+import com.securepass.shared.schedule.ScheduleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import java.sql.Array;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -113,4 +116,79 @@ public class LotPermissionEvaluator {
 
         return highest.atLeast(minimum);
     }
+
+    /**
+     * WBS-114: lista los permisos WORKER activos del usuario, cruzando lotes y
+     * barrios. Consumido por la validacion multi-lote (WBS-117) y por la
+     * pantalla del trabajador (WBS-120). Fail-closed: user null, query
+     * fallida o fila mal formada -> se salta esa fila; nunca autoriza por
+     * omision. Filas cuyo JSONB no puede parsearse a un {@link WorkerPermission}
+     * valido se loguean y se omiten, no rompen la lectura del resto.
+     */
+    public List<WorkerPermission> findActiveWorkerPermissions(UUID userId) {
+        if (userId == null) return List.of();
+        List<WorkerRow> rows;
+        try {
+            rows = jdbc.sql("""
+                    SELECT lot_id,
+                           attributes->>'service'    AS service,
+                           attributes->>'dailyFrom'  AS daily_from,
+                           attributes->>'dailyUntil' AS daily_until,
+                           (SELECT array_agg(value::int)
+                              FROM jsonb_array_elements_text(attributes->'weekdays') AS value)
+                                                     AS weekdays
+                      FROM lot_permissions
+                     WHERE user_id = :uid
+                       AND active = TRUE
+                       AND permission_type = 'WORKER'
+                    """)
+                    .param("uid", userId)
+                    .query((rs, i) -> {
+                        Array wdArr = rs.getArray("weekdays");
+                        List<Integer> weekdays = toIntList(wdArr);
+                        return new WorkerRow(
+                                rs.getObject("lot_id", UUID.class),
+                                rs.getString("service"),
+                                rs.getString("daily_from"),
+                                rs.getString("daily_until"),
+                                weekdays);
+                    })
+                    .list();
+        } catch (DataAccessException e) {
+            log.warn("findActiveWorkerPermissions query fallo user={}: {}", userId, e.getMessage());
+            return List.of();
+        }
+
+        List<WorkerPermission> out = new ArrayList<>(rows.size());
+        for (WorkerRow r : rows) {
+            try {
+                ScheduleWindow window = new ScheduleWindow(
+                        r.weekdays(),
+                        LocalTime.parse(r.dailyFrom()),
+                        LocalTime.parse(r.dailyUntil()));
+                out.add(new WorkerPermission(userId, r.lotId(), r.service(), window, true));
+            } catch (RuntimeException e) {
+                log.warn("lot_permissions WORKER fila invalida user={} lot={}: {}",
+                        userId, r.lotId(), e.getMessage());
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private static List<Integer> toIntList(Array sqlArray) {
+        if (sqlArray == null) return List.of();
+        try {
+            Object raw = sqlArray.getArray();
+            if (!(raw instanceof Object[] arr)) return List.of();
+            List<Integer> out = new ArrayList<>(arr.length);
+            for (Object o : arr) {
+                if (o instanceof Number n) out.add(n.intValue());
+            }
+            return out;
+        } catch (java.sql.SQLException e) {
+            return List.of();
+        }
+    }
+
+    private record WorkerRow(UUID lotId, String service, String dailyFrom, String dailyUntil, List<Integer> weekdays) {}
 }

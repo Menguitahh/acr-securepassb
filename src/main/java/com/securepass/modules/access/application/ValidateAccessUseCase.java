@@ -13,11 +13,10 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.crypto.Ed25519Verifier;
+import com.securepass.shared.schedule.ScheduleWindow;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZonedDateTime;
 import java.util.Optional;
 
 @Service
@@ -84,8 +83,11 @@ public class ValidateAccessUseCase {
         if (capturedAt.isAfter(inv.validUntil()) || inv.status() == InvitationStatus.EXPIRED) {
             return AccessDecision.Denied.of(DenialReason.EXPIRED);
         }
-        if (inv.type() == InvitationType.RECURRING && !withinDailySlot(inv, capturedAt, lot.neighborhoodTimezone())) {
-            return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
+        if (inv.type() == InvitationType.RECURRING) {
+            ScheduleWindow window = new ScheduleWindow(inv.weekdays(), inv.dailyFrom(), inv.dailyUntil());
+            if (!window.contains(capturedAt, lot.neighborhoodTimezone())) {
+                return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
+            }
         }
         if (direction == Direction.IN) {
             if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
@@ -101,13 +103,5 @@ public class ValidateAccessUseCase {
         }
 
         return new AccessDecision.Allowed(inv.id(), inv.jti(), inv.guestName(), lot.code(), inv.companions());
-    }
-
-    private static boolean withinDailySlot(Invitation inv, Instant capturedAt, java.time.ZoneId tz) {
-        ZonedDateTime local = capturedAt.atZone(tz);
-        int weekday = local.getDayOfWeek().getValue();
-        if (!inv.weekdays().contains(weekday)) return false;
-        LocalTime time = local.toLocalTime();
-        return !time.isBefore(inv.dailyFrom()) && !time.isAfter(inv.dailyUntil());
     }
 }
