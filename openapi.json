@@ -318,6 +318,129 @@
         }
       }
     },
+    "/api/v1/family/lots/{lotId}/minors" : {
+      "get" : {
+        "tags" : [
+          "family-minors-controller"
+        ],
+        "operationId" : "listMinors",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/MinorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "family-minors-controller"
+        ],
+        "operationId" : "register",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterMinorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MinorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/lots/{lotId}/minors/{minorId}/graduate" : {
+      "post" : {
+        "tags" : [
+          "family-minors-controller"
+        ],
+        "operationId" : "graduateMinor",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "minorId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GraduateMinorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GraduateMinorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/family/lots/{lotId}/members" : {
       "get" : {
         "tags" : [
@@ -396,7 +519,7 @@
         "tags" : [
           "device-controller"
         ],
-        "operationId" : "register",
+        "operationId" : "register_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1341,6 +1464,39 @@
           }
         }
       }
+    },
+    "/api/v1/family/lots/{lotId}/minors/{minorId}" : {
+      "delete" : {
+        "tags" : [
+          "family-minors-controller"
+        ],
+        "operationId" : "deleteMinor",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "minorId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
     }
   },
   "components" : {
@@ -1668,11 +1824,9 @@
           }
         }
       },
-      "AddFamilyMemberRequest" : {
+      "RegisterMinorRequest" : {
         "required" : [
           "birthDate",
-          "canInvite",
-          "dni",
           "fullName"
         ],
         "type" : "object",
@@ -1682,7 +1836,7 @@
             "minLength" : 0,
             "type" : "string"
           },
-          "dni" : {
+          "documentNumber" : {
             "maxLength" : 20,
             "minLength" : 0,
             "type" : "string"
@@ -1691,6 +1845,54 @@
             "type" : "string",
             "format" : "date"
           },
+          "relation" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "notes" : {
+            "maxLength" : 280,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "MinorResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string"
+          },
+          "birthDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "relation" : {
+            "type" : "string"
+          },
+          "notes" : {
+            "type" : "string"
+          }
+        }
+      },
+      "GraduateMinorRequest" : {
+        "required" : [
+          "canInvite",
+          "email"
+        ],
+        "type" : "object",
+        "properties" : {
           "email" : {
             "maxLength" : 160,
             "minLength" : 0,
@@ -1703,6 +1905,11 @@
           },
           "canInvite" : {
             "type" : "boolean"
+          },
+          "dniOverride" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
           }
         }
       },
@@ -1751,6 +1958,56 @@
               "SUSPENDED",
               "DELETED"
             ]
+          }
+        }
+      },
+      "GraduateMinorResponse" : {
+        "type" : "object",
+        "properties" : {
+          "graduatedFromMinorId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "member" : {
+            "$ref" : "#/components/schemas/AddFamilyMemberResponse"
+          }
+        }
+      },
+      "AddFamilyMemberRequest" : {
+        "required" : [
+          "birthDate",
+          "canInvite",
+          "dni",
+          "fullName"
+        ],
+        "type" : "object",
+        "properties" : {
+          "fullName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "dni" : {
+            "maxLength" : 20,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "birthDate" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "email" : {
+            "maxLength" : 160,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "relation" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "canInvite" : {
+            "type" : "boolean"
           }
         }
       },

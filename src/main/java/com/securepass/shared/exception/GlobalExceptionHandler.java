@@ -92,6 +92,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(AgeOverMaximumException.class)
+    public ProblemDetail handleAgeOverMaximum(AgeOverMaximumException ex) {
+        // Flujo espejo de AGE_UNDER_16 (WBS-110): mayor de la cota va al
+        // alta de familiar, no al padron de menores.
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST,
+                "age-over-maximum",
+                "La persona tiene " + ex.maxAge() + " o mas anios; agregala como familiar en members");
+        pd.setProperty("code", "AGE_OVER_16");
+        pd.setProperty("maxAge", ex.maxAge());
+        pd.setProperty("redirectTo", "/api/v1/family/lots/" + ex.lotId() + "/members");
+        return pd;
+    }
+
     @ExceptionHandler(EmailRequiredException.class)
     public ProblemDetail handleEmailRequired(EmailRequiredException ex) {
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "email-required", ex.getMessage());

@@ -116,14 +116,18 @@ class NeighborhoodProvisionerTest {
     void name_duplicado_falla_case_insensitive() {
         String suffix = UUID.randomUUID().toString().substring(0, 6);
         String name = "Barrio " + suffix;
+        // "30111" + %03d de un numero 0-999 => siempre 8 digitos y matchea DNI_RX
+        // (7 u 8 digitos). Antes usaba concatenacion cruda que rendia 5-8 y
+        // fallaba flakemente cuando el hash caia bajo (CI 2026-08-29).
+        String dniSuffix = String.format("%03d", Math.abs(suffix.hashCode() % 1000));
         provisioner.provision(new NeighborhoodProvisioner.Command(
                 name, "n1-" + suffix, null, null,
-                "a@t.com".replace("@", "-" + suffix + "@"), "A", "30111" + Math.abs(suffix.hashCode() % 1000)));
+                "a@t.com".replace("@", "-" + suffix + "@"), "A", "30111" + dniSuffix));
 
         // Mismo nombre en mayusculas -> tambien colisiona.
         NeighborhoodProvisioner.Command cmd2 = new NeighborhoodProvisioner.Command(
                 name.toUpperCase(), "n2-" + suffix, null, null,
-                "b@t.com".replace("@", "-" + suffix + "@"), "B", "30222" + Math.abs(suffix.hashCode() % 1000));
+                "b@t.com".replace("@", "-" + suffix + "@"), "B", "30222" + dniSuffix);
         assertThatThrownBy(() -> provisioner.provision(cmd2))
                 .isInstanceOf(NeighborhoodAlreadyExistsException.class)
                 .satisfies(ex -> assertThat(((NeighborhoodAlreadyExistsException) ex).by()).isEqualTo("name"));
