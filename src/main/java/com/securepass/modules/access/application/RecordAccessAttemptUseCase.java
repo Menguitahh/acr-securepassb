@@ -71,6 +71,15 @@ public class RecordAccessAttemptUseCase {
         if (!log.allowed()) {
             return new Result(AccessDecision.Denied.of(log.denialReason()), log, null);
         }
+        // WBS-117: en un ALLOWED de worker (subject SERVICE) no hay invitationId.
+        // La reconstruccion no puede recuperar la lista de lotes (validate la
+        // computa online), asi que en el path idempotente devolvemos un
+        // Denied.UNKNOWN — el guardia reescanea. Camino de borde: mismo
+        // clientEventId reintentado sin cache local. Aceptable, la ventana
+        // real es milisegundos.
+        if (log.subjectType() == SubjectType.SERVICE) {
+            return new Result(AccessDecision.Denied.of(DenialReason.UNKNOWN), log, null);
+        }
         Invitation inv = invitations.findById(log.invitationId()).orElse(null);
         String lotCode = lots.find(log.lotId()).map(LotSnapshot::code).orElse("");
         AccessDecision.Allowed allowed = new AccessDecision.Allowed(
@@ -106,16 +115,30 @@ public class RecordAccessAttemptUseCase {
     }
 
     private AccessLog buildLog(Command cmd, AccessDecision decision) {
-        boolean allowed = decision instanceof AccessDecision.Allowed;
+        boolean allowed = decision instanceof AccessDecision.Allowed
+                || decision instanceof AccessDecision.AllowedWorker;
         DenialReason reason = decision instanceof AccessDecision.Denied denied ? denied.reason() : null;
+        boolean clockSkew = cmd.syncedOffline()
+                && Duration.between(cmd.capturedAt(), Instant.now()).abs().compareTo(CLOCK_SKEW_THRESHOLD) > 0;
+
+        // WBS-117: worker (AllowedWorker) -> subject SERVICE, sin invitationId,
+        // lot_id nulo si hay varios en franja (el guardia elige, WBS-119).
+        if (decision instanceof AccessDecision.AllowedWorker w) {
+            UUID lotId = w.lots().size() == 1 ? w.lots().get(0).lotId() : null;
+            return new AccessLog(
+                    UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
+                    null, lotId, cmd.direction(), SubjectType.SERVICE,
+                    true, null, w.workerName(), null, 0,
+                    w.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew,
+                    cmd.clientEventId());
+        }
+
         Optional<Invitation> inv = invitationFor(decision);
         UUID tokenJti = inv.map(Invitation::jti).orElse(null);
         UUID invitationId = inv.map(Invitation::id).orElse(null);
         UUID lotId = inv.map(Invitation::lotId).orElse(null);
         String subjectName = allowed && inv.isPresent() ? inv.get().guestName() : null;
         String subjectDocument = allowed && inv.isPresent() ? inv.get().guestDocument() : null;
-        boolean clockSkew = cmd.syncedOffline()
-                && Duration.between(cmd.capturedAt(), Instant.now()).abs().compareTo(CLOCK_SKEW_THRESHOLD) > 0;
 
         return new AccessLog(
                 UUID.randomUUID(),
@@ -140,6 +163,7 @@ public class RecordAccessAttemptUseCase {
 
     private static String metricLabel(AccessDecision decision) {
         if (decision instanceof AccessDecision.Allowed) return "ALLOWED";
+        if (decision instanceof AccessDecision.AllowedWorker) return "ALLOWED_WORKER";
         if (decision instanceof AccessDecision.NeedsEnrollment) return "NEEDS_ENROLLMENT";
         return ((AccessDecision.Denied) decision).reason().name();
     }

@@ -1526,6 +1526,40 @@
         }
       }
     },
+    "/api/v1/access/permissions/sync" : {
+      "get" : {
+        "tags" : [
+          "access-permissions-sync-controller"
+        ],
+        "operationId" : "sync_1",
+        "parameters" : [
+          {
+            "name" : "since",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/WorkerPermissionSyncResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access/keys" : {
       "get" : {
         "tags" : [
@@ -2732,6 +2766,21 @@
           }
         }
       },
+      "LotChoice" : {
+        "type" : "object",
+        "properties" : {
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "service" : {
+            "type" : "string"
+          }
+        }
+      },
       "LotDetail" : {
         "type" : "object",
         "properties" : {
@@ -2765,6 +2814,27 @@
           },
           "invitation" : {
             "$ref" : "#/components/schemas/InvitationDetail"
+          },
+          "worker" : {
+            "$ref" : "#/components/schemas/WorkerDetail"
+          }
+        }
+      },
+      "WorkerDetail" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "lots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LotChoice"
+            }
           }
         }
       },
@@ -3022,10 +3092,10 @@
           "nonEmpty" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }
@@ -3373,6 +3443,46 @@
             "format" : "uuid"
           },
           "revokedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "WorkerPermissionSyncResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "jti" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "service" : {
+            "type" : "string"
+          },
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
             "type" : "string",
             "format" : "date-time"
           }
