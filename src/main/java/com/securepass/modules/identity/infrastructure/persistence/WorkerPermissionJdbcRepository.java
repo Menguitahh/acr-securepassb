@@ -152,6 +152,22 @@ public class WorkerPermissionJdbcRepository implements WorkerPermissionRepositor
     }
 
     @Override
+    public int countActiveByUser(UUID userId) {
+        Integer c = jdbc.sql("""
+                SELECT COUNT(*)::int
+                  FROM lot_permissions
+                 WHERE user_id = :uid
+                   AND permission_type = 'WORKER'
+                   AND active = TRUE
+                """)
+                .param("uid", userId)
+                .query(Integer.class)
+                .optional()
+                .orElse(0);
+        return c == null ? 0 : c;
+    }
+
+    @Override
     public int deactivate(UUID userId, UUID lotId) {
         return jdbc.sql("""
                 UPDATE lot_permissions

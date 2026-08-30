@@ -44,6 +44,7 @@ class WorkerLifecycleIT {
     UUID barrio;
     UUID owner;
     UUID lot1, lot2, lot3;
+    String dni;
     CurrentUser actor;
 
     @BeforeEach
@@ -53,6 +54,7 @@ class WorkerLifecycleIT {
         lot1 = UUID.randomUUID();
         lot2 = UUID.randomUUID();
         lot3 = UUID.randomUUID();
+        dni = String.valueOf(20_000_000 + new java.util.Random().nextInt(70_000_000));
 
         jdbc.update("INSERT INTO neighborhoods (id, name, slug) VALUES (?, 'Barrio', ?)",
                 barrio, "b-" + UUID.randomUUID());
@@ -71,7 +73,7 @@ class WorkerLifecycleIT {
     private AddWorkerUseCase.Command cmd(String service, List<Integer> weekdays,
                                          LocalTime from, LocalTime until) {
         return new AddWorkerUseCase.Command(
-                "Juan Jardinero", "30111222", "juan@dev.local",
+                "Juan Jardinero", dni, "juan-" + dni + "@dev.local",
                 service, new ScheduleWindow(weekdays, from, until));
     }
 

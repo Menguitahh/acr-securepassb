@@ -15,8 +15,9 @@ class QrTokenCodecTest {
     @Test
     void encodeParseRoundTrip() {
         QrTokenPayload payload = new QrTokenPayload(
-                1, "abcd1234", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                UUID.randomUUID(), "S", 1755523200L, 1755566400L, 1,
+                1, "abcd1234", UUID.randomUUID(), UUID.randomUUID(),
+                null, null,
+                UUID.randomUUID(), UUID.randomUUID(), "S", 1755523200L, 1755566400L, 1,
                 null, null, null);
         byte[] fakeSig = new byte[64];
 

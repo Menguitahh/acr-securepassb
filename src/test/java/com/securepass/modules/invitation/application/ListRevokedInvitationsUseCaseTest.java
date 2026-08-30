@@ -21,13 +21,16 @@ import static org.mockito.Mockito.when;
 class ListRevokedInvitationsUseCaseTest {
 
     private InvitationRepository invitations;
+    private WorkerTokenRepository workerTokens;
     private ListRevokedInvitationsUseCase useCase;
     private UUID neighborhoodId;
 
     @BeforeEach
     void setUp() {
         invitations = mock(InvitationRepository.class);
-        useCase = new ListRevokedInvitationsUseCase(invitations);
+        workerTokens = mock(WorkerTokenRepository.class);
+        when(workerTokens.listRevoked(any(), any(), any(Integer.class))).thenReturn(List.of());
+        useCase = new ListRevokedInvitationsUseCase(invitations, workerTokens);
         neighborhoodId = UUID.randomUUID();
     }
 

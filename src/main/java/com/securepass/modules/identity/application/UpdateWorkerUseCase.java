@@ -1,6 +1,7 @@
 package com.securepass.modules.identity.application;
 
 import com.securepass.modules.identity.domain.User;
+import com.securepass.modules.invitation.application.WorkerTokenRepository;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
 import com.securepass.shared.schedule.ScheduleWindow;
@@ -27,10 +28,15 @@ public class UpdateWorkerUseCase {
 
     private final WorkerPermissionRepository workers;
     private final UserRepository users;
+    private final WorkerTokenRepository workerTokens;
 
-    public UpdateWorkerUseCase(WorkerPermissionRepository workers, UserRepository users) {
+    public UpdateWorkerUseCase(
+            WorkerPermissionRepository workers,
+            UserRepository users,
+            WorkerTokenRepository workerTokens) {
         this.workers = workers;
         this.users = users;
+        this.workerTokens = workerTokens;
     }
 
     @Transactional
@@ -61,6 +67,14 @@ public class UpdateWorkerUseCase {
             } else {
                 workers.deactivate(workerUserId, lotId);
                 outcome = Outcome.DEACTIVATED;
+                // WBS-116: si esta era la ultima fila WORKER activa del user en
+                // todo el sistema, rotar el JTI. La revocacion viaja al scanner
+                // via /access/revoked (WBS-116 mismo, extension del endpoint).
+                // Idempotente: revokeActive es un UPDATE con guard
+                // revoked_at IS NULL, no rompe si ya estaba revocado.
+                if (workers.countActiveByUser(workerUserId) == 0) {
+                    workerTokens.revokeActive(workerUserId);
+                }
             }
         } else if (editing) {
             workers.updateAttributes(workerUserId, lotId, service, schedule);

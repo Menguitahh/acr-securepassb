@@ -941,7 +941,7 @@
         "tags" : [
           "activation-controller"
         ],
-        "operationId" : "get",
+        "operationId" : "get_1",
         "parameters" : [
           {
             "name" : "token",
@@ -1381,6 +1381,26 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ShiftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/worker-qr" : {
+      "get" : {
+        "tags" : [
+          "worker-qr-controller"
+        ],
+        "operationId" : "get",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkerQrResponse"
                 }
               }
             }
@@ -3002,10 +3022,10 @@
           "nonEmpty" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           }
         }
@@ -3178,6 +3198,18 @@
             "items" : {
               "$ref" : "#/components/schemas/Item"
             }
+          }
+        }
+      },
+      "WorkerQrResponse" : {
+        "type" : "object",
+        "properties" : {
+          "jti" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "token" : {
+            "type" : "string"
           }
         }
       },

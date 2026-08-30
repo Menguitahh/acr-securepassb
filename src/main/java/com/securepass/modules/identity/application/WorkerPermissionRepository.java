@@ -32,4 +32,11 @@ public interface WorkerPermissionRepository {
 
     /** Baja: {@code active=false}. Retorna cuantas filas actualizo. Idempotente. */
     int deactivate(UUID userId, UUID lotId);
+
+    /**
+     * Cuenta permisos WORKER activos del usuario en cualquier lote/barrio.
+     * Usado por la rotacion del JTI (WBS-116): si post-baja queda en 0, se
+     * revoca el {@code worker_token} y el JTI viejo entra en /access/revoked.
+     */
+    int countActiveByUser(UUID userId);
 }

@@ -3,6 +3,7 @@ package com.securepass.modules.identity.application;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
 import com.securepass.modules.identity.domain.UserStatus;
+import com.securepass.modules.invitation.application.WorkerTokenRepository;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.schedule.ScheduleWindow;
 import com.securepass.shared.security.CurrentUser;
@@ -29,6 +30,7 @@ class UpdateWorkerUseCaseTest {
 
     private WorkerPermissionRepository workers;
     private UserRepository users;
+    private WorkerTokenRepository workerTokens;
     private UpdateWorkerUseCase useCase;
     private CurrentUser actor;
     private UUID lotId;
@@ -39,7 +41,8 @@ class UpdateWorkerUseCaseTest {
     void setUp() {
         workers = mock(WorkerPermissionRepository.class);
         users = mock(UserRepository.class);
-        useCase = new UpdateWorkerUseCase(workers, users);
+        workerTokens = mock(WorkerTokenRepository.class);
+        useCase = new UpdateWorkerUseCase(workers, users, workerTokens);
 
         actor = new CurrentUser(UUID.randomUUID(), UUID.randomUUID(),
                 List.of(Role.RESIDENT_OWNER), List.of());

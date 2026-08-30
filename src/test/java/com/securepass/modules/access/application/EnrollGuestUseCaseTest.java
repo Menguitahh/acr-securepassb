@@ -81,7 +81,9 @@ class EnrollGuestUseCaseTest {
     }
 
     private QrTokenPayload payloadFor(UUID invId, UUID tokenJti) {
-        return new QrTokenPayload(1, "kid-1", tokenJti, neighborhoodId, lotId, invId,
+        return new QrTokenPayload(1, "kid-1", tokenJti, neighborhoodId,
+                null, null,
+                lotId, invId,
                 InvitationType.SINGLE.code(),
                 NOW.minus(Duration.ofHours(1)).getEpochSecond(),
                 NOW.plus(Duration.ofHours(6)).getEpochSecond(),

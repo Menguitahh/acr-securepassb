@@ -41,7 +41,9 @@ public class QrTokenIssuer {
 
         QrTokenPayload payload = new QrTokenPayload(
                 PAYLOAD_VERSION, key.kid(), cmd.jti(),
-                cmd.neighborhoodId(), cmd.lotId(), cmd.invitationId(),
+                cmd.neighborhoodId(),
+                null, null,
+                cmd.lotId(), cmd.invitationId(),
                 cmd.type().code(),
                 cmd.validFrom().getEpochSecond(), cmd.validUntil().getEpochSecond(),
                 cmd.maxUses(),
