@@ -7,8 +7,11 @@ import java.util.UUID;
 
 /**
  * Fila del sync de permisos WORKER: todo lo que el scanner necesita para
- * evaluar validate offline (worker_token jti + user + lot + service + franja
- * + tz del barrio ya viene junto con la signing key).
+ * evaluar validate offline. La tz del barrio viaja en cada fila (redundante
+ * pero plana): "martes de 8 a 12" esta definido en la zona del barrio, tiene
+ * que venir de la misma fuente que la franja. Tomarla del login desincroniza
+ * si el barrio cambia de zona; tomarla del dispositivo es directamente
+ * incorrecto.
  */
 public record ActiveWorkerPermissionRow(
         UUID userId,
@@ -17,5 +20,6 @@ public record ActiveWorkerPermissionRow(
         String lotCode,
         String service,
         ScheduleWindow schedule,
+        String timezone,
         Instant updatedAt
 ) {}

@@ -38,9 +38,11 @@ public class ActiveWorkerPermissionsJdbcQuery implements ActiveWorkerPermissions
                        (SELECT array_agg(value::int)
                           FROM jsonb_array_elements_text(p.attributes->'weekdays') AS value)
                                                    AS weekdays,
+                       n.timezone,
                        p.updated_at
                   FROM lot_permissions p
                   JOIN lots l ON l.id = p.lot_id
+                  JOIN neighborhoods n ON n.id = l.neighborhood_id
                   JOIN worker_tokens wt ON wt.user_id = p.user_id AND wt.revoked_at IS NULL
                  WHERE l.neighborhood_id = :nid
                    AND p.permission_type = 'WORKER'
@@ -66,6 +68,7 @@ public class ActiveWorkerPermissionsJdbcQuery implements ActiveWorkerPermissions
                             rs.getString("lot_code"),
                             rs.getString("service"),
                             schedule,
+                            rs.getString("timezone"),
                             rs.getTimestamp("updated_at").toInstant());
                 })
                 .list();

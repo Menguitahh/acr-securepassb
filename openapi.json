@@ -3482,6 +3482,9 @@
           "dailyUntil" : {
             "type" : "string"
           },
+          "timezone" : {
+            "type" : "string"
+          },
           "updatedAt" : {
             "type" : "string",
             "format" : "date-time"

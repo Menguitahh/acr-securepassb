@@ -138,6 +138,9 @@ class WorkerValidateHttpSmoke {
         assertThat(sync.body()).contains("Jardineria");
         assertThat(sync.body()).contains("\"dailyFrom\":\"08:00\"");
         assertThat(sync.body()).contains("\"dailyUntil\":\"18:00\"");
+        // WBS-118 #149: la tz viaja en el shape, en la misma fila que la franja
+        // (mismo motivo: "martes de 8 a 12" esta definido en la zona del barrio).
+        assertThat(sync.body()).contains("\"timezone\":\"America/Argentina/Mendoza\"");
     }
 
     private HttpResponse<String> validate(HttpClient http, String guardJwt, UUID gate, UUID guardId,
