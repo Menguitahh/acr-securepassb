@@ -40,6 +40,8 @@ class ValidateAccessUseCaseTest {
     private InvitationRepository invitations;
     private LotStatusQuery lots;
     private GuestEnrollmentRepository enrollments;
+    private com.securepass.modules.invitation.application.WorkerTokenRepository workerTokens;
+    private com.securepass.modules.invitation.application.WorkerValidationQuery workerQuery;
     private ValidateAccessUseCase useCase;
 
     private UUID neighborhoodId;
@@ -57,7 +59,9 @@ class ValidateAccessUseCaseTest {
         invitations = mock(InvitationRepository.class);
         lots = mock(LotStatusQuery.class);
         enrollments = mock(GuestEnrollmentRepository.class);
-        useCase = new ValidateAccessUseCase(codec, signingKeys, invitations, lots, enrollments);
+        workerTokens = mock(com.securepass.modules.invitation.application.WorkerTokenRepository.class);
+        workerQuery = mock(com.securepass.modules.invitation.application.WorkerValidationQuery.class);
+        useCase = new ValidateAccessUseCase(codec, signingKeys, invitations, lots, enrollments, workerTokens, workerQuery);
         when(enrollments.findByInvitationId(org.mockito.ArgumentMatchers.any(UUID.class))).thenReturn(Optional.of(
                 new com.securepass.modules.access.domain.GuestEnrollment(
                         UUID.randomUUID(), UUID.randomUUID(), "30123456",

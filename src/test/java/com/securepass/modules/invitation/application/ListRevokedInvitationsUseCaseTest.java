@@ -20,17 +20,14 @@ import static org.mockito.Mockito.when;
 
 class ListRevokedInvitationsUseCaseTest {
 
-    private InvitationRepository invitations;
-    private WorkerTokenRepository workerTokens;
+    private RevokedTokensQuery query;
     private ListRevokedInvitationsUseCase useCase;
     private UUID neighborhoodId;
 
     @BeforeEach
     void setUp() {
-        invitations = mock(InvitationRepository.class);
-        workerTokens = mock(WorkerTokenRepository.class);
-        when(workerTokens.listRevoked(any(), any(), any(Integer.class))).thenReturn(List.of());
-        useCase = new ListRevokedInvitationsUseCase(invitations, workerTokens);
+        query = mock(RevokedTokensQuery.class);
+        useCase = new ListRevokedInvitationsUseCase(query);
         neighborhoodId = UUID.randomUUID();
     }
 
@@ -42,7 +39,7 @@ class ListRevokedInvitationsUseCaseTest {
     void devuelveRevocadosDelBarrio() {
         Instant since = Instant.parse("2026-08-19T00:00:00Z");
         RevokedEntry entry = new RevokedEntry(UUID.randomUUID(), Instant.now());
-        when(invitations.listRevoked(eq(neighborhoodId), eq(since), any(Integer.class)))
+        when(query.listRevoked(eq(neighborhoodId), eq(since), any(Integer.class)))
                 .thenReturn(List.of(entry));
 
         List<RevokedEntry> result = useCase.list(guard(), since);
@@ -51,13 +48,13 @@ class ListRevokedInvitationsUseCaseTest {
     }
 
     @Test
-    void sinSinceDevuelveTodos() {
-        when(invitations.listRevoked(eq(neighborhoodId), eq(null), any(Integer.class)))
+    void sinSinceDelegaConNull() {
+        when(query.listRevoked(eq(neighborhoodId), eq(null), any(Integer.class)))
                 .thenReturn(List.of());
 
         useCase.list(guard(), null);
 
-        verify(invitations).listRevoked(eq(neighborhoodId), eq(null), any(Integer.class));
+        verify(query).listRevoked(eq(neighborhoodId), eq(null), any(Integer.class));
     }
 
     @Test
