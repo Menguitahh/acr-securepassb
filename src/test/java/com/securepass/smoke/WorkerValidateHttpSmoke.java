@@ -104,6 +104,18 @@ class WorkerValidateHttpSmoke {
         assertThat(qrResp.statusCode()).isEqualTo(200);
         String token = extractString(qrResp.body(), "\"token\":\"", "\"");
 
+        // WBS-122: la validacion ahora exige enrolamiento previo por persona.
+        // Sembramos el enrolamiento (equivalente al primer POST /access/enroll)
+        // para poder afirmar el camino ALLOWED_WORKER en este smoke, que existe
+        // para cubrir la firma Ed25519 real + parseo SP1 real. El ramo
+        // NEEDS_ENROLLMENT.WORKER esta cubierto por EnrollGuestUseCaseTest y
+        // el smoke HTTP end-to-end de WBS-122.
+        jdbc.update("""
+                INSERT INTO guest_enrollments
+                    (neighborhood_id, invitation_id, document_number, enrolled_by, gate_id)
+                VALUES (?, NULL, ?, ?, ?)
+                """, nbh, dni, guardId, gate);
+
         // Paso 2: validate dentro de franja (jueves 2026-11-05 10:00 Mza = 13:00Z).
         Instant inSlot = Instant.parse("2026-11-05T13:00:00Z");
         HttpResponse<String> allowed = validate(http, guardJwt, gate, guardId, token, inSlot);

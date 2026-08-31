@@ -108,7 +108,8 @@ public class RecordAccessAttemptUseCase {
         if (decision instanceof AccessDecision.Allowed allowed) {
             return invitations.findById(allowed.invitationId());
         }
-        if (decision instanceof AccessDecision.NeedsEnrollment needs) {
+        if (decision instanceof AccessDecision.NeedsEnrollment needs && needs.invitationId() != null) {
+            // WBS-122: NeedsEnrollment.WORKER no tiene invitationId.
             return invitations.findById(needs.invitationId());
         }
         return Optional.empty();

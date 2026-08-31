@@ -26,12 +26,16 @@ public class WorkerValidationJdbcQuery implements WorkerValidationQuery {
 
     @Override
     public Optional<WorkerContext> loadContext(UUID userId, UUID neighborhoodId) {
-        String workerName = jdbc.sql("SELECT full_name FROM users WHERE id = :uid")
+        // WBS-122: incluimos document_number en la misma query. La verificacion
+        // por persona lo necesita para comparar contra el DNI que carga el
+        // guardia; salir a un segundo SELECT seria redundante.
+        record UserRow(String fullName, String document) {}
+        UserRow user = jdbc.sql("SELECT full_name, document_number FROM users WHERE id = :uid")
                 .param("uid", userId)
-                .query(String.class)
+                .query((rs, i) -> new UserRow(rs.getString("full_name"), rs.getString("document_number")))
                 .optional()
                 .orElse(null);
-        if (workerName == null) return Optional.empty();
+        if (user == null) return Optional.empty();
 
         String tz = jdbc.sql("SELECT timezone FROM neighborhoods WHERE id = :nid")
                 .param("nid", neighborhoodId)
@@ -61,7 +65,7 @@ public class WorkerValidationJdbcQuery implements WorkerValidationQuery {
                 .query((rs, i) -> mapLot(rs))
                 .list();
 
-        return Optional.of(new WorkerContext(workerName, ZoneId.of(tz), lots));
+        return Optional.of(new WorkerContext(user.fullName(), user.document(), ZoneId.of(tz), lots));
     }
 
     private ActiveWorkerLot mapLot(ResultSet rs) throws SQLException {

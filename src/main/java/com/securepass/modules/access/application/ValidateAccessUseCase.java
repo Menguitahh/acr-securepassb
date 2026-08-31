@@ -77,7 +77,7 @@ public class ValidateAccessUseCase {
         // WBS-117: ruteo por subType. Worker no lleva invitationId, tiene su
         // propio flujo (permisos activos + franja evaluada en el barrio).
         if (QrTokenPayload.SUBTYPE_WORKER.equals(parsed.payload().subType())) {
-            return evaluateWorker(parsed, capturedAt);
+            return evaluateWorker(parsed, capturedAt, direction, checkEnrollment);
         }
 
         Optional<Invitation> invOpt = invitations.findById(parsed.payload().invitationId());
@@ -109,13 +109,14 @@ public class ValidateAccessUseCase {
         if (direction == Direction.IN) {
             if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
             if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
-            // BR-12/BR-13: primer ingreso requiere enrolamiento por DNI. El residentPass
-            // no enrola (US-16). Los egresos tampoco necesitan enrolamiento. En sync
-            // offline el mobile ya verifico contra su enrollments_cache (WBS-62), no
-            // repetimos la guarda server-side.
+            // WBS-122: la verificacion es por persona, no por invitacion. Un
+            // invitado ya verificado en el barrio pasa directo aunque sea su
+            // primera vez en ESTA invitacion. residentPass no enrola (US-16);
+            // egresos no requieren enrolamiento. En sync offline el mobile ya
+            // verifico contra su cache, no repetimos server-side.
             if (checkEnrollment && !inv.residentPass()
-                    && enrollments.findByInvitationId(inv.id()).isEmpty()) {
-                return new AccessDecision.NeedsEnrollment(inv.id(), lot.code());
+                    && enrollments.findByPerson(inv.neighborhoodId(), inv.guestDocument()).isEmpty()) {
+                return AccessDecision.NeedsEnrollment.guest(inv.id(), lot.code());
             }
         }
 
@@ -135,8 +136,14 @@ public class ValidateAccessUseCase {
      * payload, evalua {@link ScheduleWindow#contains} para cada uno con la
      * tz del barrio, y devuelve {@link AccessDecision.AllowedWorker} con los
      * lotes en franja. Si ninguno matchea horario: {@code OUT_OF_SCHEDULE}.
+     *
+     * <p>WBS-122: si pasa franja pero la persona no esta verificada en el
+     * barrio, devuelve {@code NeedsEnrollment.worker(userId)}. La verificacion
+     * es por persona; una vez enrolado no vuelve a pedirse aunque cambien los
+     * permisos. Los egresos y los sync offline no chequean enrolamiento.
      */
-    private AccessDecision evaluateWorker(ParsedQrToken parsed, Instant capturedAt) {
+    private AccessDecision evaluateWorker(ParsedQrToken parsed, Instant capturedAt,
+                                          Direction direction, boolean checkEnrollment) {
         QrTokenPayload p = parsed.payload();
         Optional<WorkerTokenRepository.WorkerTokenRow> active = workerTokens.findActive(p.sub());
         if (active.isEmpty() || !active.get().jti().equals(p.jti())) {
@@ -157,6 +164,10 @@ public class ValidateAccessUseCase {
             }
         }
         if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
+        if (direction == Direction.IN && checkEnrollment
+                && enrollments.findByPerson(p.neighborhoodId(), ctx.workerDocument()).isEmpty()) {
+            return AccessDecision.NeedsEnrollment.worker(p.sub());
+        }
         return new AccessDecision.AllowedWorker(p.sub(), p.jti(), ctx.workerName(), inSlot);
     }
 }

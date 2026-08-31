@@ -42,6 +42,7 @@ class WorkerValidateTest {
 
     private ValidateAccessUseCase useCase;
     private SigningKeyRepository signingKeys;
+    private GuestEnrollmentRepository enrollments;
     private WorkerTokenRepository workerTokens;
     private WorkerValidationQuery workerQuery;
 
@@ -58,11 +59,17 @@ class WorkerValidateTest {
         signingKeys = mock(SigningKeyRepository.class);
         InvitationRepository invitations = mock(InvitationRepository.class);
         LotStatusQuery lots = mock(LotStatusQuery.class);
-        GuestEnrollmentRepository enrollments = mock(GuestEnrollmentRepository.class);
+        enrollments = mock(GuestEnrollmentRepository.class);
         workerTokens = mock(WorkerTokenRepository.class);
         workerQuery = mock(WorkerValidationQuery.class);
         useCase = new ValidateAccessUseCase(
                 codec, signingKeys, invitations, lots, enrollments, workerTokens, workerQuery);
+        // Por defecto, worker ya enrolado — los tests que validan NEEDS_ENROLLMENT
+        // stubbean explicito con Optional.empty.
+        when(enrollments.findByPerson(any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.of(new com.securepass.modules.access.domain.GuestEnrollment(
+                        UUID.randomUUID(), UUID.randomUUID(), null, "30123456",
+                        Instant.parse("2026-08-01T00:00:00Z"), null, null)));
 
         kp = Ed25519KeyFactory.generate();
         nbh = UUID.randomUUID();
@@ -95,7 +102,7 @@ class WorkerValidateTest {
                 new WorkerTokenRepository.WorkerTokenRow(userId, nbh, jti, Instant.now())));
         when(workerQuery.loadContext(userId, nbh)).thenReturn(Optional.of(
                 new WorkerValidationQuery.WorkerContext(
-                        WORKER_NAME, MZA,
+                        WORKER_NAME, "30123456", MZA,
                         List.of(lot("L-1", List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0))))));
 
         AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
@@ -116,7 +123,7 @@ class WorkerValidateTest {
                 new WorkerTokenRepository.WorkerTokenRow(userId, nbh, jti, Instant.now())));
         when(workerQuery.loadContext(userId, nbh)).thenReturn(Optional.of(
                 new WorkerValidationQuery.WorkerContext(
-                        WORKER_NAME, MZA,
+                        WORKER_NAME, "30123456", MZA,
                         List.of(lot("L-1", List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0))))));
 
         AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
@@ -132,7 +139,7 @@ class WorkerValidateTest {
                 new WorkerTokenRepository.WorkerTokenRow(userId, nbh, jti, Instant.now())));
         when(workerQuery.loadContext(userId, nbh)).thenReturn(Optional.of(
                 new WorkerValidationQuery.WorkerContext(
-                        WORKER_NAME, MZA,
+                        WORKER_NAME, "30123456", MZA,
                         List.of(
                                 lot("L-1", List.of(2), LocalTime.of(8, 0), LocalTime.of(12, 0)),
                                 lot("L-2", List.of(2), LocalTime.of(9, 0), LocalTime.of(13, 0)),
@@ -153,7 +160,7 @@ class WorkerValidateTest {
                 new WorkerTokenRepository.WorkerTokenRow(userId, nbh, jti, Instant.now())));
         // Contexto valido pero sin lotes -> invariante rota, fail-closed REVOKED.
         when(workerQuery.loadContext(userId, nbh)).thenReturn(Optional.of(
-                new WorkerValidationQuery.WorkerContext(WORKER_NAME, MZA, List.of())));
+                new WorkerValidationQuery.WorkerContext(WORKER_NAME, "30123456", MZA, List.of())));
 
         AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
 
@@ -183,5 +190,34 @@ class WorkerValidateTest {
         AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
 
         assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
+    }
+
+    // WBS-122: dentro de franja pero persona no verificada en el barrio ->
+    // NEEDS_ENROLLMENT por el ramo WORKER. No adelanta el nombre (misma regla
+    // que el invitado en AccessDecision).
+    @Test
+    void dentroDeFranjaSinEnrolamientoDevuelveNeedsEnrollmentWorker() {
+        Instant capturedAt = Instant.parse("2026-03-03T13:00:00Z");
+        GuestEnrollmentRepository localEnrollments = mock(GuestEnrollmentRepository.class);
+        when(localEnrollments.findByPerson(nbh, "30123456")).thenReturn(Optional.empty());
+        ValidateAccessUseCase localUseCase = new ValidateAccessUseCase(
+                codec, signingKeys, mock(InvitationRepository.class), mock(LotStatusQuery.class),
+                localEnrollments, workerTokens, workerQuery);
+
+        when(workerTokens.findActive(userId)).thenReturn(Optional.of(
+                new WorkerTokenRepository.WorkerTokenRow(userId, nbh, jti, Instant.now())));
+        when(workerQuery.loadContext(userId, nbh)).thenReturn(Optional.of(
+                new WorkerValidationQuery.WorkerContext(
+                        WORKER_NAME, "30123456", MZA,
+                        List.of(lot("L-1", List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0))))));
+
+        AccessDecision d = localUseCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+
+        assertThat(d).isInstanceOf(AccessDecision.NeedsEnrollment.class);
+        AccessDecision.NeedsEnrollment n = (AccessDecision.NeedsEnrollment) d;
+        assertThat(n.kind()).isEqualTo(AccessDecision.SubjectKind.WORKER);
+        assertThat(n.userId()).isEqualTo(userId);
+        assertThat(n.invitationId()).isNull();
+        assertThat(n.lotCode()).isNull();
     }
 }

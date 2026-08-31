@@ -62,9 +62,9 @@ class ValidateAccessUseCaseTest {
         workerTokens = mock(com.securepass.modules.invitation.application.WorkerTokenRepository.class);
         workerQuery = mock(com.securepass.modules.invitation.application.WorkerValidationQuery.class);
         useCase = new ValidateAccessUseCase(codec, signingKeys, invitations, lots, enrollments, workerTokens, workerQuery);
-        when(enrollments.findByInvitationId(org.mockito.ArgumentMatchers.any(UUID.class))).thenReturn(Optional.of(
+        when(enrollments.findByPerson(org.mockito.ArgumentMatchers.any(UUID.class), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.of(
                 new com.securepass.modules.access.domain.GuestEnrollment(
-                        UUID.randomUUID(), UUID.randomUUID(), "30123456",
+                        UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "30123456",
                         Instant.parse("2026-08-01T00:00:00Z"), null, null)));
 
         neighborhoodId = UUID.randomUUID();
@@ -218,7 +218,7 @@ class ValidateAccessUseCaseTest {
     void needsEnrollmentSiNoHayEnrolamientoYEsIN() {
         Invitation inv = singleInvitation(InvitationStatus.ACTIVE, 0);
         stubHappyPath(inv);
-        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.empty());
+        when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
         AccessDecision decision = useCase.validate(token, NOW);
@@ -247,7 +247,7 @@ class ValidateAccessUseCaseTest {
     void allowedOutSinEnrolamiento() {
         Invitation inv = singleInvitation(InvitationStatus.ACTIVE, 0);
         stubHappyPath(inv);
-        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.empty());
+        when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
         AccessDecision decision = useCase.validate(token, NOW, com.securepass.modules.access.domain.Direction.OUT);
@@ -269,7 +269,7 @@ class ValidateAccessUseCaseTest {
                 LocalTime.of(0, 0), LocalTime.of(23, 59),
                 1, 0, "kid-1", jti, true, NOW);
         stubHappyPath(inv);
-        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.empty());
+        when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
         String token = signedToken(payload(from, until, 1, InvitationType.RECURRING));
 
         AccessDecision decision = useCase.validate(token, NOW);

@@ -5,6 +5,12 @@ import java.util.UUID;
 
 public sealed interface AccessDecision {
 
+    /**
+     * WBS-122: quien es el sujeto detras de un NEEDS_ENROLLMENT. Determina
+     * que campos del record son obligatorios (invariantes del constructor).
+     */
+    enum SubjectKind { GUEST, WORKER }
+
     record Allowed(UUID invitationId, UUID jti, String guestName, String lotCode, int companions)
             implements AccessDecision {
         public Allowed {
@@ -40,14 +46,50 @@ public sealed interface AccessDecision {
         }
     }
 
-    // No lleva guestName: la identidad no esta verificada aun. Si el guardia
-    // ve el nombre antes de pedir el DNI, compara el documento contra la
-    // pantalla en vez de que el sistema compare a ciegas. La verificacion
-    // tiene que ser sistema contra dato; el nombre aparece en el enroll.
-    record NeedsEnrollment(UUID invitationId, String lotCode) implements AccessDecision {
+    /**
+     * WBS-122: la verificacion pasa a ser por persona (no por invitacion), y
+     * el flujo del trabajador se suma al del invitado. Un mismo record con dos
+     * ramas discriminadas por {@code kind}:
+     * <ul>
+     *   <li>{@link SubjectKind#GUEST}: {@code invitationId} y {@code lotCode}
+     *       obligatorios; {@code userId} debe ser null.</li>
+     *   <li>{@link SubjectKind#WORKER}: {@code userId} obligatorio;
+     *       {@code invitationId} y {@code lotCode} deben ser null. El lote se
+     *       decide en el proximo scan (validate computa la franja); el
+     *       enrolamiento pasa una sola vez por persona.</li>
+     * </ul>
+     *
+     * <p>No lleva {@code workerName} ni {@code guestName} en ninguna rama: la
+     * identidad no esta verificada aun. Si el guardia ve el nombre antes de
+     * pedir el DNI, compara el documento contra la pantalla en vez de que el
+     * sistema compare a ciegas. La verificacion tiene que ser sistema contra
+     * dato; el nombre aparece recien en el enroll.
+     */
+    record NeedsEnrollment(SubjectKind kind, UUID invitationId, UUID userId, String lotCode)
+            implements AccessDecision {
         public NeedsEnrollment {
-            if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
-            if (lotCode == null || lotCode.isBlank()) throw new IllegalArgumentException("lotCode requerido");
+            if (kind == null) throw new IllegalArgumentException("kind requerido");
+            switch (kind) {
+                case GUEST -> {
+                    if (invitationId == null) throw new IllegalArgumentException("invitationId requerido para GUEST");
+                    if (lotCode == null || lotCode.isBlank())
+                        throw new IllegalArgumentException("lotCode requerido para GUEST");
+                    if (userId != null) throw new IllegalArgumentException("userId no aplica a GUEST");
+                }
+                case WORKER -> {
+                    if (userId == null) throw new IllegalArgumentException("userId requerido para WORKER");
+                    if (invitationId != null) throw new IllegalArgumentException("invitationId no aplica a WORKER");
+                    if (lotCode != null) throw new IllegalArgumentException("lotCode no aplica a WORKER");
+                }
+            }
+        }
+
+        public static NeedsEnrollment guest(UUID invitationId, String lotCode) {
+            return new NeedsEnrollment(SubjectKind.GUEST, invitationId, null, lotCode);
+        }
+
+        public static NeedsEnrollment worker(UUID userId) {
+            return new NeedsEnrollment(SubjectKind.WORKER, null, userId, null);
         }
     }
 

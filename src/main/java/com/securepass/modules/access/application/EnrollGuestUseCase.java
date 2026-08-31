@@ -8,7 +8,10 @@ import com.securepass.modules.access.domain.SubjectType;
 import com.securepass.modules.invitation.application.InvitationRepository;
 import com.securepass.modules.invitation.application.ParsedQrToken;
 import com.securepass.modules.invitation.application.QrTokenCodec;
+import com.securepass.modules.invitation.application.QrTokenPayload;
 import com.securepass.modules.invitation.application.SigningKeyRepository;
+import com.securepass.modules.invitation.application.WorkerTokenRepository;
+import com.securepass.modules.invitation.application.WorkerValidationQuery;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.SigningKey;
@@ -30,6 +33,8 @@ public class EnrollGuestUseCase {
     private final GuestEnrollmentRepository enrollments;
     private final AccessLogRepository logs;
     private final StayLifecycle stayLifecycle;
+    private final WorkerTokenRepository workerTokens;
+    private final WorkerValidationQuery workerQuery;
 
     public EnrollGuestUseCase(
             QrTokenCodec codec,
@@ -37,13 +42,17 @@ public class EnrollGuestUseCase {
             InvitationRepository invitations,
             GuestEnrollmentRepository enrollments,
             AccessLogRepository logs,
-            StayLifecycle stayLifecycle) {
+            StayLifecycle stayLifecycle,
+            WorkerTokenRepository workerTokens,
+            WorkerValidationQuery workerQuery) {
         this.codec = codec;
         this.signingKeys = signingKeys;
         this.invitations = invitations;
         this.enrollments = enrollments;
         this.logs = logs;
         this.stayLifecycle = stayLifecycle;
+        this.workerTokens = workerTokens;
+        this.workerQuery = workerQuery;
     }
 
     public EnrollmentResult enroll(Command cmd) {
@@ -57,38 +66,47 @@ public class EnrollGuestUseCase {
                 throw new StateConflictException(
                         "clientEventId ya usado con otro documento; generar uno nuevo");
             }
-            return reconstruct(existing.get());
+            return reconstruct(existing.get(), cmd.neighborhoodId());
         }
 
         Optional<ParsedQrToken> parsedOpt = codec.parse(cmd.token());
-        if (parsedOpt.isEmpty()) return denyUnknownInvitation(cmd, DenialReason.INVALID_SIGNATURE);
+        if (parsedOpt.isEmpty()) return denyUnknown(cmd, DenialReason.INVALID_SIGNATURE);
         ParsedQrToken parsed = parsedOpt.get();
 
         Optional<SigningKey> keyOpt = signingKeys.findByKid(
                 parsed.payload().neighborhoodId(), parsed.payload().kid());
-        if (keyOpt.isEmpty()) return denyUnknownInvitation(cmd, DenialReason.INVALID_SIGNATURE);
+        if (keyOpt.isEmpty()) return denyUnknown(cmd, DenialReason.INVALID_SIGNATURE);
         if (!Ed25519Verifier.verify(keyOpt.get().publicKey(), parsed.payloadBytes(), parsed.signature())) {
-            return denyUnknownInvitation(cmd, DenialReason.INVALID_SIGNATURE);
+            return denyUnknown(cmd, DenialReason.INVALID_SIGNATURE);
         }
 
+        // WBS-122: mismo endpoint, ruteo por subType — el trabajador tambien
+        // enrola por (barrio, documento) y en su primer ingreso.
+        if (QrTokenPayload.SUBTYPE_WORKER.equals(parsed.payload().subType())) {
+            return enrollWorker(cmd, parsed);
+        }
+        return enrollGuest(cmd, parsed);
+    }
+
+    private EnrollmentResult enrollGuest(Command cmd, ParsedQrToken parsed) {
         Invitation inv = invitations.findById(parsed.payload().invitationId())
                 .orElseThrow(() -> new ResourceNotFoundException("invitation", parsed.payload().invitationId()));
         if (!inv.jti().equals(parsed.payload().jti())) {
-            return denyAndLog(cmd, inv, DenialReason.INVALID_SIGNATURE);
+            return denyGuest(cmd, inv, DenialReason.INVALID_SIGNATURE);
         }
         if (!inv.neighborhoodId().equals(cmd.neighborhoodId())) {
             throw new ResourceNotFoundException("invitation", inv.id());
         }
         if (inv.status() != InvitationStatus.ACTIVE) {
-            return denyAndLog(cmd, inv, DenialReason.REVOKED);
+            return denyGuest(cmd, inv, DenialReason.REVOKED);
         }
         if (!cmd.documentNumber().equals(inv.guestDocument())) {
             // BR-12: no coincide -> DOCUMENT_MISMATCH y persistencia obligatoria.
-            return denyAndLog(cmd, inv, DenialReason.DOCUMENT_MISMATCH);
+            return denyGuest(cmd, inv, DenialReason.DOCUMENT_MISMATCH);
         }
 
         GuestEnrollment enrollment = enrollments.saveIfAbsent(new GuestEnrollment(
-                UUID.randomUUID(), inv.id(), cmd.documentNumber(),
+                UUID.randomUUID(), cmd.neighborhoodId(), inv.id(), cmd.documentNumber(),
                 Instant.now(), cmd.guardId(), cmd.gateId()));
         AccessLog log = logs.saveIdempotent(new AccessLog(
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
@@ -100,7 +118,56 @@ public class EnrollGuestUseCase {
         return new EnrollmentResult.Enrolled(enrollment, log, inv.guestName());
     }
 
-    private EnrollmentResult denyUnknownInvitation(Command cmd, DenialReason reason) {
+    /**
+     * WBS-122: enrolamiento por la via del trabajador. Verifica firma + JTI
+     * activo (misma logica que evaluateWorker) y compara el DNI cargado
+     * contra el del user detras del token. Match -> guarda enrolamiento con
+     * {@code invitation_id=null} y loguea un ingreso SERVICE. Mismatch ->
+     * DOCUMENT_MISMATCH persistido: es exactamente el caso "le prestaron el
+     * QR a otro" que el enrolamiento viene a detectar.
+     *
+     * <p>{@code lot_id} en el log queda NULL de forma deliberada. El
+     * enrolamiento ocurre una sola vez por persona y no es la via normal de
+     * ingreso: computar aca la franja para elegir lote duplicaria
+     * evaluateWorker. El proximo scan pasa por validate y resuelve el lote
+     * correcto para ese momento.
+     */
+    private EnrollmentResult enrollWorker(Command cmd, ParsedQrToken parsed) {
+        QrTokenPayload p = parsed.payload();
+        if (!cmd.neighborhoodId().equals(p.neighborhoodId())) {
+            // Aislamiento por barrio: un token de otro barrio en esta garita
+            // se rechaza como invitacion inexistente.
+            throw new ResourceNotFoundException("worker", p.sub());
+        }
+        Optional<WorkerTokenRepository.WorkerTokenRow> active = workerTokens.findActive(p.sub());
+        if (active.isEmpty() || !active.get().jti().equals(p.jti())) {
+            return denyWorker(cmd, p.sub(), p.jti(), DenialReason.REVOKED);
+        }
+        Optional<WorkerValidationQuery.WorkerContext> ctxOpt =
+                workerQuery.loadContext(p.sub(), p.neighborhoodId());
+        if (ctxOpt.isEmpty() || ctxOpt.get().lots().isEmpty()) {
+            return denyWorker(cmd, p.sub(), p.jti(), DenialReason.REVOKED);
+        }
+        WorkerValidationQuery.WorkerContext ctx = ctxOpt.get();
+        if (!cmd.documentNumber().equals(ctx.workerDocument())) {
+            // BR-12 en la via del trabajador: el guardia cargo un DNI que no
+            // corresponde al user del token. Persistir el intento.
+            return denyWorker(cmd, p.sub(), p.jti(), DenialReason.DOCUMENT_MISMATCH);
+        }
+        GuestEnrollment enrollment = enrollments.saveIfAbsent(new GuestEnrollment(
+                UUID.randomUUID(), cmd.neighborhoodId(), null, cmd.documentNumber(),
+                Instant.now(), cmd.guardId(), cmd.gateId()));
+        AccessLog log = logs.saveIdempotent(new AccessLog(
+                UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
+                null, null,
+                Direction.IN, SubjectType.SERVICE, true, null,
+                ctx.workerName(), cmd.documentNumber(), 0,
+                p.jti(), cmd.capturedAt(), false, false, cmd.clientEventId()));
+        // El trabajador no abre stay: no dispara stayLifecycle.
+        return new EnrollmentResult.Enrolled(enrollment, log, ctx.workerName());
+    }
+
+    private EnrollmentResult denyUnknown(Command cmd, DenialReason reason) {
         AccessLog log = logs.saveIdempotent(new AccessLog(
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
                 null, null,
@@ -110,7 +177,7 @@ public class EnrollGuestUseCase {
         return new EnrollmentResult.Denied(reason, log);
     }
 
-    private EnrollmentResult denyAndLog(Command cmd, Invitation inv, DenialReason reason) {
+    private EnrollmentResult denyGuest(Command cmd, Invitation inv, DenialReason reason) {
         AccessLog log = logs.saveIdempotent(new AccessLog(
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
                 inv.id(), inv.lotId(),
@@ -120,11 +187,21 @@ public class EnrollGuestUseCase {
         return new EnrollmentResult.Denied(reason, log);
     }
 
-    private EnrollmentResult reconstruct(AccessLog log) {
+    private EnrollmentResult denyWorker(Command cmd, UUID userId, UUID jti, DenialReason reason) {
+        AccessLog log = logs.saveIdempotent(new AccessLog(
+                UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
+                null, null,
+                Direction.IN, SubjectType.SERVICE, false, reason,
+                null, cmd.documentNumber(), 0,
+                jti, cmd.capturedAt(), false, false, cmd.clientEventId()));
+        return new EnrollmentResult.Denied(reason, log);
+    }
+
+    private EnrollmentResult reconstruct(AccessLog log, UUID neighborhoodId) {
         if (!log.allowed()) return new EnrollmentResult.Denied(log.denialReason(), log);
-        GuestEnrollment enrollment = enrollments.findByInvitationId(log.invitationId())
+        GuestEnrollment enrollment = enrollments.findByPerson(neighborhoodId, log.subjectDocument())
                 .orElseThrow(() -> new IllegalStateException(
-                        "log ALLOWED sin enrolamiento para invitation " + log.invitationId()));
+                        "log ALLOWED sin enrolamiento para documento " + log.subjectDocument()));
         return new EnrollmentResult.Enrolled(enrollment, log, log.subjectName());
     }
 

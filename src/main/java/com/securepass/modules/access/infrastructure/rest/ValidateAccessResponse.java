@@ -13,6 +13,7 @@ public record ValidateAccessResponse(
         String result,
         UUID logId,
         String reason,
+        String subjectKind,
         UUID invitationId,
         GuestDetail guest,
         LotDetail lot,
@@ -29,8 +30,12 @@ public record ValidateAccessResponse(
     /**
      * WBS-117: shape ALLOWED del trabajador. {@code lots} tiene los lotes en
      * franja horaria; si {@code lots.size()==1} la garita entra directo, si >1
-     * el guardia elige (US-67, spec §L).
+     * el guardia elige (US-67, spec §L). WBS-122: en NEEDS_ENROLLMENT del
+     * worker viaja solo {@code userId} (name null, lots null) — la identidad
+     * no esta verificada aun, adelantar el nombre invita a comparar contra
+     * pantalla en vez de contra dato (misma regla que el invitado).
      */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record WorkerDetail(UUID userId, String name, List<LotChoice> lots) {}
 
     public record LotChoice(UUID lotId, String code, String service) {}
@@ -47,23 +52,29 @@ public record ValidateAccessResponse(
                     inv == null ? null : inv.guestDocument(),
                     allowed.companions());
             return new ValidateAccessResponse(
-                    "ALLOWED", logId, null, null, guest, new LotDetail(allowed.lotCode()), invDetail, null);
+                    "ALLOWED", logId, null, null, null, guest, new LotDetail(allowed.lotCode()), invDetail, null);
         }
         if (result.decision() instanceof AccessDecision.AllowedWorker w) {
             List<LotChoice> lots = w.lots().stream()
                     .map(o -> new LotChoice(o.lotId(), o.lotCode(), o.service()))
                     .toList();
             return new ValidateAccessResponse(
-                    "ALLOWED_WORKER", logId, null, null, null, null, null,
+                    "ALLOWED_WORKER", logId, null, null, null, null, null, null,
                     new WorkerDetail(w.userId(), w.workerName(), lots));
         }
         if (result.decision() instanceof AccessDecision.NeedsEnrollment needs) {
+            if (needs.kind() == AccessDecision.SubjectKind.WORKER) {
+                return new ValidateAccessResponse(
+                        "NEEDS_ENROLLMENT", null, null, "WORKER",
+                        null, null, null, null,
+                        new WorkerDetail(needs.userId(), null, null));
+            }
             return new ValidateAccessResponse(
-                    "NEEDS_ENROLLMENT", null, null, needs.invitationId(),
-                    null, new LotDetail(needs.lotCode()), null, null);
+                    "NEEDS_ENROLLMENT", null, null, "GUEST",
+                    needs.invitationId(), null, new LotDetail(needs.lotCode()), null, null);
         }
         AccessDecision.Denied denied = (AccessDecision.Denied) result.decision();
         return new ValidateAccessResponse(
-                "DENIED", logId, denied.reason().name(), null, null, null, null, null);
+                "DENIED", logId, denied.reason().name(), null, null, null, null, null, null);
     }
 }

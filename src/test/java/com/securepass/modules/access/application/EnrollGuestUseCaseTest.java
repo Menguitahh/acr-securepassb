@@ -10,10 +10,13 @@ import com.securepass.modules.invitation.application.InvitationRepository;
 import com.securepass.modules.invitation.application.QrTokenCodec;
 import com.securepass.modules.invitation.application.QrTokenPayload;
 import com.securepass.modules.invitation.application.SigningKeyRepository;
+import com.securepass.modules.invitation.application.WorkerTokenRepository;
+import com.securepass.modules.invitation.application.WorkerValidationQuery;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
+import com.securepass.shared.schedule.ScheduleWindow;
 import com.securepass.shared.crypto.Ed25519KeyFactory;
 import com.securepass.shared.crypto.Ed25519KeyPair;
 import com.securepass.shared.crypto.Ed25519Signer;
@@ -25,12 +28,17 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,6 +53,8 @@ class EnrollGuestUseCaseTest {
     private InvitationRepository invitations;
     private GuestEnrollmentRepository enrollments;
     private AccessLogRepository logs;
+    private WorkerTokenRepository workerTokens;
+    private WorkerValidationQuery workerQuery;
     private EnrollGuestUseCase useCase;
 
     private UUID neighborhoodId;
@@ -64,7 +74,11 @@ class EnrollGuestUseCaseTest {
         invitations = mock(InvitationRepository.class);
         enrollments = mock(GuestEnrollmentRepository.class);
         logs = mock(AccessLogRepository.class);
-        useCase = new EnrollGuestUseCase(codec, signingKeys, invitations, enrollments, logs, mock(StayLifecycle.class));
+        workerTokens = mock(WorkerTokenRepository.class);
+        workerQuery = mock(WorkerValidationQuery.class);
+        useCase = new EnrollGuestUseCase(
+                codec, signingKeys, invitations, enrollments, logs, mock(StayLifecycle.class),
+                workerTokens, workerQuery);
         neighborhoodId = UUID.randomUUID();
         gateId = UUID.randomUUID();
         guardId = UUID.randomUUID();
@@ -155,13 +169,13 @@ class EnrollGuestUseCaseTest {
     @Test
     void br13RetryConMismoClientEventIdEsIdempotente() {
         GuestEnrollment previous = new GuestEnrollment(
-                UUID.randomUUID(), invitationId, "30123456", NOW, guardId, gateId);
+                UUID.randomUUID(), neighborhoodId, invitationId, "30123456", NOW, guardId, gateId);
         AccessLog previousLog = new AccessLog(
                 UUID.randomUUID(), neighborhoodId, gateId, guardId, invitationId, lotId,
                 Direction.IN, SubjectType.GUEST, true, null,
                 "Maria Lopez", "30123456", 2, jti, NOW, false, false, clientEventId);
         when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.of(previousLog));
-        when(enrollments.findByInvitationId(invitationId)).thenReturn(Optional.of(previous));
+        when(enrollments.findByPerson(neighborhoodId, "30123456")).thenReturn(Optional.of(previous));
         String token = signed(payloadFor(invitationId, jti));
 
         EnrollmentResult result = useCase.enroll(cmd(token, "30123456"));
@@ -289,5 +303,117 @@ class EnrollGuestUseCaseTest {
 
         assertThat(result).isInstanceOf(EnrollmentResult.Denied.class);
         assertThat(((EnrollmentResult.Denied) result).reason()).isEqualTo(DenialReason.REVOKED);
+    }
+
+    // -----------------------------------------------------------------
+    // WBS-122: enrolamiento por el ramo del trabajador (subType=W).
+    // -----------------------------------------------------------------
+
+    private String signedWorkerToken(UUID userId, UUID theJti) {
+        QrTokenPayload p = QrTokenPayload.worker(1, "kid-1", theJti, neighborhoodId, userId);
+        return signed(p);
+    }
+
+    private WorkerValidationQuery.WorkerContext workerCtx(String name, String document) {
+        return new WorkerValidationQuery.WorkerContext(
+                name, document, ZoneId.of("America/Argentina/Mendoza"),
+                List.of(new WorkerValidationQuery.ActiveWorkerLot(
+                        UUID.randomUUID(), "L-1", "Jardineria",
+                        new ScheduleWindow(List.of(1, 2, 3, 4, 5, 6, 7),
+                                LocalTime.of(0, 0), LocalTime.of(23, 59)))));
+    }
+
+    @Test
+    void workerMatchGuardaEnrolamientoSinInvitationYLogueaService() {
+        stubKeyOk();
+        UUID userId = UUID.randomUUID();
+        UUID workerJti = UUID.randomUUID();
+        when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.empty());
+        when(workerTokens.findActive(userId)).thenReturn(Optional.of(
+                new WorkerTokenRepository.WorkerTokenRow(userId, neighborhoodId, workerJti, NOW)));
+        when(workerQuery.loadContext(userId, neighborhoodId))
+                .thenReturn(Optional.of(workerCtx("Juan Jardinero", "30123456")));
+
+        EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, workerJti), "30123456"));
+
+        assertThat(result).isInstanceOf(EnrollmentResult.Enrolled.class);
+        EnrollmentResult.Enrolled ok = (EnrollmentResult.Enrolled) result;
+        assertThat(ok.enrollment().documentNumber()).isEqualTo("30123456");
+        assertThat(ok.enrollment().invitationId()).isNull(); // ramo worker
+        assertThat(ok.enrollment().neighborhoodId()).isEqualTo(neighborhoodId);
+        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
+        verify(logs).saveIdempotent(captor.capture());
+        AccessLog log = captor.getValue();
+        assertThat(log.allowed()).isTrue();
+        assertThat(log.subjectType()).isEqualTo(SubjectType.SERVICE);
+        assertThat(log.invitationId()).isNull();
+        assertThat(log.lotId()).isNull(); // deliberado: proxima entrada resuelve franja
+        assertThat(log.subjectName()).isEqualTo("Juan Jardinero");
+        assertThat(log.tokenJti()).isEqualTo(workerJti);
+    }
+
+    // El caso "le prestaron el QR a otro": el guardia carga un DNI distinto
+    // al del user del token. Es exactamente lo que el enrolamiento detecta.
+    @Test
+    void workerMismatchPersisteDocumentMismatchYNoEnrola() {
+        stubKeyOk();
+        UUID userId = UUID.randomUUID();
+        UUID workerJti = UUID.randomUUID();
+        when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.empty());
+        when(workerTokens.findActive(userId)).thenReturn(Optional.of(
+                new WorkerTokenRepository.WorkerTokenRow(userId, neighborhoodId, workerJti, NOW)));
+        when(workerQuery.loadContext(userId, neighborhoodId))
+                .thenReturn(Optional.of(workerCtx("Juan Jardinero", "30123456")));
+
+        EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, workerJti), "99999999"));
+
+        assertThat(result).isInstanceOf(EnrollmentResult.Denied.class);
+        assertThat(((EnrollmentResult.Denied) result).reason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
+        verify(logs).saveIdempotent(captor.capture());
+        AccessLog log = captor.getValue();
+        assertThat(log.subjectType()).isEqualTo(SubjectType.SERVICE);
+        assertThat(log.denialReason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        assertThat(log.subjectDocument()).isEqualTo("99999999");
+        assertThat(log.tokenJti()).isEqualTo(workerJti);
+        verify(enrollments, never()).saveIfAbsent(any());
+    }
+
+    @Test
+    void workerJtiRotadoDeniegaRevoked() {
+        stubKeyOk();
+        UUID userId = UUID.randomUUID();
+        UUID staleJti = UUID.randomUUID();
+        UUID currentActiveJti = UUID.randomUUID();
+        when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.empty());
+        when(workerTokens.findActive(userId)).thenReturn(Optional.of(
+                new WorkerTokenRepository.WorkerTokenRow(userId, neighborhoodId, currentActiveJti, NOW)));
+
+        EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, staleJti), "30123456"));
+
+        assertThat(result).isInstanceOf(EnrollmentResult.Denied.class);
+        assertThat(((EnrollmentResult.Denied) result).reason()).isEqualTo(DenialReason.REVOKED);
+        verify(enrollments, never()).saveIfAbsent(any());
+    }
+
+    @Test
+    void workerRetryConMismoClientEventIdBuscaPorDocumento() {
+        UUID userId = UUID.randomUUID();
+        UUID workerJti = UUID.randomUUID();
+        GuestEnrollment previous = new GuestEnrollment(
+                UUID.randomUUID(), neighborhoodId, null, "30123456", NOW, guardId, gateId);
+        AccessLog previousLog = new AccessLog(
+                UUID.randomUUID(), neighborhoodId, gateId, guardId, null, null,
+                Direction.IN, SubjectType.SERVICE, true, null,
+                "Juan Jardinero", "30123456", 0, workerJti, NOW, false, false, clientEventId);
+        when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.of(previousLog));
+        when(enrollments.findByPerson(neighborhoodId, "30123456")).thenReturn(Optional.of(previous));
+
+        EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, workerJti), "30123456"));
+
+        assertThat(result).isInstanceOf(EnrollmentResult.Enrolled.class);
+        verify(signingKeys, never()).findByKid(any(), any());
+        verify(workerTokens, never()).findActive(any());
+        verify(enrollments, never()).saveIfAbsent(any());
     }
 }
