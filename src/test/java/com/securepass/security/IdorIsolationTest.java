@@ -217,7 +217,7 @@ class IdorIsolationTest {
                         lotB.id(), InvitationType.SINGLE,
                         "X", "30123456", 0, null,
                         Instant.now(), Instant.now().plus(1, ChronoUnit.HOURS),
-                        null, null, null, 1)))
+                        1)))
                 .isInstanceOf(BusinessRuleViolationException.class);
     }
 

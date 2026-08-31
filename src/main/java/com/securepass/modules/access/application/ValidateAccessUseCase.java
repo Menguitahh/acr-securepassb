@@ -13,7 +13,6 @@ import com.securepass.modules.invitation.application.WorkerTokenRepository;
 import com.securepass.modules.invitation.application.WorkerValidationQuery;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
-import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.crypto.Ed25519Verifier;
 import com.securepass.shared.schedule.ScheduleWindow;
@@ -100,12 +99,8 @@ public class ValidateAccessUseCase {
         if (capturedAt.isAfter(inv.validUntil()) || inv.status() == InvitationStatus.EXPIRED) {
             return AccessDecision.Denied.of(DenialReason.EXPIRED);
         }
-        if (inv.type() == InvitationType.RECURRING) {
-            ScheduleWindow window = new ScheduleWindow(inv.weekdays(), inv.dailyFrom(), inv.dailyUntil());
-            if (!window.contains(capturedAt, lot.neighborhoodTimezone())) {
-                return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
-            }
-        }
+        // WBS-127: sacada la rama RECURRING. El unico consumidor de
+        // ScheduleWindow ahora es evaluateWorker (WBS-117).
         if (direction == Direction.IN) {
             if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
             if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN);

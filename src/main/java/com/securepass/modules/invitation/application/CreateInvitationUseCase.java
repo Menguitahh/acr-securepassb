@@ -10,8 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -79,7 +77,6 @@ public class CreateInvitationUseCase {
                     cmd.type(), InvitationStatus.ACTIVE,
                     cmd.guestName(), cmd.guestDocument(), cmd.companions(), cmd.notes(),
                     cmd.validFrom(), cmd.validUntil(),
-                    cmd.weekdays(), cmd.dailyFrom(), cmd.dailyUntil(),
                     cmd.maxUses(), 0, key.kid(), jti, false, now);
         } catch (IllegalArgumentException ex) {
             String message = ex.getMessage() == null ? "invitacion invalida" : ex.getMessage();
@@ -92,8 +89,7 @@ public class CreateInvitationUseCase {
         String qrToken = qrTokenIssuer.issue(new QrTokenIssuer.IssueCommand(
                 actorNeighborhoodId, cmd.lotId(), invitation.id(), invitation.jti(),
                 invitation.type(), invitation.validFrom(), invitation.validUntil(),
-                invitation.maxUses(),
-                invitation.weekdays(), invitation.dailyFrom(), invitation.dailyUntil()));
+                invitation.maxUses()));
 
         String shareUrl = shareUrlBase + "/" + shortCode(invitation.id());
         return new IssuedInvitation(invitation, qrToken, shareUrl);
@@ -112,9 +108,6 @@ public class CreateInvitationUseCase {
             String notes,
             Instant validFrom,
             Instant validUntil,
-            List<Integer> weekdays,
-            LocalTime dailyFrom,
-            LocalTime dailyUntil,
             int maxUses
     ) {}
 }

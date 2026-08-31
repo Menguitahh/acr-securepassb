@@ -101,7 +101,7 @@ class EnrollGuestUseCaseTest {
                 InvitationType.SINGLE.code(),
                 NOW.minus(Duration.ofHours(1)).getEpochSecond(),
                 NOW.plus(Duration.ofHours(6)).getEpochSecond(),
-                1, null, null, null);
+                1);
     }
 
     private String signed(QrTokenPayload payload) {
@@ -116,7 +116,7 @@ class EnrollGuestUseCaseTest {
                 InvitationType.SINGLE, status,
                 "Maria Lopez", document, 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(6)),
-                null, null, null, 1, 0, "kid-1", invJti, false, NOW);
+                1, 0, "kid-1", invJti, false, NOW);
     }
 
     private EnrollGuestUseCase.Command cmd(String token, String document) {
@@ -284,7 +284,7 @@ class EnrollGuestUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(6)),
-                null, null, null, 1, 0, "kid-1", jti, false, NOW);
+                1, 0, "kid-1", jti, false, NOW);
         when(invitations.findById(invitationId)).thenReturn(Optional.of(inv));
         String token = signed(payloadFor(invitationId, jti));
 

@@ -141,7 +141,7 @@ class IdorIntraBarrioTest {
                         lotB.id(), InvitationType.SINGLE,
                         "Guest", "30000000", 0, null,
                         Instant.now(), Instant.now().plus(1, ChronoUnit.HOURS),
-                        null, null, null, 1)))
+                        1)))
                 .as("residentA (owner de lotA) NO debe poder crear invitacion sobre lotB")
                 .isInstanceOfAny(
                         org.springframework.security.access.AccessDeniedException.class,

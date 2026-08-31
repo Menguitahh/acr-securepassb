@@ -9,17 +9,13 @@ import com.securepass.modules.invitation.domain.InvitationType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Repository
 public class InvitationJdbcRepository implements InvitationRepository {
@@ -36,12 +32,12 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 INSERT INTO invitations (
                     id, neighborhood_id, lot_id, created_by, type, status,
                     guest_name, guest_document, companions, notes,
-                    valid_from, valid_until, weekdays, daily_from, daily_until,
+                    valid_from, valid_until,
                     max_uses, used_count, token_kid, jti, resident_pass, created_at, updated_at
                 ) VALUES (
                     :id, :nid, :lid, :by, :type, :status,
                     :name, :doc, :comp, :notes,
-                    :vfrom, :vuntil, CAST(:wdays AS SMALLINT[]), :dfrom, :duntil,
+                    :vfrom, :vuntil,
                     :max, :used, :kid, :jti, :resident, :created, :created
                 )
                 """)
@@ -57,9 +53,6 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 .param("notes", inv.notes())
                 .param("vfrom", Timestamp.from(inv.validFrom()))
                 .param("vuntil", Timestamp.from(inv.validUntil()))
-                .param("wdays", weekdaysLiteral(inv.weekdays()))
-                .param("dfrom", inv.dailyFrom() == null ? null : Time.valueOf(inv.dailyFrom()))
-                .param("duntil", inv.dailyUntil() == null ? null : Time.valueOf(inv.dailyUntil()))
                 .param("max", inv.maxUses())
                 .param("used", inv.usedCount())
                 .param("kid", inv.tokenKid())
@@ -90,7 +83,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
         return jdbc.sql("""
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
-                       valid_from, valid_until, weekdays, daily_from, daily_until,
+                       valid_from, valid_until,
                        max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                  WHERE id = :id
@@ -105,7 +98,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
         return jdbc.sql("""
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
-                       valid_from, valid_until, weekdays, daily_from, daily_until,
+                       valid_from, valid_until,
                        max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                  WHERE id = :id
@@ -139,7 +132,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
         var itemsQuery = jdbc.sql("""
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
-                       valid_from, valid_until, weekdays, daily_from, daily_until,
+                       valid_from, valid_until,
                        max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                 """ + where + """
@@ -175,7 +168,7 @@ public class InvitationJdbcRepository implements InvitationRepository {
         return jdbc.sql("""
                 SELECT id, neighborhood_id, lot_id, created_by, type, status,
                        guest_name, guest_document, companions, notes,
-                       valid_from, valid_until, weekdays, daily_from, daily_until,
+                       valid_from, valid_until,
                        max_uses, used_count, token_kid, jti, resident_pass, created_at
                   FROM invitations
                  WHERE created_by = :uid AND lot_id = :lid
@@ -249,9 +242,6 @@ public class InvitationJdbcRepository implements InvitationRepository {
     }
 
     private Invitation mapRow(ResultSet rs, int rowNum) throws SQLException {
-        Time dailyFrom = rs.getTime("daily_from");
-        Time dailyUntil = rs.getTime("daily_until");
-        Array wdays = rs.getArray("weekdays");
         return new Invitation(
                 rs.getObject("id", UUID.class),
                 rs.getObject("neighborhood_id", UUID.class),
@@ -265,30 +255,11 @@ public class InvitationJdbcRepository implements InvitationRepository {
                 rs.getString("notes"),
                 rs.getTimestamp("valid_from").toInstant(),
                 rs.getTimestamp("valid_until").toInstant(),
-                weekdaysFromArray(wdays),
-                dailyFrom == null ? null : dailyFrom.toLocalTime(),
-                dailyUntil == null ? null : dailyUntil.toLocalTime(),
                 rs.getInt("max_uses"),
                 rs.getInt("used_count"),
                 rs.getString("token_kid"),
                 rs.getObject("jti", UUID.class),
                 rs.getBoolean("resident_pass"),
                 rs.getTimestamp("created_at").toInstant());
-    }
-
-    private static String weekdaysLiteral(List<Integer> weekdays) {
-        if (weekdays == null || weekdays.isEmpty()) return null;
-        return weekdays.stream().map(String::valueOf).collect(Collectors.joining(",", "{", "}"));
-    }
-
-    private static List<Integer> weekdaysFromArray(Array array) throws SQLException {
-        if (array == null) return null;
-        Object raw = array.getArray();
-        if (raw == null) return null;
-        List<Integer> out = new ArrayList<>();
-        for (Object item : (Object[]) raw) {
-            if (item != null) out.add(((Number) item).intValue());
-        }
-        return out.isEmpty() ? null : out;
     }
 }

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,10 +73,15 @@ class IssueResidentPassesUseCaseTest {
         verify(invitations).save(captor.capture());
         Invitation saved = captor.getValue();
         assertThat(saved.residentPass()).isTrue();
-        assertThat(saved.type()).isEqualTo(InvitationType.RECURRING);
+        assertThat(saved.type()).isEqualTo(InvitationType.EVENT);
         assertThat(saved.createdBy()).isEqualTo(userId);
-        assertThat(saved.weekdays()).containsExactly(1, 2, 3, 4, 5, 6, 7);
-        assertThat(saved.dailyFrom()).isEqualTo(LocalTime.of(0, 0));
+        // WBS-127: pase permanente post-V17 tiene valid_until FAR_FUTURE
+        // (2099-12-31). BR-04 (ventana <= 30 dias para EVENT) NO aplica porque
+        // residentPass=true lo exenta. Un cambio futuro que quite esa exencion
+        // rompe el flujo normal de residente y este assert es el candado.
+        assertThat(saved.validUntil()).isEqualTo(Instant.parse("2099-12-31T23:59:59Z"));
+        assertThat(java.time.Duration.between(saved.validFrom(), saved.validUntil()).toDays())
+                .isGreaterThan(365 * 70L);
     }
 
     @Test
@@ -85,10 +89,9 @@ class IssueResidentPassesUseCaseTest {
         UUID lotId = UUID.randomUUID();
         Invitation existing = new Invitation(
                 UUID.randomUUID(), neighborhoodId, lotId, userId,
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
+                InvitationType.EVENT, InvitationStatus.ACTIVE,
                 "Residente", "00000000", 0, null,
                 Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2099-12-31T23:59:59Z"),
-                List.of(1, 2, 3, 4, 5, 6, 7), LocalTime.of(0, 0), LocalTime.of(23, 59, 59),
                 1, 0, "kid-active", UUID.randomUUID(), true, Instant.parse("2026-01-01T00:00:00Z"));
         when(lots.listActiveByUser(userId, neighborhoodId))
                 .thenReturn(List.of(new ResidentLot(lotId, "M4-L12", neighborhoodId, "Barrio X")));

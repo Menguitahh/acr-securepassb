@@ -2,8 +2,7 @@ package com.securepass.modules.invitation.domain;
 
 public enum InvitationType {
     SINGLE("S"),
-    EVENT("E"),
-    RECURRING("R");
+    EVENT("E");
 
     private final String code;
 

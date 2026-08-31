@@ -77,7 +77,7 @@ class RecordAccessAttemptUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.USED,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(6)),
-                null, null, null, 1, 1, "kid-1", jti, false, NOW);
+                1, 1, "kid-1", jti, false, NOW);
     }
 
     private AccessDecision.Allowed allowed() {

@@ -58,7 +58,7 @@ class RequestGuestExitUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(2)),
-                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, NOW);
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW);
     }
 
     @Test

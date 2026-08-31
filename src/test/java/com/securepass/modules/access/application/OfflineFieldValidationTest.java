@@ -237,7 +237,7 @@ class OfflineFieldValidationTest {
                 Timestamp.from(validFrom), Timestamp.from(validUntil), kid, jti);
         return issuer.issue(new QrTokenIssuer.IssueCommand(
                 neighborhoodId, lotId, invitationId, jti, InvitationType.SINGLE,
-                validFrom, validUntil, 1, null, null, null));
+                validFrom, validUntil, 1));
     }
 
     private String insertExpiredSingle(UUID invitationId) {
@@ -255,6 +255,6 @@ class OfflineFieldValidationTest {
                 Timestamp.from(validFrom), Timestamp.from(validUntil), kid, jti);
         return issuer.issue(new QrTokenIssuer.IssueCommand(
                 neighborhoodId, lotId, invitationId, jti, InvitationType.SINGLE,
-                validFrom, validUntil, 1, null, null, null));
+                validFrom, validUntil, 1));
     }
 }

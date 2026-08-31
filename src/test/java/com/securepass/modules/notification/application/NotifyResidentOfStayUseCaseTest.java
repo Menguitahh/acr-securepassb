@@ -69,7 +69,7 @@ class NotifyResidentOfStayUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, null,
                 ENTER.minus(Duration.ofHours(1)), ENTER.plus(Duration.ofHours(6)),
-                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, ENTER);
+                1, 0, "kid-1", UUID.randomUUID(), false, ENTER);
     }
 
     @Test

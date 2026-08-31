@@ -9,8 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,7 +64,7 @@ class CreateInvitationUseCaseTest {
                 lotId, InvitationType.SINGLE,
                 "Maria Lopez", "30123456", 2, "cumple",
                 from, from.plus(Duration.ofHours(6)),
-                null, null, null, 1);
+                1);
     }
 
     @Test
@@ -165,26 +163,11 @@ class CreateInvitationUseCaseTest {
                 lotId, InvitationType.SINGLE,
                 "X", "30123456", 0, null,
                 from, from.plus(Duration.ofDays(31)),
-                null, null, null, 1);
+                1);
 
         assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, cmd))
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .satisfies(ex -> assertThat(((BusinessRuleViolationException) ex).rule()).isEqualTo("BR-04"));
-    }
-
-    // Tipo RECURRING requiere weekdays + franja
-    @Test
-    void recurringSinFranjaSeConvierteEnBusinessRuleViolation() {
-        stubActiveMember(true);
-        Instant from = Instant.now();
-        CreateInvitationUseCase.Command cmd = new CreateInvitationUseCase.Command(
-                lotId, InvitationType.RECURRING,
-                "X", "30123456", 0, null,
-                from, from.plus(Duration.ofDays(30)),
-                List.of(1, 2), null, null, 10);
-
-        assertThatThrownBy(() -> useCase.create(userId, neighborhoodId, cmd))
-                .isInstanceOf(BusinessRuleViolationException.class);
     }
 
     @Test
@@ -195,28 +178,12 @@ class CreateInvitationUseCaseTest {
                 lotId, InvitationType.EVENT,
                 "Fiesta", "30123456", 0, null,
                 from, from.plus(Duration.ofDays(1)),
-                null, null, null, 50);
+                50);
 
         IssuedInvitation issued = useCase.create(userId, neighborhoodId, cmd);
 
         assertThat(issued.invitation().type()).isEqualTo(InvitationType.EVENT);
         assertThat(issued.invitation().maxUses()).isEqualTo(50);
-    }
-
-    @Test
-    void recurringValidoSeCrea() {
-        stubActiveMember(true);
-        Instant from = Instant.now();
-        CreateInvitationUseCase.Command cmd = new CreateInvitationUseCase.Command(
-                lotId, InvitationType.RECURRING,
-                "Empleada", "30123456", 0, null,
-                from, from.plus(Duration.ofDays(180)),
-                List.of(1, 2, 3, 4, 5), LocalTime.of(8, 0), LocalTime.of(18, 0), 10);
-
-        IssuedInvitation issued = useCase.create(userId, neighborhoodId, cmd);
-
-        assertThat(issued.invitation().type()).isEqualTo(InvitationType.RECURRING);
-        assertThat(issued.invitation().weekdays()).containsExactly(1, 2, 3, 4, 5);
     }
 
     // BR-03: lote suspendido rechaza nueva invitacion

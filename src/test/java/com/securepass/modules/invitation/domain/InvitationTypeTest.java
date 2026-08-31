@@ -11,7 +11,6 @@ class InvitationTypeTest {
     void codigosDeUnaLetra() {
         assertThat(InvitationType.SINGLE.code()).isEqualTo("S");
         assertThat(InvitationType.EVENT.code()).isEqualTo("E");
-        assertThat(InvitationType.RECURRING.code()).isEqualTo("R");
     }
 
     @Test

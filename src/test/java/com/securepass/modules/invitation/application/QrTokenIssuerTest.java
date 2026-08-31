@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,7 +27,6 @@ class QrTokenIssuerTest {
 
     private static final String TEST_MASTER_KEY = "REVWX09OTFlfS0VZXzMyX0JZVEVTX1hYWFhYWFhYWFg=";
     private static final List<String> BASE_KEYS = List.of("v", "k", "j", "n", "l", "i", "t", "f", "u", "m");
-    private static final List<String> RECURRING_KEYS = List.of("v", "k", "j", "n", "l", "i", "t", "f", "u", "m", "w", "df", "du");
 
     private SigningKeyRepository repo;
     private AesGcmCipher cipher;
@@ -85,7 +83,7 @@ class QrTokenIssuerTest {
 
     @Test
     void payloadNoSuperaTrescientosBytes() {
-        String token = issuer.issue(cmd(InvitationType.RECURRING, 200));
+        String token = issuer.issue(cmd(InvitationType.EVENT, 200));
 
         ParsedQrToken parsed = codec.parse(token).orElseThrow();
         assertThat(parsed.payloadBytes().length).isLessThan(300);
@@ -117,7 +115,7 @@ class QrTokenIssuerTest {
 
         assertThatThrownBy(() -> issuer.issue(new QrTokenIssuer.IssueCommand(
                 otro, lotId, invitationId, jti, InvitationType.SINGLE,
-                Instant.now(), Instant.now().plusSeconds(3600), 1, null, null, null)))
+                Instant.now(), Instant.now().plusSeconds(3600), 1)))
                 .isInstanceOf(NeighborhoodNotProvisionedException.class)
                 .satisfies(ex -> {
                     NeighborhoodNotProvisionedException e = (NeighborhoodNotProvisionedException) ex;
@@ -141,42 +139,7 @@ class QrTokenIssuerTest {
 
     private QrTokenIssuer.IssueCommand cmd(InvitationType type, int maxUses) {
         Instant from = Instant.now();
-        boolean r = type == InvitationType.RECURRING;
         return new QrTokenIssuer.IssueCommand(
-                nid, lotId, invitationId, jti, type, from, from.plusSeconds(3600), maxUses,
-                r ? List.of(1, 2, 3, 4, 5) : null,
-                r ? LocalTime.of(8, 0) : null,
-                r ? LocalTime.of(18, 0) : null);
-    }
-
-    @Test
-    void payloadRecurringCoincideConSpec5_1() throws Exception {
-        String token = issuer.issue(cmd(InvitationType.RECURRING, 200));
-        ParsedQrToken parsed = codec.parse(token).orElseThrow();
-        JsonNode json = mapper.readTree(parsed.payloadBytes());
-
-        assertThat(json.get("w").toString()).isEqualTo("[1,2,3,4,5]");
-        assertThat(json.get("df").asText()).isEqualTo("08:00");
-        assertThat(json.get("du").asText()).isEqualTo("18:00");
-    }
-
-    @Test
-    void recurringIncluyeFranjaHorariaEnPayload() throws Exception {
-        String token = issuer.issue(cmd(InvitationType.RECURRING, 200));
-
-        ParsedQrToken parsed = codec.parse(token).orElseThrow();
-        JsonNode json = mapper.readTree(parsed.payloadBytes());
-        List<String> keys = java.util.stream.StreamSupport
-                .stream(java.util.Spliterators.spliteratorUnknownSize(json.fieldNames(), 0), false)
-                .toList();
-
-        assertThat(keys).containsExactlyInAnyOrderElementsOf(RECURRING_KEYS);
-        assertThat(json.get("w").isArray()).isTrue();
-        List<Integer> w = new java.util.ArrayList<>();
-        json.get("w").forEach(n -> w.add(n.asInt()));
-        assertThat(w).containsExactly(1, 2, 3, 4, 5);
-        assertThat(json.get("df").asText()).isEqualTo("08:00");
-        assertThat(json.get("du").asText()).isEqualTo("18:00");
-        assertThat(parsed.payloadBytes().length).isLessThan(300);
+                nid, lotId, invitationId, jti, type, from, from.plusSeconds(3600), maxUses);
     }
 }

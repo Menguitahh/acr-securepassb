@@ -1957,8 +1957,7 @@
             "type" : "string",
             "enum" : [
               "SINGLE",
-              "EVENT",
-              "RECURRING"
+              "EVENT"
             ]
           },
           "guestName" : {
@@ -1989,44 +1988,13 @@
             "type" : "string",
             "format" : "date-time"
           },
-          "weekdays" : {
-            "type" : "array",
-            "items" : {
-              "type" : "integer",
-              "format" : "int32"
-            }
-          },
-          "dailyFrom" : {
-            "$ref" : "#/components/schemas/LocalTime"
-          },
-          "dailyUntil" : {
-            "$ref" : "#/components/schemas/LocalTime"
-          },
           "maxUses" : {
             "minimum" : 1,
             "type" : "integer",
             "format" : "int32"
-          }
-        }
-      },
-      "LocalTime" : {
-        "type" : "object",
-        "properties" : {
-          "hour" : {
-            "type" : "integer",
-            "format" : "int32"
           },
-          "minute" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "second" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "nano" : {
-            "type" : "integer",
-            "format" : "int32"
+          "typeAllowed" : {
+            "type" : "boolean"
           }
         }
       },
@@ -2052,8 +2020,7 @@
             "type" : "string",
             "enum" : [
               "SINGLE",
-              "EVENT",
-              "RECURRING"
+              "EVENT"
             ]
           },
           "status" : {
@@ -2085,19 +2052,6 @@
           "validUntil" : {
             "type" : "string",
             "format" : "date-time"
-          },
-          "weekdays" : {
-            "type" : "array",
-            "items" : {
-              "type" : "integer",
-              "format" : "int32"
-            }
-          },
-          "dailyFrom" : {
-            "$ref" : "#/components/schemas/LocalTime"
-          },
-          "dailyUntil" : {
-            "$ref" : "#/components/schemas/LocalTime"
           },
           "maxUses" : {
             "type" : "integer",
@@ -3092,13 +3046,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
           "scheduleBundled" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }

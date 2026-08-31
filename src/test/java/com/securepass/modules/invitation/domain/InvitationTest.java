@@ -4,8 +4,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +23,6 @@ class InvitationTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, "cumple",
                 NOW, NOW.plus(Duration.ofHours(6)),
-                null, null, null,
                 maxUses, usedCount,
                 "kid-1", UUID.randomUUID(), false, NOW);
     }
@@ -36,20 +33,8 @@ class InvitationTest {
                 InvitationType.EVENT, InvitationStatus.ACTIVE,
                 "Fiesta", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(1)),
-                null, null, null,
                 maxUses, usedCount,
                 "kid-1", UUID.randomUUID(), false, NOW);
-    }
-
-    private static Invitation recurring(boolean residentPass) {
-        return new Invitation(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "Empleada", "30123456", 0, null,
-                NOW, NOW.plus(Duration.ofDays(200)),
-                List.of(1, 2, 3, 4, 5), LocalTime.of(8, 0), LocalTime.of(18, 0),
-                residentPass ? 1 : 10, 0,
-                "kid-1", UUID.randomUUID(), residentPass, NOW);
     }
 
     @Test
@@ -66,7 +51,6 @@ class InvitationTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria", null, 0, null,
                 NOW, NOW.plus(Duration.ofHours(6)),
-                null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-11");
@@ -79,7 +63,6 @@ class InvitationTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria", "abc123", 0, null,
                 NOW, NOW.plus(Duration.ofHours(6)),
-                null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-11");
@@ -92,7 +75,6 @@ class InvitationTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "X", "30123456", 0, null,
                 NOW, NOW.minusSeconds(1),
-                null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class);
     }
@@ -103,19 +85,7 @@ class InvitationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    void recurringExigeWeekdaysYFranja() {
-        assertThatThrownBy(() -> new Invitation(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "X", "30123456", 0, null,
-                NOW, NOW.plus(Duration.ofDays(30)),
-                null, null, null,
-                1, 0, "kid-1", UUID.randomUUID(), false, NOW))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    // BR-04: ventana <= 30 dias SINGLE/EVENT, <= 365 RECURRING
+    // BR-04: ventana <= 30 dias SINGLE/EVENT
     @Test
     void br04SingleExcedeTreintaDiasFalla() {
         assertThatThrownBy(() -> new Invitation(
@@ -123,7 +93,6 @@ class InvitationTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(31)),
-                null, null, null,
                 1, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-04");
@@ -136,32 +105,6 @@ class InvitationTest {
                 InvitationType.EVENT, InvitationStatus.ACTIVE,
                 "X", "30123456", 0, null,
                 NOW, NOW.plus(Duration.ofDays(31)),
-                null, null, null,
-                10, 0, "kid-1", UUID.randomUUID(), false, NOW))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("BR-04");
-    }
-
-    @Test
-    void br04RecurringAceptaTrescientosSesentaYCinco() {
-        Invitation inv = new Invitation(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "X", "30123456", 0, null,
-                NOW, NOW.plus(Duration.ofDays(365)),
-                List.of(1), LocalTime.of(8, 0), LocalTime.of(18, 0),
-                10, 0, "kid-1", UUID.randomUUID(), false, NOW);
-        assertThat(inv.type()).isEqualTo(InvitationType.RECURRING);
-    }
-
-    @Test
-    void br04RecurringExcedeTrescientosSesentaYCincoFalla() {
-        assertThatThrownBy(() -> new Invitation(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "X", "30123456", 0, null,
-                NOW, NOW.plus(Duration.ofDays(366)),
-                List.of(1), LocalTime.of(8, 0), LocalTime.of(18, 0),
                 10, 0, "kid-1", UUID.randomUUID(), false, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("BR-04");
@@ -194,26 +137,6 @@ class InvitationTest {
         Invitation inv = event(2, 1).registerEntry();
         assertThat(inv.usedCount()).isEqualTo(2);
         assertThat(inv.status()).isEqualTo(InvitationStatus.USED);
-    }
-
-    // BR-10: residentPass no consume cupo
-    @Test
-    void br10ResidentPassNoIncrementa() {
-        Invitation inv = recurring(true).registerEntry();
-        assertThat(inv.usedCount()).isZero();
-        assertThat(inv.status()).isEqualTo(InvitationStatus.ACTIVE);
-    }
-
-    @Test
-    void br10ResidentPassExigeRecurring() {
-        assertThatThrownBy(() -> new Invitation(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                InvitationType.SINGLE, InvitationStatus.ACTIVE,
-                "Residente", "30123456", 0, null,
-                NOW, NOW.plus(Duration.ofDays(1)),
-                null, null, null,
-                1, 0, "kid-1", UUID.randomUUID(), true, NOW))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // Maquina de estados: transiciones permitidas y prohibidas

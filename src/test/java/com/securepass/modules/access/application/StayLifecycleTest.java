@@ -59,13 +59,10 @@ class StayLifecycleTest {
     private Invitation guestInvitation(boolean residentPass) {
         return new Invitation(
                 invitationId, neighborhoodId, lotId, UUID.randomUUID(),
-                residentPass ? InvitationType.RECURRING : InvitationType.SINGLE,
+                residentPass ? InvitationType.EVENT : InvitationType.SINGLE,
                 InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(6)),
-                residentPass ? java.util.List.of(1, 2, 3, 4, 5, 6, 7) : null,
-                residentPass ? java.time.LocalTime.of(0, 0) : null,
-                residentPass ? java.time.LocalTime.of(23, 59) : null,
                 1, 0, "kid-1", UUID.randomUUID(), residentPass, NOW);
     }
 

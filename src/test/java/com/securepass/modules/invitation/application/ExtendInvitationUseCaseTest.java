@@ -62,7 +62,7 @@ class ExtendInvitationUseCaseTest {
                 InvitationType.SINGLE, status,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(2)),
-                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, NOW);
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW);
     }
 
     private Invitation extended(Instant newValidUntil) {
@@ -71,7 +71,7 @@ class ExtendInvitationUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), newValidUntil,
-                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, NOW);
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW);
     }
 
     // BR-16 happy path: creador extiende, se suma extension_minutes y se

@@ -2,8 +2,6 @@ package com.securepass.modules.invitation.domain;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.UUID;
 
 public record Invitation(
@@ -19,9 +17,6 @@ public record Invitation(
         String notes,
         Instant validFrom,
         Instant validUntil,
-        List<Integer> weekdays,
-        LocalTime dailyFrom,
-        LocalTime dailyUntil,
         int maxUses,
         int usedCount,
         String tokenKid,
@@ -30,7 +25,6 @@ public record Invitation(
         Instant createdAt
 ) {
     private static final int SINGLE_EVENT_MAX_DAYS = 30;
-    private static final int RECURRING_MAX_DAYS = 365;
     private static final int EVENT_MAX_USES = 200;
     private static final int COMPANIONS_MAX = 20;
     private static final int GUEST_NAME_MAX = 140;
@@ -68,11 +62,20 @@ public record Invitation(
         if (validUntil == null) throw new IllegalArgumentException("validUntil requerido");
         if (!validUntil.isAfter(validFrom)) throw new IllegalArgumentException("validUntil debe ser posterior a validFrom");
 
-        if (!residentPass) {
-            int maxDays = type == InvitationType.RECURRING ? RECURRING_MAX_DAYS : SINGLE_EVENT_MAX_DAYS;
-            if (Duration.between(validFrom, validUntil).toDays() > maxDays) {
-                throw new IllegalArgumentException("BR-04: ventana excede " + maxDays + " dias para " + type);
-            }
+        // WBS-127: solo SINGLE/EVENT. RECURRING desaparecio (spec §4.2, BR-04,
+        // BR-10) — los trabajadores lo reemplazan. residentPass sigue exento
+        // de BR-04: su ventana es FAR_FUTURE por diseno (pase permanente
+        // ligado al vinculo del residente con el lote).
+        //
+        // BR-04 solo se evalua sobre invitaciones ACTIVE. Es regla de creacion
+        // (spec: "ventana <= N dias al emitir"); al rehidratar una fila cerrada
+        // (REVOKED / USED / EXPIRED) el pasado es lo que fue, no se re-audita.
+        // Sin esta guarda, la migracion V17 tendria que clampear el valid_until
+        // de RECURRING historicas y perder el dato original visible en el
+        // detalle/listado (mostrado en /invitations y /invitations/{id}).
+        if (!residentPass && status == InvitationStatus.ACTIVE
+                && Duration.between(validFrom, validUntil).toDays() > SINGLE_EVENT_MAX_DAYS) {
+            throw new IllegalArgumentException("BR-04: ventana excede " + SINGLE_EVENT_MAX_DAYS + " dias para " + type);
         }
 
         if (maxUses < 1) throw new IllegalArgumentException("maxUses debe ser >= 1");
@@ -85,29 +88,10 @@ public record Invitation(
         if (type == InvitationType.EVENT && maxUses > EVENT_MAX_USES) {
             throw new IllegalArgumentException("BR-05: EVENT maxUses <= " + EVENT_MAX_USES);
         }
-        if (type == InvitationType.RECURRING) {
-            if (weekdays == null || weekdays.isEmpty()) {
-                throw new IllegalArgumentException("RECURRING requiere weekdays");
-            }
-            for (Integer d : weekdays) {
-                if (d == null || d < 1 || d > 7) throw new IllegalArgumentException("weekdays entre 1 y 7");
-            }
-            if (dailyFrom == null || dailyUntil == null) {
-                throw new IllegalArgumentException("RECURRING requiere dailyFrom y dailyUntil");
-            }
-            if (!dailyUntil.isAfter(dailyFrom)) {
-                throw new IllegalArgumentException("dailyUntil debe ser posterior a dailyFrom");
-            }
-        }
-        if (residentPass && type != InvitationType.RECURRING) {
-            throw new IllegalArgumentException("residentPass requiere type RECURRING");
-        }
         if (tokenKid == null || tokenKid.isBlank()) throw new IllegalArgumentException("tokenKid requerido");
         if (tokenKid.length() > TOKEN_KID_MAX) throw new IllegalArgumentException("tokenKid excede " + TOKEN_KID_MAX);
         if (jti == null) throw new IllegalArgumentException("jti requerido");
         if (createdAt == null) throw new IllegalArgumentException("createdAt requerido");
-
-        weekdays = weekdays == null ? null : List.copyOf(weekdays);
     }
 
     public Invitation registerEntry() {
@@ -140,7 +124,7 @@ public record Invitation(
         return new Invitation(
                 id, neighborhoodId, lotId, createdBy, type, newStatus,
                 guestName, guestDocument, companions, notes,
-                validFrom, validUntil, weekdays, dailyFrom, dailyUntil,
+                validFrom, validUntil,
                 maxUses, newUsedCount, tokenKid, jti, residentPass, createdAt);
     }
 }

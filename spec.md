@@ -393,8 +393,12 @@ CREATE TABLE invitations (
     lot_id          UUID NOT NULL REFERENCES lots(id) ON DELETE RESTRICT,
     created_by      UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 
+    -- WBS-127: 'RECURRING' removido. Reemplazado por permisos de trabajador
+    -- (Fase 13). El pase permanente del residente ahora es EVENT +
+    -- resident_pass=true. Columnas de franja (weekdays, daily_from, daily_until)
+    -- dropeadas por V17.
     type            VARCHAR(20) NOT NULL
-                    CHECK (type IN ('SINGLE','EVENT','RECURRING')),
+                    CHECK (type IN ('SINGLE','EVENT')),
     status          VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
                     CHECK (status IN ('ACTIVE','USED','EXPIRED','REVOKED')),
 
@@ -405,10 +409,6 @@ CREATE TABLE invitations (
 
     valid_from      TIMESTAMPTZ NOT NULL,
     valid_until     TIMESTAMPTZ NOT NULL,
-    -- Solo RECURRING: días de semana (1=lunes) y franja horaria local
-    weekdays        SMALLINT[],
-    daily_from      TIME,
-    daily_until     TIME,
 
     max_uses        INT NOT NULL DEFAULT 1 CHECK (max_uses > 0),
     used_count      INT NOT NULL DEFAULT 0 CHECK (used_count >= 0),
@@ -421,10 +421,7 @@ CREATE TABLE invitations (
 
     CONSTRAINT chk_window CHECK (valid_until > valid_from),
     CONSTRAINT chk_uses   CHECK (used_count <= max_uses),
-    CONSTRAINT chk_single CHECK (type <> 'SINGLE' OR max_uses = 1),
-    CONSTRAINT chk_recurring_slot CHECK (
-        type <> 'RECURRING' OR (weekdays IS NOT NULL AND daily_from IS NOT NULL AND daily_until IS NOT NULL)
-    )
+    CONSTRAINT chk_single CHECK (type <> 'SINGLE' OR max_uses = 1)
 );
 CREATE INDEX idx_invitations_lot     ON invitations (lot_id, created_at DESC);
 CREATE INDEX idx_invitations_active  ON invitations (neighborhood_id, status)
@@ -527,13 +524,13 @@ CREATE INDEX idx_devices_user ON devices (user_id);
 | BR-01 | Solo `family_members` con `can_invite = TRUE` y `active = TRUE` pueden crear invitaciones para ese lote. |
 | BR-02 | `is_owner = TRUE` puede además revocar invitaciones de cualquier miembro del lote y gestionar permisos. |
 | BR-03 | Un lote con `status <> 'ACTIVE'` rechaza toda invitación nueva y toda validación de QR (`LOT_SUSPENDED`). |
-| BR-04 | `valid_until - valid_from` ≤ 30 días para `SINGLE`/`EVENT`, ≤ 365 días para `RECURRING`. |
+| BR-04 | `valid_until - valid_from` ≤ 30 días para `SINGLE`/`EVENT`. Se evalúa solo sobre invitaciones `ACTIVE` (regla de creación, no de auditoría); una fila cerrada rehidratada conserva su ventana original aunque exceda el límite (relevante para RECURRING revocadas en la migración V17). El pase permanente del residente (`resident_pass=true`) queda exento: su ventana es `FAR_FUTURE` por diseño. |
 | BR-05 | `max_uses` de `EVENT` ≤ 200. Por encima, se requiere aprobación de `ADMIN`. |
 | BR-06 | El `used_count` se incrementa **solo** en `direction = 'IN'` con `result = 'ALLOWED'`. Los egresos no consumen cupo. |
 | BR-07 | Un egreso sin ingreso previo registrado se acepta y se marca `subject_type = 'MANUAL'` (no se bloquea a nadie la salida). |
 | BR-08 | Alerta de permanencia excedida: ingreso `ALLOWED` sin egreso correspondiente pasadas `stay_alert_minutes`. |
 | BR-09 | Un guardia no puede tener dos turnos abiertos simultáneos (garantizado por índice `uq_guard_open_shift`). |
-| BR-10 | El residente puede escanear su propio QR personal (permanente, `RECURRING` implícito) sin consumir cupo. |
+| BR-10 | El residente puede escanear su propio QR personal (permanente, `EVENT` con `resident_pass=true` y `valid_until=FAR_FUTURE`) sin consumir cupo. |
 | BR-11 | El DNI es obligatorio en toda invitación. No viaja en el payload del QR: se resuelve server-side por `invitationId`. |
 | BR-12 | El primer ingreso de una invitación requiere QR y DNI. El DNI escaneado debe coincidir con `invitations.guest_document`; si no, `DOCUMENT_MISMATCH` y el intento se persiste. |
 | BR-13 | Una vez creado el enrolamiento, los ingresos siguientes de esa invitación solo requieren QR. El enrolamiento es por invitación, no por persona: un pase nuevo se enrola de nuevo. |
@@ -581,36 +578,19 @@ SP1.<payload_b64url>.<signature_b64url>
 | `n` | `neighborhoodId` |
 | `l` | `lotId` |
 | `i` | `invitationId` |
-| `t` | tipo: `S` single, `E` event, `R` recurring |
+| `t` | tipo: `S` single, `E` event. Legacy `R` (recurring) es aceptado por el codec para no romper QR emitidos antes de WBS-127 (ver nota abajo), pero no se emite más. |
 | `f` / `u` | `validFrom` / `validUntil` (epoch segundos, UTC) |
 | `m` | `maxUses` |
-| `w` | `weekdays` — días de semana (1=lunes). Solo `RECURRING`. |
-| `df` / `du` | `dailyFrom` / `dailyUntil` — franja horaria `HH:mm`. Solo `RECURRING`. |
 
-Ejemplo para `t == "R"`:
-
-```json
-{
-  "v": 1,
-  "k": "np_2026a",
-  "j": "8f3c...",
-  "n": "b1a2...",
-  "l": "c9d8...",
-  "i": "7e6f...",
-  "t": "R",
-  "f": 1755523200,
-  "u": 1787155200,
-  "m": 1,
-  "w": [1,2,3,4,5],
-  "df": "08:00",
-  "du": "18:00"
-}
-```
-
-`w`, `df` y `du` solo se emiten cuando `t == "R"`; en `SINGLE` y `EVENT`
-se omiten, no van en null. Sin estos campos en el token, la validación
-offline de pases recurrentes es imposible: el dispositivo no tiene acceso
-al horario persistido en `invitations`.
+Los emisores actuales no producen más `w`, `df` ni `du` — los trabajadores
+sustituyeron el caso RECURRING (Fase 13). El codec parsea silenciosamente
+esos campos si aparecen en tokens legacy (`FAIL_ON_UNKNOWN_PROPERTIES=false`
+del ObjectMapper Spring Boot), y acepta `t="R"` como valor válido:
+esta tolerancia es **permanente**, no transitoria, porque el pase del
+residente pre-WBS-127 se emitió con `valid_until=FAR_FUTURE` y esos QR
+viven indefinidamente en los teléfonos. Ver `QrTokenPayload.java` para
+la nota completa y el test `tokenPreV17ConTypeRParseaYIgnoraCamposDeFranja`
+que la blinda.
 
 Restricciones:
 
@@ -772,7 +752,6 @@ POST /api/v1/invitations
 }
 ```
 
-Para `type: "RECURRING"` se agregan `weekdays: [1,2,3,4,5]`, `dailyFrom: "08:00"`, `dailyUntil: "18:00"`.
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
@@ -784,8 +763,10 @@ Para `type: "RECURRING"` se agregan `weekdays: [1,2,3,4,5]`, `dailyFrom: "08:00"
 
 **Pase personal del residente (US-16, BR-10).** Una entrada por lote donde el
 usuario es `family_members` activo. Token permanente (`residentPass=true`,
-`RECURRING` implícito, sin franja horaria efectiva y sin consumir cupo). Se
-invalida al desactivar la membresía del lote.
+`type=EVENT`, `valid_until=FAR_FUTURE`, sin consumir cupo). Se invalida al
+desactivar la membresía del lote. Antes de WBS-127 se emitía como
+`RECURRING`; la migración V17 los transforma in-place preservando `id` y
+`jti` para no romper los QR ya en dispositivos.
 
 ```http
 GET /api/v1/me/passes
@@ -1769,7 +1750,7 @@ estructural, va antes de construir encima; F (Fase 15) puede adelantarse.
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 127 | Eliminar invitación recurrente | ambos | `refactor/invitation-remove-recurring` | US-74 | Sale el tipo `RECURRING` del dominio, la API y la UI; los campos de franja salen del payload del QR; migración de los existentes; spec actualizado. |
+| 127 | Eliminar invitación recurrente | ambos | `refactor/invitation-remove-recurring` | US-74 | **Backend cerrado.** V17 migra `invitations`: pase del residente `RECURRING → EVENT` in-place (mismo id + mismo jti para no romper QR emitidos), invitaciones de invitado `RECURRING → EVENT + REVOKED` (valid_until intacto por auditoría), CHECK actualizado a `('SINGLE','EVENT')`, columnas `weekdays/daily_from/daily_until` dropeadas. `InvitationType` sin RECURRING; `QrTokenPayload` sin `w/df/du` pero con tolerancia PERMANENTE al valor legacy `t="R"` (los QR pre-V17 del residente viven indefinidamente, `valid_until=FAR_FUTURE`); `ValidateAccessUseCase` sin rama RECURRING; `IssueResidentPassesUseCase` emite EVENT + `residentPass=true`; BR-04 solo se evalúa sobre invitaciones ACTIVE (regla de creación, no auditoría). Mobile pendiente. |
 
 ### Fase 17 — Alta administrativa (US-03 v2)
 

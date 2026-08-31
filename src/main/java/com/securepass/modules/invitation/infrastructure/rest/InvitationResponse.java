@@ -6,8 +6,6 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 
 import java.time.Instant;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.UUID;
 
 public record InvitationResponse(
@@ -23,9 +21,6 @@ public record InvitationResponse(
         String notes,
         Instant validFrom,
         Instant validUntil,
-        List<Integer> weekdays,
-        LocalTime dailyFrom,
-        LocalTime dailyUntil,
         int maxUses,
         int usedCount,
         String qrToken,
@@ -38,7 +33,6 @@ public record InvitationResponse(
                 inv.type(), inv.status(),
                 inv.guestName(), inv.guestDocument(), inv.companions(), inv.notes(),
                 inv.validFrom(), inv.validUntil(),
-                inv.weekdays(), inv.dailyFrom(), inv.dailyUntil(),
                 inv.maxUses(), inv.usedCount(), qrToken, shareUrl);
     }
 

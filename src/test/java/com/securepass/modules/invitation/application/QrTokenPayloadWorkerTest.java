@@ -1,9 +1,9 @@
 package com.securepass.modules.invitation.application;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,7 +14,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class QrTokenPayloadWorkerTest {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    // Spring Boot default: FAIL_ON_UNKNOWN_PROPERTIES=false. Replicamos aca
+    // para blindar la tolerancia legacy (ver JavaDoc de QrTokenPayload).
+    private final ObjectMapper mapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     @Test
     void workerHelperConstruyeShapeMinimo() {
@@ -37,9 +40,8 @@ class QrTokenPayloadWorkerTest {
         QrTokenPayload p = QrTokenPayload.worker(
                 1, "kid-1", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
         String json = mapper.writeValueAsString(p);
-        // No debe emitir los campos de invitacion (l, i, t, f, u, m, w, df, du).
         assertThat(json).doesNotContain("\"l\":", "\"i\":", "\"t\":", "\"f\":",
-                "\"u\":", "\"m\":", "\"w\":", "\"df\":", "\"du\":");
+                "\"u\":", "\"m\":");
         assertThat(json).contains("\"st\":\"W\"", "\"s\":");
     }
 
@@ -49,7 +51,7 @@ class QrTokenPayloadWorkerTest {
         UUID nbh = UUID.randomUUID();
         assertThatThrownBy(() -> new QrTokenPayload(
                 1, "kid-1", jti, nbh, "W", null,
-                null, null, null, null, null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("sub requerido");
     }
@@ -61,7 +63,7 @@ class QrTokenPayloadWorkerTest {
         UUID user = UUID.randomUUID();
         assertThatThrownBy(() -> new QrTokenPayload(
                 1, "kid-1", jti, nbh, "W", user,
-                UUID.randomUUID(), null, null, null, null, null, null, null, null))
+                UUID.randomUUID(), null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no aplican");
     }
@@ -72,7 +74,7 @@ class QrTokenPayloadWorkerTest {
         UUID nbh = UUID.randomUUID();
         assertThatThrownBy(() -> new QrTokenPayload(
                 1, "kid-1", jti, nbh, "X", null,
-                null, null, null, null, null, null, null, null, null))
+                null, null, null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("subType desconocido");
     }
@@ -81,10 +83,9 @@ class QrTokenPayloadWorkerTest {
     void invitacionSigueRequerida() {
         UUID jti = UUID.randomUUID();
         UUID nbh = UUID.randomUUID();
-        // Sin subType: forma invitacion. Falta invitationId -> rechaza.
         assertThatThrownBy(() -> new QrTokenPayload(
                 1, "kid-1", jti, nbh, null, null,
-                UUID.randomUUID(), null, "S", 1L, 2L, 1, null, null, null))
+                UUID.randomUUID(), null, "S", 1L, 2L, 1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("invitationId requerido");
     }
@@ -96,10 +97,9 @@ class QrTokenPayloadWorkerTest {
         QrTokenPayload p = new QrTokenPayload(
                 1, "kid-1", jti, nbh, null, null,
                 UUID.randomUUID(), UUID.randomUUID(),
-                "R", 100L, 200L, 5,
-                List.of(1, 3, 5), "08:00", "12:00");
+                "E", 100L, 200L, 5);
         assertThat(p.subType()).isNull();
-        assertThat(p.type()).isEqualTo("R");
+        assertThat(p.type()).isEqualTo("E");
     }
 
     @Test
@@ -107,9 +107,35 @@ class QrTokenPayloadWorkerTest {
         QrTokenPayload p = new QrTokenPayload(
                 1, "kid-1", UUID.randomUUID(), UUID.randomUUID(), null, null,
                 UUID.randomUUID(), UUID.randomUUID(),
-                "S", 1L, 2L, 1, null, null, null);
+                "S", 1L, 2L, 1);
         String json = mapper.writeValueAsString(p);
         assertThat(json).doesNotContain("\"st\":", "\"s\":");
         assertThat(json).contains("\"i\":", "\"l\":", "\"t\":\"S\"");
+    }
+
+    // WBS-127: tolerancia PERMANENTE al valor legacy type="R" y a campos w/df/du
+    // en payloads pre-V17. El constructor acepta "R"; Jackson descarta w/df/du
+    // silenciosamente (FAIL_ON_UNKNOWN_PROPERTIES=false por default en Spring
+    // Boot). Sacar esta tolerancia rompe los QR permanentes de residentes que
+    // no reabran la app tras la migracion.
+    @Test
+    void tokenPreV17ConTypeRParseaYIgnoraCamposDeFranja() throws Exception {
+        UUID jti = UUID.randomUUID();
+        UUID nbh = UUID.randomUUID();
+        UUID lot = UUID.randomUUID();
+        UUID inv = UUID.randomUUID();
+        String legacyJson = "{"
+                + "\"v\":1,\"k\":\"kid-1\","
+                + "\"j\":\"" + jti + "\",\"n\":\"" + nbh + "\","
+                + "\"l\":\"" + lot + "\",\"i\":\"" + inv + "\","
+                + "\"t\":\"R\",\"f\":1,\"u\":2,\"m\":1,"
+                + "\"w\":[1,2,3],\"df\":\"08:00\",\"du\":\"18:00\""
+                + "}";
+
+        QrTokenPayload p = mapper.readValue(legacyJson, QrTokenPayload.class);
+
+        assertThat(p.type()).isEqualTo("R");
+        assertThat(p.invitationId()).isEqualTo(inv);
+        assertThat(p.maxUses()).isEqualTo(1);
     }
 }

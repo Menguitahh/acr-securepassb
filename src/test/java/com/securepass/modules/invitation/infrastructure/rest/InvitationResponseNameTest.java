@@ -43,6 +43,6 @@ class InvitationResponseNameTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 0, null,
                 NOW.minusSeconds(60), NOW.plusSeconds(3600),
-                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, NOW);
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW);
     }
 }

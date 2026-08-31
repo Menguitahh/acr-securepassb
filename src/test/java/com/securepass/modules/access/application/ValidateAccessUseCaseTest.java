@@ -20,9 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -85,13 +83,10 @@ class ValidateAccessUseCaseTest {
     }
 
     private QrTokenPayload payload(Instant validFrom, Instant validUntil, int maxUses, InvitationType type) {
-        boolean r = type == InvitationType.RECURRING;
         return new QrTokenPayload(1, "kid-1", jti, neighborhoodId,
                 null, null,
                 lotId, invitationId,
-                type.code(), validFrom.getEpochSecond(), validUntil.getEpochSecond(), maxUses,
-                r ? java.util.List.of(1, 2, 3, 4, 5, 6, 7) : null,
-                r ? "00:00" : null, r ? "23:59" : null);
+                type.code(), validFrom.getEpochSecond(), validUntil.getEpochSecond(), maxUses);
     }
 
     private Invitation singleInvitation(InvitationStatus status, int usedCount) {
@@ -101,7 +96,7 @@ class ValidateAccessUseCaseTest {
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, status,
                 "Maria Lopez", "30123456", 2, null,
-                from, until, null, null, null,
+                from, until,
                 1, usedCount, "kid-1", jti, false, NOW);
     }
 
@@ -181,7 +176,7 @@ class ValidateAccessUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "X", "30123456", 0, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)),
-                null, null, null, 1, 0, "kid-1", UUID.randomUUID(), false, NOW);
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW);
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
@@ -262,15 +257,13 @@ class ValidateAccessUseCaseTest {
         Instant until = NOW.plus(Duration.ofDays(30));
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
+                InvitationType.EVENT, InvitationStatus.ACTIVE,
                 "Residente", "00000000", 0, null,
                 from, until,
-                List.of(1, 2, 3, 4, 5, 6, 7),
-                LocalTime.of(0, 0), LocalTime.of(23, 59),
                 1, 0, "kid-1", jti, true, NOW);
         stubHappyPath(inv);
         when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
-        String token = signedToken(payload(from, until, 1, InvitationType.RECURRING));
+        String token = signedToken(payload(from, until, 1, InvitationType.EVENT));
 
         AccessDecision decision = useCase.validate(token, NOW);
 
@@ -284,16 +277,14 @@ class ValidateAccessUseCaseTest {
         Instant until = NOW.plus(Duration.ofDays(30));
         Invitation inv = new Invitation(
                 invitationId, neighborhoodId, lotId, createdBy,
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
+                InvitationType.EVENT, InvitationStatus.ACTIVE,
                 "Residente", "00000000", 0, null,
                 from, until,
-                List.of(1, 2, 3, 4, 5, 6, 7),
-                LocalTime.of(0, 0), LocalTime.of(23, 59),
                 1, 0, "kid-1", jti, true, NOW);
         when(signingKeys.findByKid(neighborhoodId, "kid-1")).thenReturn(Optional.of(signingKey));
         when(invitations.findById(invitationId)).thenReturn(Optional.of(inv));
         when(lots.find(lotId)).thenReturn(Optional.of(new LotSnapshot(lotId, "M4-L12", LotStatus.SUSPENDED, TZ)));
-        String token = signedToken(payload(from, until, 1, InvitationType.RECURRING));
+        String token = signedToken(payload(from, until, 1, InvitationType.EVENT));
 
         AccessDecision decision = useCase.validate(token, NOW);
 
@@ -308,7 +299,7 @@ class ValidateAccessUseCaseTest {
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "X", "30123456", 0, null,
-                from, until, null, null, null,
+                from, until,
                 1, 0, "kid-1", jti, false, NOW);
         stubHappyPath(inv);
         String token = signedToken(payload(from, until, 1, InvitationType.SINGLE));
@@ -326,7 +317,7 @@ class ValidateAccessUseCaseTest {
                 invitationId, neighborhoodId, lotId, createdBy,
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "X", "30123456", 0, null,
-                from, until, null, null, null,
+                from, until,
                 1, 0, "kid-1", jti, false, NOW);
         stubHappyPath(inv);
         String token = signedToken(payload(from, until, 1, InvitationType.SINGLE));
@@ -345,46 +336,6 @@ class ValidateAccessUseCaseTest {
         AccessDecision decision = useCase.validate(token, NOW);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED));
-    }
-
-    @Test
-    void outOfScheduleCuandoRecurringFueraDeFranja() {
-        Instant from = NOW.minus(Duration.ofDays(1));
-        Instant until = NOW.plus(Duration.ofDays(30));
-        Invitation inv = new Invitation(
-                invitationId, neighborhoodId, lotId, createdBy,
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "Empleada", "30123456", 0, null,
-                from, until,
-                List.of(1, 2, 3, 4, 5),
-                LocalTime.of(0, 0), LocalTime.of(1, 0),
-                10, 0, "kid-1", jti, false, NOW);
-        stubHappyPath(inv);
-        String token = signedToken(payload(from, until, 10, InvitationType.RECURRING));
-
-        AccessDecision decision = useCase.validate(token, NOW);
-
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE));
-    }
-
-    @Test
-    void allowedCuandoRecurringDentroDeFranja() {
-        Instant from = NOW.minus(Duration.ofDays(1));
-        Instant until = NOW.plus(Duration.ofDays(30));
-        Invitation inv = new Invitation(
-                invitationId, neighborhoodId, lotId, createdBy,
-                InvitationType.RECURRING, InvitationStatus.ACTIVE,
-                "Empleada", "30123456", 0, null,
-                from, until,
-                List.of(1, 2, 3, 4, 5, 6, 7),
-                LocalTime.of(0, 0), LocalTime.of(23, 59),
-                10, 0, "kid-1", jti, false, NOW);
-        stubHappyPath(inv);
-        String token = signedToken(payload(from, until, 10, InvitationType.RECURRING));
-
-        AccessDecision decision = useCase.validate(token, NOW);
-
-        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
 
     @Test
@@ -442,7 +393,6 @@ class ValidateAccessUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.USED,
                 "X", "30123456", 0, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)),
-                null, null, null,
                 1, 0, "kid-1", jti, false, NOW);
         stubHappyPath(inconsistente);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));

@@ -99,7 +99,7 @@ class SyncAccessFirstCapturedWinsTest {
 
         token = issuer.issue(new QrTokenIssuer.IssueCommand(
                 neighborhoodId, lotId, invitationId, jti, InvitationType.SINGLE,
-                validFrom, validUntil, 1, null, null, null));
+                validFrom, validUntil, 1));
     }
 
     @Test

@@ -131,11 +131,10 @@ class FamilyMemberCascadeRevokeTest {
         jdbc.update("""
                 INSERT INTO invitations (
                     id, neighborhood_id, lot_id, created_by, type, status, guest_name,
-                    guest_document, valid_from, valid_until, weekdays, daily_from, daily_until,
+                    guest_document, valid_from, valid_until,
                     max_uses, used_count, token_kid, resident_pass
-                ) VALUES (?, ?, ?, ?, 'RECURRING', 'ACTIVE', 'Residente', '00000000',
+                ) VALUES (?, ?, ?, ?, 'EVENT', 'ACTIVE', 'Residente', '00000000',
                           now() - interval '1 hour', '2099-12-31'::timestamptz,
-                          ARRAY[1,2,3,4,5,6,7]::smallint[], '00:00'::time, '23:59:59'::time,
                           1, 0, 'kid-pass', TRUE)
                 """, id, neighborhoodId, lotId, userId);
     }
