@@ -1492,6 +1492,97 @@
         }
       }
     },
+    "/api/v1/admin/metrics/traffic" : {
+      "get" : {
+        "tags" : [
+          "admin-metrics-controller"
+        ],
+        "operationId" : "traffic",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TrafficResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/metrics/overview" : {
+      "get" : {
+        "tags" : [
+          "admin-metrics-controller"
+        ],
+        "operationId" : "overview",
+        "parameters" : [
+          {
+            "name" : "date",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "date"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/metrics/overstays" : {
+      "get" : {
+        "tags" : [
+          "admin-metrics-controller"
+        ],
+        "operationId" : "overstays",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OverstaysResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access/revoked" : {
       "get" : {
         "tags" : [
@@ -3046,13 +3137,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "nonEmpty" : {
             "type" : "boolean"
           },
           "scheduleBundled" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }
@@ -3371,6 +3462,118 @@
           },
           "active" : {
             "type" : "boolean"
+          }
+        }
+      },
+      "Bucket" : {
+        "type" : "object",
+        "properties" : {
+          "start" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "in" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "out" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "TrafficResponse" : {
+        "type" : "object",
+        "properties" : {
+          "from" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "bucket" : {
+            "type" : "string"
+          },
+          "buckets" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Bucket"
+            }
+          }
+        }
+      },
+      "OverviewResponse" : {
+        "type" : "object",
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "currentOccupancy" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "allowedIn" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "allowedOut" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "denied" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "denialsByReason" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          }
+        }
+      },
+      "Overstay" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "subjectName" : {
+            "type" : "string"
+          },
+          "subjectDocument" : {
+            "type" : "string"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "enteredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "expectedUntil" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "minutesElapsed" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "OverstaysResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Overstay"
+            }
           }
         }
       },

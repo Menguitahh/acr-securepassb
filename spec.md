@@ -1635,10 +1635,10 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
 | 46 | Shell del admin web | `securepassf` | `feature/admin-shell-layout` | — | Next.js App Router; sidebar; auth con el mismo JWT; ruta protegida por rol `ADMIN`. |
-| 47 | Métricas de ocupación | ambos | `feature/admin-occupancy-metrics` | US-28 | Ocupación actual con refresco de 30 s; consulta usando `idx_logs_open_stay`. |
-| 48 | Afluencia por hora | ambos | `feature/admin-traffic-metrics` | US-29 | Gráfico por buckets de hora; rango configurable. |
+| 47 | Métricas de ocupación | ambos | `feature/admin-metrics` | US-28 | **Backend cerrado.** `GET /admin/metrics/overview?date=<opcional>`: ocupación actual (stays abiertas), ingresos/egresos ALLOWED y denegados con breakdown por reason del día, evaluados en la tz del barrio. Aislamiento por barrio via JWT (no hay param). Frontend pendiente. |
+| 48 | Afluencia por hora | ambos | `feature/admin-metrics` | US-29 | **Backend cerrado.** `GET /admin/metrics/traffic?from=&to=`: buckets de hora con `in`/`out` de ingresos/egresos ALLOWED. Buckets alineados a la tz del barrio (test con `Asia/Kolkata` UTC+5:30 blinda el fix). Clamp de rango a 90 días → 422 `traffic-range`. Frontend pendiente. |
 | 49 | Accesos denegados | `securepassf` | `feature/admin-denied-access-view` | US-30 | Agrupación por motivo con drill-down al log. |
-| 50 | Alertas de permanencia | ambos | `feature/admin-overstay-alerts` | US-31 | BR-08; listado ordenado por horas transcurridas. |
+| 50 | Alertas de permanencia | ambos | `feature/admin-metrics` | US-31 | **Backend cerrado.** `GET /admin/metrics/overstays`: stays abiertas con `entered_at + neighborhoods.stay_alert_minutes < now()` (BR-08), ordenado por `entered_at` ASC (más viejas primero). Shape: `{items: [{stayId, subjectName, subjectDocument, lotCode, enteredAt, expectedUntil, minutesElapsed}]}`. Aislamiento por JWT. Frontend pendiente. |
 | 51 | Padrón en web | `securepassf` | `feature/admin-registry-view` | US-05, US-06, US-08 | ABM de lotes y miembros; suspensión de lote con confirmación. |
 | 52 | Export de bitácora | ambos | `feature/admin-audit-export` | US-32 | CSV por rango; la exportación queda auditada. |
 | 53 | Bitácora de turnos | ambos | `feature/admin-shift-log` | US-33 | Turnos con guardia, garita, cantidad de accesos y nota de entrega. |
