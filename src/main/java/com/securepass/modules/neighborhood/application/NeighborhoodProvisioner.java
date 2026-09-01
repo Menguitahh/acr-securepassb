@@ -13,6 +13,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.UUID;
@@ -40,7 +42,6 @@ public class NeighborhoodProvisioner {
     private static final Pattern DNI_RX = Pattern.compile("^\\d{7,8}$");
     private static final Pattern EMAIL_RX = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final String DEFAULT_GATE_NAME = "Principal";
-    private static final String DEFAULT_TIMEZONE = "America/Argentina/Mendoza";
 
     private final JdbcClient jdbc;
     private final SigningKeyIssuer signingKeyIssuer;
@@ -164,7 +165,12 @@ public class NeighborhoodProvisioner {
             if (!DNI_RX.matcher(adminDni).matches()) {
                 throw new IllegalArgumentException("adminDni debe tener 7 u 8 digitos");
             }
-            timezone = (timezone == null || timezone.isBlank()) ? DEFAULT_TIMEZONE : timezone.trim();
+            timezone = requireNonBlank(timezone, "timezone").trim();
+            try {
+                ZoneId.of(timezone);
+            } catch (DateTimeException e) {
+                throw new IllegalArgumentException("timezone invalido (no reconocido por tzdata): " + timezone);
+            }
             gateName = (gateName == null || gateName.isBlank()) ? DEFAULT_GATE_NAME : gateName.trim();
         }
 

@@ -58,7 +58,7 @@ class LoginUseCaseTest {
     void loginExitosoDevuelveTokensYPerfil() {
         when(users.findByIdentifier("juan@mail.com")).thenReturn(Optional.of(activeUser));
         when(profiles.summarize(userId)).thenReturn(new UserProfileSummary(
-                neighborhoodId, List.of(Role.RESIDENT_OWNER), List.of()));
+                neighborhoodId, "America/Argentina/Mendoza", List.of(Role.RESIDENT_OWNER), List.of()));
 
         LoginUseCase.Result result = useCase.login("juan@mail.com", RAW_PASSWORD);
 
@@ -67,6 +67,7 @@ class LoginUseCaseTest {
         assertThat(success.userId()).isEqualTo(userId);
         assertThat(success.fullName()).isEqualTo("Juan Perez");
         assertThat(success.neighborhoodId()).isEqualTo(neighborhoodId);
+        assertThat(success.neighborhoodTimezone()).isEqualTo("America/Argentina/Mendoza");
         assertThat(success.roles()).containsExactly(Role.RESIDENT_OWNER);
         assertThat(success.accessToken().split("\\.")).hasSize(3);
         assertThat(success.refreshToken()).isNotBlank();
@@ -77,7 +78,7 @@ class LoginUseCaseTest {
     @Test
     void trimmeaIdentifierAntesDeBuscar() {
         when(users.findByIdentifier("juan@mail.com")).thenReturn(Optional.of(activeUser));
-        when(profiles.summarize(any())).thenReturn(new UserProfileSummary(null, List.of(), List.of()));
+        when(profiles.summarize(any())).thenReturn(new UserProfileSummary(null, null, List.of(), List.of()));
 
         useCase.login("  juan@mail.com  ", RAW_PASSWORD);
 

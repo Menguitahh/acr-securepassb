@@ -22,17 +22,21 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
     @Override
     public UserProfileSummary summarize(UUID userId) {
         List<MembershipRow> memberships = jdbc.sql("""
-                SELECT neighborhood_id, role FROM memberships
-                 WHERE user_id = :uid AND active = TRUE
-                 ORDER BY created_at ASC
+                SELECT m.neighborhood_id, m.role, n.timezone
+                  FROM memberships m
+                  JOIN neighborhoods n ON n.id = m.neighborhood_id
+                 WHERE m.user_id = :uid AND m.active = TRUE
+                 ORDER BY m.created_at ASC
                 """)
                 .param("uid", userId)
                 .query((rs, i) -> new MembershipRow(
                         rs.getObject("neighborhood_id", UUID.class),
-                        Role.valueOf(rs.getString("role"))))
+                        Role.valueOf(rs.getString("role")),
+                        rs.getString("timezone")))
                 .list();
 
         UUID neighborhoodId = memberships.isEmpty() ? null : memberships.get(0).neighborhoodId();
+        String neighborhoodTimezone = memberships.isEmpty() ? null : memberships.get(0).timezone();
         List<Role> roles = memberships.stream().map(MembershipRow::role).distinct().toList();
 
         // Reads sobre lot_permissions (ver FamilyMemberJdbcRepository para el mapeo).
@@ -54,8 +58,8 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
                         rs.getBoolean("is_owner")))
                 .list();
 
-        return new UserProfileSummary(neighborhoodId, roles, lots);
+        return new UserProfileSummary(neighborhoodId, neighborhoodTimezone, roles, lots);
     }
 
-    private record MembershipRow(UUID neighborhoodId, Role role) {}
+    private record MembershipRow(UUID neighborhoodId, Role role, String timezone) {}
 }

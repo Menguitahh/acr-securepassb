@@ -1,5 +1,6 @@
 package com.securepass.modules.identity.application;
 
+import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
 import com.securepass.shared.security.JwtService;
 import com.securepass.shared.security.RefreshTokenGenerator;
@@ -53,12 +54,31 @@ public class RefreshTokenUseCase {
         JwtService.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
         String newRefresh = generator.generate();
         store.save(newRefresh, consumed.familyId(), consumed.userId());
-        return new Success(access.token(), newRefresh, access.expiresIn());
+        return new Success(
+                access.token(),
+                newRefresh,
+                access.expiresIn(),
+                user.id(),
+                user.fullName(),
+                summary.neighborhoodId(),
+                summary.neighborhoodTimezone(),
+                summary.roles(),
+                summary.lots());
     }
 
     public sealed interface Result permits Success, Failure {}
 
-    public record Success(String accessToken, String refreshToken, long expiresIn) implements Result {}
+    public record Success(
+            String accessToken,
+            String refreshToken,
+            long expiresIn,
+            UUID userId,
+            String fullName,
+            UUID neighborhoodId,
+            String neighborhoodTimezone,
+            List<Role> roles,
+            List<LotSummary> lots
+    ) implements Result {}
 
     public enum Failure implements Result {
         INVALID_REFRESH

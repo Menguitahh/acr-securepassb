@@ -47,7 +47,7 @@ class NeighborhoodProvisionerTest {
     private NeighborhoodProvisioner.Command validCommand(String slug) {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         return new NeighborhoodProvisioner.Command(
-                "Barrio " + suffix, slug, null, null,
+                "Barrio " + suffix, slug, "America/Argentina/Mendoza", null,
                 "admin-" + suffix + "@t.com", "Admin " + suffix,
                 "30" + (100000 + Math.abs(suffix.hashCode() % 900000)));
     }
@@ -121,12 +121,12 @@ class NeighborhoodProvisionerTest {
         // fallaba flakemente cuando el hash caia bajo (CI 2026-08-29).
         String dniSuffix = String.format("%03d", Math.abs(suffix.hashCode() % 1000));
         provisioner.provision(new NeighborhoodProvisioner.Command(
-                name, "n1-" + suffix, null, null,
+                name, "n1-" + suffix, "America/Argentina/Mendoza", null,
                 "a@t.com".replace("@", "-" + suffix + "@"), "A", "30111" + dniSuffix));
 
         // Mismo nombre en mayusculas -> tambien colisiona.
         NeighborhoodProvisioner.Command cmd2 = new NeighborhoodProvisioner.Command(
-                name.toUpperCase(), "n2-" + suffix, null, null,
+                name.toUpperCase(), "n2-" + suffix, "America/Argentina/Mendoza", null,
                 "b@t.com".replace("@", "-" + suffix + "@"), "B", "30222" + dniSuffix);
         assertThatThrownBy(() -> provisioner.provision(cmd2))
                 .isInstanceOf(NeighborhoodAlreadyExistsException.class)
@@ -160,7 +160,7 @@ class NeighborhoodProvisionerTest {
     @Test
     void command_valida_slug_regex() {
         assertThatThrownBy(() -> new NeighborhoodProvisioner.Command(
-                "X", "MAYUS", null, null, "a@t.com", "A", "30111222"))
+                "X", "MAYUS", "America/Argentina/Mendoza", null, "a@t.com", "A", "30111222"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("slug invalido");
     }
@@ -168,7 +168,7 @@ class NeighborhoodProvisionerTest {
     @Test
     void command_valida_dni_regex() {
         assertThatThrownBy(() -> new NeighborhoodProvisioner.Command(
-                "X", "x", null, null, "a@t.com", "A", "123"))
+                "X", "x", "America/Argentina/Mendoza", null, "a@t.com", "A", "123"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("adminDni");
     }
@@ -176,16 +176,38 @@ class NeighborhoodProvisionerTest {
     @Test
     void command_valida_email() {
         assertThatThrownBy(() -> new NeighborhoodProvisioner.Command(
-                "X", "x", null, null, "no-email", "A", "30111222"))
+                "X", "x", "America/Argentina/Mendoza", null, "no-email", "A", "30111222"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("adminEmail");
     }
 
     @Test
-    void command_defaults_timezone_y_gate() {
+    void command_default_gate() {
         NeighborhoodProvisioner.Command cmd = new NeighborhoodProvisioner.Command(
-                "X", "x", null, null, "a@t.com", "A", "30111222");
-        assertThat(cmd.timezone()).isEqualTo("America/Argentina/Mendoza");
+                "X", "x", "America/Argentina/Mendoza", null, "a@t.com", "A", "30111222");
         assertThat(cmd.gateName()).isEqualTo("Principal");
+    }
+
+    @Test
+    void command_exige_timezone_explicita() {
+        // Sin default: no queremos que un barrio de otra provincia herede
+        // silenciosamente Mendoza y evalue RECURRING con la tz equivocada.
+        assertThatThrownBy(() -> new NeighborhoodProvisioner.Command(
+                "X", "x", null, null, "a@t.com", "A", "30111222"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("timezone");
+
+        assertThatThrownBy(() -> new NeighborhoodProvisioner.Command(
+                "X", "x", "  ", null, "a@t.com", "A", "30111222"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("timezone");
+    }
+
+    @Test
+    void command_rechaza_timezone_invalida() {
+        assertThatThrownBy(() -> new NeighborhoodProvisioner.Command(
+                "X", "x", "Not/A_Zone", null, "a@t.com", "A", "30111222"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("timezone invalido");
     }
 }

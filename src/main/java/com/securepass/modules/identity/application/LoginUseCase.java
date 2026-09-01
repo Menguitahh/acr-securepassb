@@ -62,6 +62,7 @@ public class LoginUseCase {
                 user.id(),
                 user.fullName(),
                 summary.neighborhoodId(),
+                summary.neighborhoodTimezone(),
                 summary.roles(),
                 summary.lots()
         );
@@ -76,6 +77,7 @@ public class LoginUseCase {
             UUID userId,
             String fullName,
             UUID neighborhoodId,
+            String neighborhoodTimezone,
             List<Role> roles,
             List<LotSummary> lots
     ) implements Result {}

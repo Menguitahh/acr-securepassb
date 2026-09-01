@@ -2,6 +2,7 @@ package com.securepass.modules.identity.infrastructure.rest;
 
 import com.securepass.modules.identity.application.LoginUseCase;
 import com.securepass.modules.identity.application.LotSummary;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +22,7 @@ public record LoginResponse(
                         s.userId(),
                         s.fullName(),
                         s.neighborhoodId(),
+                        s.neighborhoodTimezone(),
                         s.roles().stream().map(Enum::name).toList(),
                         s.lots().stream().map(LotPayload::from).toList()));
     }
@@ -29,6 +31,9 @@ public record LoginResponse(
             UUID id,
             String fullName,
             UUID neighborhoodId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "IANA timezone del barrio, ej. America/Argentina/Mendoza. Fuente unica para evaluar ScheduleWindow client-side.")
+            String neighborhoodTimezone,
             List<String> roles,
             List<LotPayload> lots
     ) {}

@@ -2448,6 +2448,24 @@
           }
         }
       },
+      "LotPayload" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "canInvite" : {
+            "type" : "boolean"
+          },
+          "isOwner" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "RefreshResponse" : {
         "type" : "object",
         "properties" : {
@@ -2460,6 +2478,44 @@
           "expiresIn" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/UserPayload"
+          }
+        }
+      },
+      "UserPayload" : {
+        "required" : [
+          "neighborhoodTimezone"
+        ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodTimezone" : {
+            "type" : "string",
+            "description" : "IANA timezone del barrio, ej. America/Argentina/Mendoza. Fuente unica para evaluar ScheduleWindow client-side."
+          },
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "lots" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LotPayload"
+            }
           }
         }
       },
@@ -2493,52 +2549,6 @@
           },
           "user" : {
             "$ref" : "#/components/schemas/UserPayload"
-          }
-        }
-      },
-      "LotPayload" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "code" : {
-            "type" : "string"
-          },
-          "canInvite" : {
-            "type" : "boolean"
-          },
-          "isOwner" : {
-            "type" : "boolean"
-          }
-        }
-      },
-      "UserPayload" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "fullName" : {
-            "type" : "string"
-          },
-          "neighborhoodId" : {
-            "type" : "string",
-            "format" : "uuid"
-          },
-          "roles" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          },
-          "lots" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/LotPayload"
-            }
           }
         }
       },
@@ -3137,13 +3147,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
-            "type" : "boolean"
-          },
           "scheduleBundled" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
+            "type" : "boolean"
+          },
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }

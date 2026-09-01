@@ -52,8 +52,9 @@ class RefreshTokenUseCaseTest {
     void refreshExitosoRotaTokenYPreservaFamilia() {
         when(store.consume("raw")).thenReturn(new RefreshTokenStore.Consumed(familyId, userId));
         when(users.findById(userId)).thenReturn(Optional.of(activeUser));
+        UUID nid = UUID.randomUUID();
         when(profiles.summarize(userId)).thenReturn(
-                new UserProfileSummary(UUID.randomUUID(), List.of(Role.RESIDENT_OWNER), List.of()));
+                new UserProfileSummary(nid, "America/Argentina/Mendoza", List.of(Role.RESIDENT_OWNER), List.of()));
 
         RefreshTokenUseCase.Result result = useCase.refresh("raw");
 
@@ -61,6 +62,10 @@ class RefreshTokenUseCaseTest {
         RefreshTokenUseCase.Success success = (RefreshTokenUseCase.Success) result;
         assertThat(success.accessToken().split("\\.")).hasSize(3);
         assertThat(success.refreshToken()).isNotBlank();
+        assertThat(success.userId()).isEqualTo(userId);
+        assertThat(success.neighborhoodId()).isEqualTo(nid);
+        assertThat(success.neighborhoodTimezone()).isEqualTo("America/Argentina/Mendoza");
+        assertThat(success.roles()).containsExactly(Role.RESIDENT_OWNER);
         verify(store).save(eq(success.refreshToken()), eq(familyId), eq(userId));
         verify(store, never()).revokeFamily(any());
     }
