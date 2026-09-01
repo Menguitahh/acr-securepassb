@@ -71,7 +71,7 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
         jdbc.sql("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (:user, :lot, :type,
-                        jsonb_build_object('can_invite', :canInvite::boolean, 'relation', :relation),
+                        jsonb_build_object('can_invite', :canInvite::boolean, 'relation', :relation::text),
                         :active)
                 """)
                 .param("user", member.userId())
