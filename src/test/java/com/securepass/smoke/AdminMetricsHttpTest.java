@@ -21,6 +21,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -66,15 +68,23 @@ class AdminMetricsHttpTest {
         seedGate(gateA, nbhA);
         seedGate(gateB, nbhB);
 
+        // /admin/metrics/overview agrupa por dia tz-local del barrio. Anclamos
+        // los logs a mediodia del dia tz-local de A (los dos barrios estan en
+        // Mendoza) para que un offset de +/- 1h no cruce medianoche local si
+        // el test corre justo despues de 00:00 en Mendoza. Con Instant.now()
+        // como base, un log de "hace 1h" caia en el dia anterior y el endpoint
+        // (correctamente) lo excluia.
+        ZoneId tz = ZoneId.of("America/Argentina/Mendoza");
+        Instant midDayLocal = LocalDate.now(tz).atTime(12, 0).atZone(tz).toInstant();
+
         // Barrio A: 2 ingresos, 1 egreso, 1 denegado (INVALID_SIGNATURE).
-        Instant now = Instant.now();
-        insertLog(nbhA, gateA, "IN",  "ALLOWED", null, now.minusSeconds(3600));
-        insertLog(nbhA, gateA, "IN",  "ALLOWED", null, now.minusSeconds(1800));
-        insertLog(nbhA, gateA, "OUT", "ALLOWED", null, now.minusSeconds(300));
-        insertLog(nbhA, gateA, "IN",  "DENIED",  "INVALID_SIGNATURE", now.minusSeconds(200));
+        insertLog(nbhA, gateA, "IN",  "ALLOWED", null, midDayLocal.minusSeconds(3600));
+        insertLog(nbhA, gateA, "IN",  "ALLOWED", null, midDayLocal.minusSeconds(1800));
+        insertLog(nbhA, gateA, "OUT", "ALLOWED", null, midDayLocal.minusSeconds(300));
+        insertLog(nbhA, gateA, "IN",  "DENIED",  "INVALID_SIGNATURE", midDayLocal.minusSeconds(200));
         // Barrio B: RUIDO — 5 ingresos que NO tienen que aparecer en A.
         for (int i = 0; i < 5; i++) {
-            insertLog(nbhB, gateB, "IN", "ALLOWED", null, now.minusSeconds(1000 + i));
+            insertLog(nbhB, gateB, "IN", "ALLOWED", null, midDayLocal.minusSeconds(1000 + i));
         }
 
         String jwtAdminA = jwt.issue(adminA, nbhA, List.of(Role.ADMIN), List.of()).token();
