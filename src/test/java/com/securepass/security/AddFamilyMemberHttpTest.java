@@ -167,6 +167,53 @@ class AddFamilyMemberHttpTest {
         assertThat(resp.body()).contains("canInvite");
     }
 
+    // Regresion: user SUSPENDED con password_hash NULL en DB (estado
+    // legitimo de un soft-revoke) hacia reventar el invariante de User al
+    // ser mapeado por findByDocument, y el error se filtraba como 500
+    // "Error interno". El endpoint tiene que traducir a 409 USER_SUSPENDED.
+    @Test
+    void dniDeSuspendedSinHashDevuelve409UserSuspended() throws Exception {
+        UUID suspendedId = UUID.randomUUID();
+        String dni = "55555591";
+        jdbc.update("""
+                INSERT INTO users (id, email, password_hash, full_name, document_number, status)
+                VALUES (?, ?, NULL, 'Sus User', ?, 'SUSPENDED')
+                """, suspendedId, "sus-" + suspendedId + "@t.com", dni);
+
+        String body = """
+                {"fullName":"Nuevo","dni":"%s","birthDate":"%s",
+                 "email":"nuevo@dev.local","canInvite":false}
+                """.formatted(dni, LocalDate.now().minusYears(30));
+
+        HttpResponse<String> resp = post("/api/v1/family/lots/" + lot + "/members", tokenOwner(), body);
+
+        assertThat(resp.statusCode()).isEqualTo(409);
+        assertThat(resp.body()).contains("\"code\":\"USER_SUSPENDED\"");
+        assertThat(resp.body()).contains("\"existingUserId\":\"" + suspendedId + "\"");
+        assertThat(resp.body()).doesNotContain("internal-error");
+    }
+
+    @Test
+    void dniDeDeletedSinHashDevuelve409UserDeleted() throws Exception {
+        UUID deletedId = UUID.randomUUID();
+        String dni = "55555592";
+        jdbc.update("""
+                INSERT INTO users (id, email, password_hash, full_name, document_number, status)
+                VALUES (?, ?, NULL, 'Del User', ?, 'DELETED')
+                """, deletedId, "del-" + deletedId + "@t.com", dni);
+
+        String body = """
+                {"fullName":"Nuevo","dni":"%s","birthDate":"%s",
+                 "email":"nuevo@dev.local","canInvite":false}
+                """.formatted(dni, LocalDate.now().minusYears(30));
+
+        HttpResponse<String> resp = post("/api/v1/family/lots/" + lot + "/members", tokenOwner(), body);
+
+        assertThat(resp.statusCode()).isEqualTo(409);
+        assertThat(resp.body()).contains("\"code\":\"USER_DELETED\"");
+        assertThat(resp.body()).doesNotContain("internal-error");
+    }
+
     // Gate del titular: OWNER de lot no puede agregar en otherLot.
     @Test
     void tituLarSobreLoteAjenoDevuelve403() throws Exception {

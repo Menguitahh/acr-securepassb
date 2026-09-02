@@ -46,9 +46,24 @@ class UserTest {
     }
 
     @Test
-    void rechazaSinPasswordHash() {
+    void rechazaActiveSinPasswordHash() {
         assertThatThrownBy(() -> new User(UUID.randomUUID(), "a@b.com", null, " ", "Ana", null, null, UserStatus.ACTIVE))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new User(UUID.randomUUID(), "a@b.com", null, null, "Ana", null, null, UserStatus.ACTIVE))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aceptaPasswordHashNullEnPendingSuspendedYDeleted() {
+        // Los tres estados no-ACTIVE admiten hash null: PENDING_ACTIVATION
+        // arranca sin hash, y SUSPENDED/DELETED representan el soft-revoke.
+        // Login rechaza cualquier non-ACTIVE, asi que un hash null en estos
+        // estados no habilita acceso.
+        for (UserStatus s : new UserStatus[]{UserStatus.PENDING_ACTIVATION, UserStatus.SUSPENDED, UserStatus.DELETED}) {
+            User u = new User(UUID.randomUUID(), "a@b.com", null, null, "Ana", null, null, s);
+            assertThat(u.status()).isEqualTo(s);
+            assertThat(u.passwordHash()).isNull();
+        }
     }
 
     @Test

@@ -26,11 +26,18 @@ public record User(
     public User {
         if (id == null) throw new IllegalArgumentException("id requerido");
         if (status == null) throw new IllegalArgumentException("status requerido");
-        // v2 WBS-128: PENDING_ACTIVATION arranca con password_hash NULL. Login
-        // rechaza !ACTIVE, y activateWithPassword lo llena al confirmar el token.
-        boolean pending = status == UserStatus.PENDING_ACTIVATION;
-        if (!pending && (passwordHash == null || passwordHash.isBlank())) {
-            throw new IllegalArgumentException("passwordHash requerido salvo en PENDING_ACTIVATION");
+        // password_hash requerido SOLO para ACTIVE. Los otros estados admiten
+        // null:
+        //   PENDING_ACTIVATION arranca sin hash (activateWithPassword lo llena).
+        //   SUSPENDED puede tener o no (una suspension puede o no rotar la
+        //     credencial; ambos casos son validos y coexisten en la base).
+        //   DELETED admite null porque el soft-delete borra credenciales para
+        //     revocar acceso incluso ante un rollback futuro de estado.
+        // LoginUseCase rechaza cualquier status != ACTIVE, asi que un ACTIVE
+        // sin hash es el unico estado que no puede loguear y por eso no tiene
+        // sentido: es la unica combinacion que sigue bloqueada.
+        if (status == UserStatus.ACTIVE && (passwordHash == null || passwordHash.isBlank())) {
+            throw new IllegalArgumentException("passwordHash requerido para ACTIVE");
         }
         if (fullName == null || fullName.isBlank()) {
             throw new IllegalArgumentException("fullName requerido");

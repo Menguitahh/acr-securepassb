@@ -200,7 +200,12 @@ class AddFamilyMemberUseCaseTest {
 
     @Test
     void dniExistenteSuspendidoRechaza() {
-        User existing = new User(UUID.randomUUID(), "maria@dev.local", null, "hash",
+        // password_hash=null refleja el estado real del row en DB: una
+        // suspension puede haber revocado la credencial. El invariante de
+        // User admite null para SUSPENDED. Si esto lleva "hash", el test
+        // se convierte en un falso positivo respecto al flujo real que
+        // salio de DB -> dominio.
+        User existing = new User(UUID.randomUUID(), "maria@dev.local", null, null,
                 "Maria", "30111222", null, UserStatus.SUSPENDED);
         when(users.findByDocument("30111222")).thenReturn(Optional.of(existing));
 
@@ -217,7 +222,10 @@ class AddFamilyMemberUseCaseTest {
 
     @Test
     void dniExistenteEliminadoRechaza() {
-        User existing = new User(UUID.randomUUID(), "maria@dev.local", null, "hash",
+        // Idem SUSPENDED: soft-delete tipicamente borra password_hash para
+        // revocar acceso ante cualquier rollback de estado. Instanciamos con
+        // null para reflejar la realidad.
+        User existing = new User(UUID.randomUUID(), "maria@dev.local", null, null,
                 "Maria", "30111222", null, UserStatus.DELETED);
         when(users.findByDocument("30111222")).thenReturn(Optional.of(existing));
 
