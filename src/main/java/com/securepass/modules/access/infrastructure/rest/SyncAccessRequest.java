@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
@@ -25,11 +26,13 @@ public record SyncAccessRequest(
             @NotNull Direction direction,
             @Min(0) @Max(20) int companions,
             @NotNull Instant capturedAt,
-            String localDecision
+            String localDecision,
+            @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber
     ) {
         public SyncAccessUseCase.Event toEvent() {
             return new SyncAccessUseCase.Event(
-                    clientEventId, token, gateId, direction, companions, capturedAt, localDecision);
+                    clientEventId, token, gateId, direction, companions, capturedAt,
+                    localDecision, documentNumber);
         }
     }
 

@@ -2936,6 +2936,10 @@
           },
           "localDecision" : {
             "type" : "string"
+          },
+          "documentNumber" : {
+            "pattern" : "^[0-9]{7,8}$",
+            "type" : "string"
           }
         }
       },
@@ -2968,10 +2972,27 @@
             "format" : "uuid"
           },
           "result" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [
+              "ALLOWED",
+              "DENIED",
+              "ENROLLED"
+            ]
           },
           "reason" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [
+              "INVALID_SIGNATURE",
+              "NOT_YET_VALID",
+              "EXPIRED",
+              "ALREADY_USED",
+              "REVOKED",
+              "OUT_OF_SCHEDULE",
+              "LOT_SUSPENDED",
+              "REPLAY",
+              "DOCUMENT_MISMATCH",
+              "UNKNOWN"
+            ]
           },
           "logId" : {
             "type" : "string",
@@ -3150,10 +3171,10 @@
           "nonEmpty" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }

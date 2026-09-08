@@ -18,9 +18,11 @@ public class SyncAccessUseCase {
     public static final int MAX_BATCH = 50;
 
     private final RecordAccessAttemptUseCase recorder;
+    private final EnrollGuestUseCase enroller;
 
-    public SyncAccessUseCase(RecordAccessAttemptUseCase recorder) {
+    public SyncAccessUseCase(RecordAccessAttemptUseCase recorder, EnrollGuestUseCase enroller) {
         this.recorder = recorder;
+        this.enroller = enroller;
     }
 
     public Report sync(UUID neighborhoodId, UUID guardId, List<Event> events) {
@@ -36,21 +38,40 @@ public class SyncAccessUseCase {
 
         List<EventResult> results = new ArrayList<>(ordered.size());
         for (Event ev : ordered) {
-            RecordAccessAttemptUseCase.Result result = recorder.record(new RecordAccessAttemptUseCase.Command(
-                    neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
-                    ev.companions(), ev.capturedAt(), ev.clientEventId(), true));
-
-            AccessLog log = result.log();
-            if (result.decision() instanceof AccessDecision.Allowed) {
-                results.add(new EventResult(
-                        ev.clientEventId(), Outcome.ALLOWED, null, log.id(), null, log.clockSkew()));
-            } else {
-                DenialReason reason = ((AccessDecision.Denied) result.decision()).reason();
-                results.add(new EventResult(
-                        ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew()));
-            }
+            results.add(ev.documentNumber() != null
+                    ? processEnroll(neighborhoodId, guardId, ev)
+                    : processAccess(neighborhoodId, guardId, ev));
         }
         return new Report(results);
+    }
+
+    private EventResult processAccess(UUID neighborhoodId, UUID guardId, Event ev) {
+        RecordAccessAttemptUseCase.Result result = recorder.record(new RecordAccessAttemptUseCase.Command(
+                neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
+                ev.companions(), ev.capturedAt(), ev.clientEventId(), true));
+        AccessLog log = result.log();
+        if (result.decision() instanceof AccessDecision.Allowed) {
+            return new EventResult(
+                    ev.clientEventId(), Outcome.ALLOWED, null, log.id(), null, log.clockSkew());
+        }
+        DenialReason reason = ((AccessDecision.Denied) result.decision()).reason();
+        return new EventResult(
+                ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew());
+    }
+
+    private EventResult processEnroll(UUID neighborhoodId, UUID guardId, Event ev) {
+        EnrollmentResult result = enroller.enroll(new EnrollGuestUseCase.Command(
+                neighborhoodId, ev.gateId(), guardId, ev.token(), ev.documentNumber(),
+                ev.clientEventId(), ev.capturedAt(), true));
+        AccessLog log = result.log();
+        if (result instanceof EnrollmentResult.Enrolled ok) {
+            return new EventResult(
+                    ev.clientEventId(), Outcome.ENROLLED, null, log.id(),
+                    ok.enrollment().id(), log.clockSkew());
+        }
+        DenialReason reason = ((EnrollmentResult.Denied) result).reason();
+        return new EventResult(
+                ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew());
     }
 
     public record Event(
@@ -60,7 +81,8 @@ public class SyncAccessUseCase {
             Direction direction,
             int companions,
             Instant capturedAt,
-            String localDecision
+            String localDecision,
+            String documentNumber
     ) {
         public Event {
             if (clientEventId == null) throw new IllegalArgumentException("clientEventId requerido");
@@ -69,10 +91,13 @@ public class SyncAccessUseCase {
             if (direction == null) throw new IllegalArgumentException("direction requerido");
             if (companions < 0) throw new IllegalArgumentException("companions >= 0");
             if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
+            if (documentNumber != null && documentNumber.isBlank()) {
+                throw new IllegalArgumentException("documentNumber vacio");
+            }
         }
     }
 
-    public enum Outcome { ALLOWED, DENIED }
+    public enum Outcome { ALLOWED, DENIED, ENROLLED }
 
     public record EventResult(
             UUID clientEventId,

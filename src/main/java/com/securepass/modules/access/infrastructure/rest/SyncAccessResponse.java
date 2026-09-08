@@ -1,6 +1,8 @@
 package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.modules.access.application.SyncAccessUseCase;
+import com.securepass.modules.access.domain.DenialReason;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.UUID;
@@ -9,8 +11,8 @@ public record SyncAccessResponse(List<EventResult> results) {
 
     public record EventResult(
             UUID clientEventId,
-            String result,
-            String reason,
+            @Schema(implementation = SyncAccessUseCase.Outcome.class) String result,
+            @Schema(implementation = DenialReason.class) String reason,
             UUID logId,
             UUID enrollmentId,
             boolean clockSkew) {}

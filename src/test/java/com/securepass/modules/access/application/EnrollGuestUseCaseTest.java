@@ -121,7 +121,7 @@ class EnrollGuestUseCaseTest {
 
     private EnrollGuestUseCase.Command cmd(String token, String document) {
         return new EnrollGuestUseCase.Command(
-                neighborhoodId, gateId, guardId, token, document, clientEventId, NOW);
+                neighborhoodId, gateId, guardId, token, document, clientEventId, NOW, false);
     }
 
     private void stubKeyOk() {

@@ -20,12 +20,18 @@ import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class EnrollGuestUseCase {
+
+    // ponytail: duplicado de RecordAccessAttemptUseCase.CLOCK_SKEW_THRESHOLD.
+    // Extraer a shared/time cuando aparezca un tercer caller. Con dos el costo
+    // de una constante compartida (y su import) supera el ahorro.
+    static final Duration CLOCK_SKEW_THRESHOLD = Duration.ofMinutes(5);
 
     private final QrTokenCodec codec;
     private final SigningKeyRepository signingKeys;
@@ -113,7 +119,7 @@ public class EnrollGuestUseCase {
                 inv.id(), inv.lotId(),
                 Direction.IN, SubjectType.GUEST, true, null,
                 inv.guestName(), cmd.documentNumber(), inv.companions(),
-                inv.jti(), cmd.capturedAt(), false, false, cmd.clientEventId()));
+                inv.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         stayLifecycle.onAllowed(log, inv); // BR-14
         return new EnrollmentResult.Enrolled(enrollment, log, inv.guestName());
     }
@@ -162,7 +168,7 @@ public class EnrollGuestUseCase {
                 null, null,
                 Direction.IN, SubjectType.SERVICE, true, null,
                 ctx.workerName(), cmd.documentNumber(), 0,
-                p.jti(), cmd.capturedAt(), false, false, cmd.clientEventId()));
+                p.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         // El trabajador no abre stay: no dispara stayLifecycle.
         return new EnrollmentResult.Enrolled(enrollment, log, ctx.workerName());
     }
@@ -173,7 +179,7 @@ public class EnrollGuestUseCase {
                 null, null,
                 Direction.IN, SubjectType.GUEST, false, reason,
                 null, cmd.documentNumber(), 0,
-                null, cmd.capturedAt(), false, false, cmd.clientEventId()));
+                null, cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         return new EnrollmentResult.Denied(reason, log);
     }
 
@@ -183,7 +189,7 @@ public class EnrollGuestUseCase {
                 inv.id(), inv.lotId(),
                 Direction.IN, SubjectType.GUEST, false, reason,
                 null, cmd.documentNumber(), 0,
-                inv.jti(), cmd.capturedAt(), false, false, cmd.clientEventId()));
+                inv.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         return new EnrollmentResult.Denied(reason, log);
     }
 
@@ -193,8 +199,13 @@ public class EnrollGuestUseCase {
                 null, null,
                 Direction.IN, SubjectType.SERVICE, false, reason,
                 null, cmd.documentNumber(), 0,
-                jti, cmd.capturedAt(), false, false, cmd.clientEventId()));
+                jti, cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         return new EnrollmentResult.Denied(reason, log);
+    }
+
+    private static boolean clockSkew(Command cmd) {
+        return cmd.syncedOffline()
+                && Duration.between(cmd.capturedAt(), Instant.now()).abs().compareTo(CLOCK_SKEW_THRESHOLD) > 0;
     }
 
     private EnrollmentResult reconstruct(AccessLog log, UUID neighborhoodId) {
@@ -212,7 +223,8 @@ public class EnrollGuestUseCase {
             String token,
             String documentNumber,
             UUID clientEventId,
-            Instant capturedAt
+            Instant capturedAt,
+            boolean syncedOffline
     ) {
         public Command {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

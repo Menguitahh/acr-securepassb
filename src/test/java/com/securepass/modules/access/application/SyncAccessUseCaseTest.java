@@ -4,6 +4,7 @@ import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
+import com.securepass.modules.access.domain.GuestEnrollment;
 import com.securepass.modules.access.domain.SubjectType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ class SyncAccessUseCaseTest {
     private static final Instant T0 = Instant.parse("2026-08-20T15:00:00Z");
 
     private RecordAccessAttemptUseCase recorder;
+    private EnrollGuestUseCase enroller;
     private SyncAccessUseCase useCase;
 
     private UUID neighborhoodId;
@@ -41,7 +43,8 @@ class SyncAccessUseCaseTest {
     @BeforeEach
     void setUp() {
         recorder = mock(RecordAccessAttemptUseCase.class);
-        useCase = new SyncAccessUseCase(recorder);
+        enroller = mock(EnrollGuestUseCase.class);
+        useCase = new SyncAccessUseCase(recorder, enroller);
         neighborhoodId = UUID.randomUUID();
         guardId = UUID.randomUUID();
         gateId = UUID.randomUUID();
@@ -170,6 +173,94 @@ class SyncAccessUseCaseTest {
         assertThat(r.clockSkew()).isTrue();
     }
 
+    @Test
+    void eventConDocumentNumberRuteaAEnrollerYExponeEnrollmentId() {
+        UUID enrollClientId = UUID.randomUUID();
+        SyncAccessUseCase.Event enrollEv = new SyncAccessUseCase.Event(
+                enrollClientId, "SP1.token", gateId, Direction.IN, 0, T0, "ALLOWED", "30123456");
+        UUID enrollmentId = UUID.randomUUID();
+        UUID logId = UUID.randomUUID();
+        GuestEnrollment ge = new GuestEnrollment(
+                enrollmentId, neighborhoodId, invitationId, "30123456",
+                T0, guardId, gateId);
+        AccessLog log = new AccessLog(
+                logId, neighborhoodId, gateId, guardId, invitationId, lotId,
+                Direction.IN, SubjectType.GUEST, true, null,
+                "Maria", "30123456", 0, jti, T0, true, false, enrollClientId);
+        when(enroller.enroll(any())).thenReturn(new EnrollmentResult.Enrolled(ge, log, "Maria"));
+
+        SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(enrollEv));
+
+        assertThat(report.results()).hasSize(1);
+        SyncAccessUseCase.EventResult r = report.results().get(0);
+        assertThat(r.clientEventId()).isEqualTo(enrollClientId);
+        assertThat(r.result()).isEqualTo(SyncAccessUseCase.Outcome.ENROLLED);
+        assertThat(r.reason()).isNull();
+        assertThat(r.logId()).isEqualTo(logId);
+        assertThat(r.enrollmentId()).isEqualTo(enrollmentId);
+
+        ArgumentCaptor<EnrollGuestUseCase.Command> captor =
+                ArgumentCaptor.forClass(EnrollGuestUseCase.Command.class);
+        verify(enroller).enroll(captor.capture());
+        EnrollGuestUseCase.Command sent = captor.getValue();
+        assertThat(sent.documentNumber()).isEqualTo("30123456");
+        assertThat(sent.syncedOffline()).as("enroll diferido debe marcarse offline").isTrue();
+        assertThat(sent.clientEventId()).isEqualTo(enrollClientId);
+        verify(recorder, org.mockito.Mockito.never()).record(any());
+    }
+
+    @Test
+    void enrollDeniedMapeaADeniedConReasonYSinEnrollmentId() {
+        UUID enrollClientId = UUID.randomUUID();
+        SyncAccessUseCase.Event enrollEv = new SyncAccessUseCase.Event(
+                enrollClientId, "SP1.token", gateId, Direction.IN, 0, T0, "ALLOWED", "99999999");
+        UUID logId = UUID.randomUUID();
+        AccessLog log = new AccessLog(
+                logId, neighborhoodId, gateId, guardId, invitationId, lotId,
+                Direction.IN, SubjectType.GUEST, false, DenialReason.DOCUMENT_MISMATCH,
+                null, "99999999", 0, jti, T0, true, false, enrollClientId);
+        when(enroller.enroll(any()))
+                .thenReturn(new EnrollmentResult.Denied(DenialReason.DOCUMENT_MISMATCH, log));
+
+        SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(enrollEv));
+
+        SyncAccessUseCase.EventResult r = report.results().get(0);
+        assertThat(r.result()).isEqualTo(SyncAccessUseCase.Outcome.DENIED);
+        assertThat(r.reason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        assertThat(r.enrollmentId()).isNull();
+        assertThat(r.logId()).isEqualTo(logId);
+    }
+
+    @Test
+    void batchMixtoAccessYEnrollRuteaCadaUnoALoSuyo() {
+        SyncAccessUseCase.Event access = event(UUID.randomUUID(), T0);
+        SyncAccessUseCase.Event enroll = new SyncAccessUseCase.Event(
+                UUID.randomUUID(), "SP1.enrollTok", gateId, Direction.IN, 0, T0.plusSeconds(1),
+                "ALLOWED", "30123456");
+        when(recorder.record(any())).thenReturn(allowedResult(commandFor(access), false));
+        UUID enrollmentId = UUID.randomUUID();
+        GuestEnrollment ge = new GuestEnrollment(
+                enrollmentId, neighborhoodId, invitationId, "30123456",
+                T0, guardId, gateId);
+        AccessLog enrollLog = new AccessLog(
+                UUID.randomUUID(), neighborhoodId, gateId, guardId, invitationId, lotId,
+                Direction.IN, SubjectType.GUEST, true, null,
+                "Maria", "30123456", 0, jti, T0, true, false, enroll.clientEventId());
+        when(enroller.enroll(any())).thenReturn(new EnrollmentResult.Enrolled(ge, enrollLog, "Maria"));
+
+        SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(access, enroll));
+
+        assertThat(report.results()).hasSize(2);
+        Map<UUID, SyncAccessUseCase.EventResult> byId = report.results().stream()
+                .collect(Collectors.toMap(SyncAccessUseCase.EventResult::clientEventId, Function.identity()));
+        assertThat(byId.get(access.clientEventId()).result()).isEqualTo(SyncAccessUseCase.Outcome.ALLOWED);
+        assertThat(byId.get(access.clientEventId()).enrollmentId()).isNull();
+        assertThat(byId.get(enroll.clientEventId()).result()).isEqualTo(SyncAccessUseCase.Outcome.ENROLLED);
+        assertThat(byId.get(enroll.clientEventId()).enrollmentId()).isEqualTo(enrollmentId);
+        verify(recorder, org.mockito.Mockito.times(1)).record(any());
+        verify(enroller, org.mockito.Mockito.times(1)).enroll(any());
+    }
+
     private static org.mockito.ArgumentMatcher<RecordAccessAttemptUseCase.Command> withClient(UUID id) {
         return c -> c != null && id.equals(c.clientEventId());
     }
@@ -180,7 +271,7 @@ class SyncAccessUseCaseTest {
 
     private SyncAccessUseCase.Event event(UUID clientEventId, Instant capturedAt) {
         return new SyncAccessUseCase.Event(
-                clientEventId, "SP1.token", gateId, Direction.IN, 0, capturedAt, "ALLOWED");
+                clientEventId, "SP1.token", gateId, Direction.IN, 0, capturedAt, "ALLOWED", null);
     }
 
     private RecordAccessAttemptUseCase.Command commandFor(SyncAccessUseCase.Event ev) {

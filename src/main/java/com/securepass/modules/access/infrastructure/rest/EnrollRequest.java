@@ -18,6 +18,6 @@ public record EnrollRequest(
     public EnrollGuestUseCase.Command toCommand(UUID neighborhoodId, UUID guardId) {
         return new EnrollGuestUseCase.Command(
                 neighborhoodId, gateId, guardId, token, documentNumber,
-                clientEventId, capturedAt != null ? capturedAt : Instant.now());
+                clientEventId, capturedAt != null ? capturedAt : Instant.now(), false);
     }
 }
