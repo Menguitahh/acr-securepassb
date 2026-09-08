@@ -5,14 +5,26 @@ import com.securepass.modules.access.application.SyncAccessUseCase;
 import java.util.List;
 import java.util.UUID;
 
-public record SyncAccessResponse(int accepted, List<Conflict> conflicts) {
+public record SyncAccessResponse(List<EventResult> results) {
 
-    public record Conflict(UUID clientEventId, String serverResult, String reason, UUID logId, boolean clockSkew) {}
+    public record EventResult(
+            UUID clientEventId,
+            String result,
+            String reason,
+            UUID logId,
+            UUID enrollmentId,
+            boolean clockSkew) {}
 
     public static SyncAccessResponse from(SyncAccessUseCase.Report report) {
-        List<Conflict> conflicts = report.conflicts().stream()
-                .map(c -> new Conflict(c.clientEventId(), "DENIED", c.reason().name(), c.logId(), c.clockSkew()))
+        List<EventResult> results = report.results().stream()
+                .map(r -> new EventResult(
+                        r.clientEventId(),
+                        r.result().name(),
+                        r.reason() != null ? r.reason().name() : null,
+                        r.logId(),
+                        r.enrollmentId(),
+                        r.clockSkew()))
                 .toList();
-        return new SyncAccessResponse(report.accepted(), conflicts);
+        return new SyncAccessResponse(results);
     }
 }

@@ -2960,20 +2960,24 @@
           }
         }
       },
-      "Conflict" : {
+      "EventResult" : {
         "type" : "object",
         "properties" : {
           "clientEventId" : {
             "type" : "string",
             "format" : "uuid"
           },
-          "serverResult" : {
+          "result" : {
             "type" : "string"
           },
           "reason" : {
             "type" : "string"
           },
           "logId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "enrollmentId" : {
             "type" : "string",
             "format" : "uuid"
           },
@@ -2985,14 +2989,10 @@
       "SyncAccessResponse" : {
         "type" : "object",
         "properties" : {
-          "accepted" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "conflicts" : {
+          "results" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/Conflict"
+              "$ref" : "#/components/schemas/EventResult"
             }
           }
         }
@@ -3147,13 +3147,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "nonEmpty" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           }
         }

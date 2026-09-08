@@ -26,6 +26,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -116,10 +118,19 @@ class SyncAccessFirstCapturedWinsTest {
 
         SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(late, early));
 
-        assertThat(report.accepted()).isEqualTo(1);
-        assertThat(report.conflicts()).hasSize(1);
-        assertThat(report.conflicts().get(0).clientEventId()).isEqualTo(clientLate);
-        assertThat(report.conflicts().get(0).reason().name()).isEqualTo("REPLAY");
+        assertThat(report.results()).hasSize(2);
+        Map<UUID, SyncAccessUseCase.EventResult> byId = report.results().stream()
+                .collect(Collectors.toMap(SyncAccessUseCase.EventResult::clientEventId, Function.identity()));
+
+        SyncAccessUseCase.EventResult earlyRes = byId.get(clientEarly);
+        assertThat(earlyRes.result()).isEqualTo(SyncAccessUseCase.Outcome.ALLOWED);
+        assertThat(earlyRes.reason()).isNull();
+        assertThat(earlyRes.logId()).isNotNull();
+
+        SyncAccessUseCase.EventResult lateRes = byId.get(clientLate);
+        assertThat(lateRes.result()).isEqualTo(SyncAccessUseCase.Outcome.DENIED);
+        assertThat(lateRes.reason().name()).isEqualTo("REPLAY");
+        assertThat(lateRes.logId()).isNotNull();
 
         Map<String, Object> earlyRow = jdbc.queryForMap(
                 "SELECT result, denial_reason, synced_offline FROM access_logs WHERE client_event_id = ?",

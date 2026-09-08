@@ -34,8 +34,7 @@ public class SyncAccessUseCase {
         List<Event> ordered = new ArrayList<>(events);
         ordered.sort(Comparator.comparing(Event::capturedAt));
 
-        int accepted = 0;
-        List<Conflict> conflicts = new ArrayList<>();
+        List<EventResult> results = new ArrayList<>(ordered.size());
         for (Event ev : ordered) {
             RecordAccessAttemptUseCase.Result result = recorder.record(new RecordAccessAttemptUseCase.Command(
                     neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
@@ -43,13 +42,15 @@ public class SyncAccessUseCase {
 
             AccessLog log = result.log();
             if (result.decision() instanceof AccessDecision.Allowed) {
-                accepted++;
+                results.add(new EventResult(
+                        ev.clientEventId(), Outcome.ALLOWED, null, log.id(), null, log.clockSkew()));
             } else {
                 DenialReason reason = ((AccessDecision.Denied) result.decision()).reason();
-                conflicts.add(new Conflict(ev.clientEventId(), reason, log.id(), log.clockSkew()));
+                results.add(new EventResult(
+                        ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew()));
             }
         }
-        return new Report(accepted, conflicts);
+        return new Report(results);
     }
 
     public record Event(
@@ -71,7 +72,16 @@ public class SyncAccessUseCase {
         }
     }
 
-    public record Conflict(UUID clientEventId, DenialReason reason, UUID logId, boolean clockSkew) {}
+    public enum Outcome { ALLOWED, DENIED }
 
-    public record Report(int accepted, List<Conflict> conflicts) {}
+    public record EventResult(
+            UUID clientEventId,
+            Outcome result,
+            DenialReason reason,
+            UUID logId,
+            UUID enrollmentId,
+            boolean clockSkew
+    ) {}
+
+    public record Report(List<EventResult> results) {}
 }

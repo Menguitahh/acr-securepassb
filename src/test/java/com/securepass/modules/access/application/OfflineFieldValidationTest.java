@@ -142,25 +142,28 @@ class OfflineFieldValidationTest {
 
         // Mezclar y particionar en 4 tandas de 50 (respeta MAX_BATCH)
         Collections.shuffle(events, new Random(42));
-        int accepted = 0;
+        int allowedCountBatch = 0;
         int replayConflicts = 0;
         int expiredConflicts = 0;
         int invalidConflicts = 0;
         for (int i = 0; i < 200; i += 50) {
             List<SyncAccessUseCase.Event> batch = events.subList(i, i + 50);
             SyncAccessUseCase.Report r = useCase.sync(neighborhoodId, guardId, batch);
-            accepted += r.accepted();
-            for (SyncAccessUseCase.Conflict c : r.conflicts()) {
-                switch (c.reason()) {
+            for (SyncAccessUseCase.EventResult res : r.results()) {
+                if (res.result() == SyncAccessUseCase.Outcome.ALLOWED) {
+                    allowedCountBatch++;
+                    continue;
+                }
+                switch (res.reason()) {
                     case REPLAY -> replayConflicts++;
                     case EXPIRED -> expiredConflicts++;
                     case INVALID_SIGNATURE -> invalidConflicts++;
-                    default -> throw new AssertionError("razon inesperada: " + c.reason());
+                    default -> throw new AssertionError("razon inesperada: " + res.reason());
                 }
             }
         }
 
-        assertThat(accepted).as("ALLOWED esperado").isEqualTo(130);
+        assertThat(allowedCountBatch).as("ALLOWED esperado").isEqualTo(130);
         assertThat(replayConflicts).as("REPLAY esperado").isEqualTo(30);
         assertThat(expiredConflicts).as("EXPIRED esperado").isEqualTo(20);
         assertThat(invalidConflicts).as("INVALID_SIGNATURE esperado").isEqualTo(20);
@@ -203,18 +206,20 @@ class OfflineFieldValidationTest {
         assertThat(consumed).as("las 130 invitaciones validas quedan consumidas").isEqualTo(130);
 
         // Reintento del batch completo: sync idempotente, cero cambios
-        int retryAccepted = 0;
-        List<SyncAccessUseCase.Conflict> retryConflicts = new ArrayList<>();
+        int retryAllowed = 0;
+        int retryDenied = 0;
         for (int i = 0; i < 200; i += 50) {
             SyncAccessUseCase.Report r = useCase.sync(neighborhoodId, guardId, events.subList(i, i + 50));
-            retryAccepted += r.accepted();
-            retryConflicts.addAll(r.conflicts());
+            for (SyncAccessUseCase.EventResult res : r.results()) {
+                if (res.result() == SyncAccessUseCase.Outcome.ALLOWED) retryAllowed++;
+                else retryDenied++;
+            }
         }
         Integer totalLogsAfterRetry = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM access_logs", Integer.class);
         assertThat(totalLogsAfterRetry).as("sync idempotente por clientEventId").isEqualTo(200);
-        assertThat(retryAccepted).as("reintento reconstruye el mismo veredicto").isEqualTo(130);
-        assertThat(retryConflicts).hasSize(70);
+        assertThat(retryAllowed).as("reintento reconstruye el mismo veredicto").isEqualTo(130);
+        assertThat(retryDenied).isEqualTo(70);
     }
 
     private SyncAccessUseCase.Event event(String token, Instant capturedAt) {
