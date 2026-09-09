@@ -23,6 +23,14 @@ public interface StayRepository {
 
     void markResidentNotified(UUID stayId, java.time.Instant at);
 
+    /**
+     * Marca `warned_at` de la stay. Idempotente: si ya estaba marcada,
+     * conserva el timestamp original y devuelve ese valor. Sin esto, en un
+     * cambio de turno el guardia entrante vuelve a avisar al residente por
+     * la misma estadia (BR-15 exige una sola vez por estadia).
+     */
+    java.time.Instant markWarned(UUID stayId, java.time.Instant at);
+
     java.util.Optional<java.time.Instant> findResidentNotifiedAt(UUID stayId);
 
     void updateExpectedUntilByInvitation(UUID invitationId, java.time.Instant expectedUntil);

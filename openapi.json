@@ -41,6 +41,37 @@
         }
       }
     },
+    "/api/v1/stays/{id}/mark-warned" : {
+      "post" : {
+        "tags" : [
+          "stays-controller"
+        ],
+        "operationId" : "markWarned",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MarkStayWarnedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stays/{id}/close" : {
       "post" : {
         "tags" : [
@@ -1824,6 +1855,19 @@
           }
         }
       },
+      "MarkStayWarnedResponse" : {
+        "type" : "object",
+        "properties" : {
+          "stayId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "warnedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
       "CloseStayRequest" : {
         "required" : [
           "gateId"
@@ -3168,13 +3212,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
-            "type" : "boolean"
-          },
           "scheduleBundled" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
+            "type" : "boolean"
+          },
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }

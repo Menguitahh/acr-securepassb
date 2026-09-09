@@ -175,6 +175,21 @@ public class StayJdbcRepository implements StayRepository {
     }
 
     @Override
+    public java.time.Instant markWarned(UUID stayId, java.time.Instant at) {
+        // Solo pisa NULL: conserva el primer aviso (idempotencia BR-15).
+        jdbc.sql("UPDATE stays SET warned_at = :at WHERE id = :id AND warned_at IS NULL")
+                .param("id", stayId)
+                .param("at", Timestamp.from(at))
+                .update();
+        return jdbc.sql("SELECT warned_at FROM stays WHERE id = :id")
+                .param("id", stayId)
+                .query((rs, i) -> rs.getTimestamp("warned_at"))
+                .optional()
+                .map(ts -> ts == null ? null : ts.toInstant())
+                .orElse(null);
+    }
+
+    @Override
     public void updateExpectedUntilByInvitation(UUID invitationId, java.time.Instant expectedUntil) {
         jdbc.sql("""
                 UPDATE stays

@@ -2,6 +2,7 @@ package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.modules.access.application.CloseStayManuallyUseCase;
 import com.securepass.modules.access.application.ListOpenStaysUseCase;
+import com.securepass.modules.access.application.MarkStayWarnedUseCase;
 import com.securepass.modules.access.domain.Stay;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
@@ -24,14 +25,17 @@ public class StaysController {
 
     private final ListOpenStaysUseCase listUseCase;
     private final CloseStayManuallyUseCase closeUseCase;
+    private final MarkStayWarnedUseCase markWarnedUseCase;
     private final AccessGuard guard;
 
     public StaysController(
             ListOpenStaysUseCase listUseCase,
             CloseStayManuallyUseCase closeUseCase,
+            MarkStayWarnedUseCase markWarnedUseCase,
             AccessGuard guard) {
         this.listUseCase = listUseCase;
         this.closeUseCase = closeUseCase;
+        this.markWarnedUseCase = markWarnedUseCase;
         this.guard = guard;
     }
 
@@ -50,5 +54,13 @@ public class StaysController {
         if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
         Stay closed = closeUseCase.close(user.neighborhoodId(), request.gateId(), user.userId(), id);
         return ClosedStayResponse.from(closed);
+    }
+
+    @PostMapping("/{id}/mark-warned")
+    @PreAuthorize("hasRole('GUARD')")
+    public MarkStayWarnedResponse markWarned(@PathVariable UUID id) {
+        CurrentUser user = guard.require();
+        if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
+        return MarkStayWarnedResponse.from(markWarnedUseCase.mark(user.neighborhoodId(), id));
     }
 }
