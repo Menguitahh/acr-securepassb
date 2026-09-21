@@ -222,6 +222,9 @@ class ValidateAccessUseCaseTest {
         AccessDecision.NeedsEnrollment needs = (AccessDecision.NeedsEnrollment) decision;
         assertThat(needs.invitationId()).isEqualTo(invitationId);
         assertThat(needs.lotCode()).isEqualTo("M4-L12");
+        // Issue #173: viaja el nombre para que el guardia lo cotele contra el
+        // documento antes de confirmar el enroll.
+        assertThat(needs.subjectName()).isEqualTo("Maria Lopez");
     }
 
     // BR-13: con enrolamiento existente, un IN pasa directo a ALLOWED.

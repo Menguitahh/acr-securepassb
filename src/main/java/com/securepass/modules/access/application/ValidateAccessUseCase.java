@@ -111,7 +111,7 @@ public class ValidateAccessUseCase {
             // verifico contra su cache, no repetimos server-side.
             if (checkEnrollment && !inv.residentPass()
                     && enrollments.findByPerson(inv.neighborhoodId(), inv.guestDocument()).isEmpty()) {
-                return AccessDecision.NeedsEnrollment.guest(inv.id(), lot.code());
+                return AccessDecision.NeedsEnrollment.guest(inv.id(), inv.guestName(), lot.code());
             }
         }
 
@@ -161,7 +161,7 @@ public class ValidateAccessUseCase {
         if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
         if (direction == Direction.IN && checkEnrollment
                 && enrollments.findByPerson(p.neighborhoodId(), ctx.workerDocument()).isEmpty()) {
-            return AccessDecision.NeedsEnrollment.worker(p.sub());
+            return AccessDecision.NeedsEnrollment.worker(p.sub(), ctx.workerName());
         }
         return new AccessDecision.AllowedWorker(p.sub(), p.jti(), ctx.workerName(), inSlot);
     }

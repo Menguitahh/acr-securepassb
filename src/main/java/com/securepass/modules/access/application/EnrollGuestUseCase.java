@@ -110,6 +110,17 @@ public class EnrollGuestUseCase {
             // BR-12: no coincide -> DOCUMENT_MISMATCH y persistencia obligatoria.
             return denyGuest(cmd, inv, DenialReason.DOCUMENT_MISMATCH);
         }
+        // ponytail: hueco conocido — el server no compara nombres. Issue #173
+        // agrego guestName a NEEDS_ENROLLMENT para que el guardia haga el
+        // cruce visual antes de confirmar; si detecta discrepancia, no
+        // confirma y no llega hasta aca. El caso residual (nombre distinto
+        // pero documentNumber que por colision o carga erronea del residente
+        // coincide con inv.guestDocument) pasa ALLOWED sin deteccion. No
+        // tiene registros en produccion que lo justifiquen, y cubrirlo pide
+        // un endpoint nuevo (reportar sospecha) + DenialReason + migracion
+        // de log — nada de eso esta en spec §7. Upgrade path si aparece:
+        // aceptar guestName escaneado en el request y comparar con match
+        // fuzzy contra inv.guestName().
 
         GuestEnrollment enrollment = enrollments.saveIfAbsent(new GuestEnrollment(
                 UUID.randomUUID(), cmd.neighborhoodId(), inv.id(), cmd.documentNumber(),

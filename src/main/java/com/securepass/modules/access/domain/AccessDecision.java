@@ -51,24 +51,31 @@ public sealed interface AccessDecision {
      * el flujo del trabajador se suma al del invitado. Un mismo record con dos
      * ramas discriminadas por {@code kind}:
      * <ul>
-     *   <li>{@link SubjectKind#GUEST}: {@code invitationId} y {@code lotCode}
-     *       obligatorios; {@code userId} debe ser null.</li>
-     *   <li>{@link SubjectKind#WORKER}: {@code userId} obligatorio;
-     *       {@code invitationId} y {@code lotCode} deben ser null. El lote se
-     *       decide en el proximo scan (validate computa la franja); el
-     *       enrolamiento pasa una sola vez por persona.</li>
+     *   <li>{@link SubjectKind#GUEST}: {@code invitationId}, {@code lotCode} y
+     *       {@code subjectName} obligatorios; {@code userId} debe ser null.</li>
+     *   <li>{@link SubjectKind#WORKER}: {@code userId} y {@code subjectName}
+     *       obligatorios; {@code invitationId} y {@code lotCode} deben ser
+     *       null. El lote se decide en el proximo scan (validate computa la
+     *       franja); el enrolamiento pasa una sola vez por persona.</li>
      * </ul>
      *
-     * <p>No lleva {@code workerName} ni {@code guestName} en ninguna rama: la
-     * identidad no esta verificada aun. Si el guardia ve el nombre antes de
-     * pedir el DNI, compara el documento contra la pantalla en vez de que el
-     * sistema compare a ciegas. La verificacion tiene que ser sistema contra
-     * dato; el nombre aparece recien en el enroll.
+     * <p>Issue #173: {@code subjectName} viaja en ambas ramas. Revierte la
+     * omision original de WBS-122, que asumia que retenerlo evitaba que el
+     * guardia comparara el documento contra la pantalla en vez de contra el
+     * dato. La premisa era falsa: el backend nunca compara nombres. La unica
+     * verificacion de identidad en la garita es visual del guardia contra el
+     * documento fisico. Sin el nombre en NEEDS_ENROLLMENT, la pantalla de
+     * confirmacion muestra solo el numero de DNI recien escaneado — un tap
+     * ritual contra si mismo. Con el nombre, el guardia hace el cruce
+     * ("invitacion dice PEREZ, documento dice PEREZ") en el unico momento en
+     * que ese cruce sirve: antes de confirmar el enroll.
      */
-    record NeedsEnrollment(SubjectKind kind, UUID invitationId, UUID userId, String lotCode)
+    record NeedsEnrollment(SubjectKind kind, UUID invitationId, UUID userId, String subjectName, String lotCode)
             implements AccessDecision {
         public NeedsEnrollment {
             if (kind == null) throw new IllegalArgumentException("kind requerido");
+            if (subjectName == null || subjectName.isBlank())
+                throw new IllegalArgumentException("subjectName requerido");
             switch (kind) {
                 case GUEST -> {
                     if (invitationId == null) throw new IllegalArgumentException("invitationId requerido para GUEST");
@@ -84,12 +91,12 @@ public sealed interface AccessDecision {
             }
         }
 
-        public static NeedsEnrollment guest(UUID invitationId, String lotCode) {
-            return new NeedsEnrollment(SubjectKind.GUEST, invitationId, null, lotCode);
+        public static NeedsEnrollment guest(UUID invitationId, String guestName, String lotCode) {
+            return new NeedsEnrollment(SubjectKind.GUEST, invitationId, null, guestName, lotCode);
         }
 
-        public static NeedsEnrollment worker(UUID userId) {
-            return new NeedsEnrollment(SubjectKind.WORKER, null, userId, null);
+        public static NeedsEnrollment worker(UUID userId, String workerName) {
+            return new NeedsEnrollment(SubjectKind.WORKER, null, userId, workerName, null);
         }
     }
 

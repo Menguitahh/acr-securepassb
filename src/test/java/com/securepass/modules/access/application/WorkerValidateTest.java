@@ -192,9 +192,9 @@ class WorkerValidateTest {
         assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
     }
 
-    // WBS-122: dentro de franja pero persona no verificada en el barrio ->
-    // NEEDS_ENROLLMENT por el ramo WORKER. No adelanta el nombre (misma regla
-    // que el invitado en AccessDecision).
+    // WBS-122 + issue #173: dentro de franja pero persona no verificada en el
+    // barrio -> NEEDS_ENROLLMENT por el ramo WORKER, ahora con subjectName
+    // para que el guardia haga el cruce contra el documento.
     @Test
     void dentroDeFranjaSinEnrolamientoDevuelveNeedsEnrollmentWorker() {
         Instant capturedAt = Instant.parse("2026-03-03T13:00:00Z");
@@ -217,6 +217,7 @@ class WorkerValidateTest {
         AccessDecision.NeedsEnrollment n = (AccessDecision.NeedsEnrollment) d;
         assertThat(n.kind()).isEqualTo(AccessDecision.SubjectKind.WORKER);
         assertThat(n.userId()).isEqualTo(userId);
+        assertThat(n.subjectName()).isEqualTo(WORKER_NAME);
         assertThat(n.invitationId()).isNull();
         assertThat(n.lotCode()).isNull();
     }

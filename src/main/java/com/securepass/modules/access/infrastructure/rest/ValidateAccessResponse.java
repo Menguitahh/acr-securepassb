@@ -30,10 +30,11 @@ public record ValidateAccessResponse(
     /**
      * WBS-117: shape ALLOWED del trabajador. {@code lots} tiene los lotes en
      * franja horaria; si {@code lots.size()==1} la garita entra directo, si >1
-     * el guardia elige (US-67, spec §L). WBS-122: en NEEDS_ENROLLMENT del
-     * worker viaja solo {@code userId} (name null, lots null) — la identidad
-     * no esta verificada aun, adelantar el nombre invita a comparar contra
-     * pantalla en vez de contra dato (misma regla que el invitado).
+     * el guardia elige (US-67, spec §L). Issue #173: en NEEDS_ENROLLMENT
+     * ({@code lots == null}) {@code name} tambien viaja para que el guardia
+     * pueda cotejarlo contra el documento antes de confirmar el enroll — el
+     * backend no compara nombres, la unica verificacion es visual. Ver el
+     * javadoc de {@link AccessDecision.NeedsEnrollment}.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record WorkerDetail(UUID userId, String name, List<LotChoice> lots) {}
@@ -67,11 +68,12 @@ public record ValidateAccessResponse(
                 return new ValidateAccessResponse(
                         "NEEDS_ENROLLMENT", null, null, "WORKER",
                         null, null, null, null,
-                        new WorkerDetail(needs.userId(), null, null));
+                        new WorkerDetail(needs.userId(), needs.subjectName(), null));
             }
+            GuestDetail guest = new GuestDetail(needs.subjectName(), null, 0);
             return new ValidateAccessResponse(
                     "NEEDS_ENROLLMENT", null, null, "GUEST",
-                    needs.invitationId(), null, new LotDetail(needs.lotCode()), null, null);
+                    needs.invitationId(), guest, new LotDetail(needs.lotCode()), null, null);
         }
         AccessDecision.Denied denied = (AccessDecision.Denied) result.decision();
         return new ValidateAccessResponse(
