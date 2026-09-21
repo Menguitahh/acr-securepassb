@@ -10,7 +10,7 @@
 -- Y ademas activa al admin del seed con hash conocido.
 --
 -- Passwords: admin123 / guard123 / resident123 / OwnerPass123! / FamilyPass123!
--- (BCrypt cost 12).
+-- / WorkerPass123! (BCrypt cost 12).
 --
 -- Idempotencia: cada INSERT lleva ON CONFLICT DO NOTHING sobre la PK o la
 -- unique key natural. Correr este script dos veces sobre una DB con el estado
@@ -155,5 +155,82 @@ INSERT INTO lot_minors (id, lot_id, neighborhood_id, full_name, document_number,
  'hijo', 'Edge case: exacto 16 al dia siguiente',
  'd0000001-0000-0000-0000-000000000000')
 ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================================
+-- Escenario worker (WBS-118..121). El backend de Fase 13 esta cerrado
+-- (WBS-114..117, WBS-122) pero el mobile todavia no arranco. Sin este
+-- bloque el front no tiene con que probar: worker_tokens siempre esta
+-- vacia porque el token se crea lazy al primer GET /me/worker-qr, y sin
+-- un permiso WORKER activo el endpoint devuelve 404.
+--
+-- Se siembra:
+--   - user d0000005 (worker@test.com, DNI 30999001, ACTIVE) con password
+--     WorkerPass123! (BCrypt cost 12, hash pre-generado).
+--   - lote extra A-15 (55555555-...) del mismo owner@test.com, para
+--     habilitar US-67 (picker de lote en garita, WBS-119).
+--   - permiso WORKER activo en DOS lotes:
+--       * A-14 con franja amplia (L a D, 00:00-23:59) para que el flujo
+--         golden entre a cualquier hora.
+--       * A-15 con franja angosta (solo lunes, 09:00-10:00) para probar
+--         OUT_OF_SCHEDULE. La ventana angosta convive con la amplia: el
+--         evaluateWorker las evalua ambas y devuelve AllowedWorker con
+--         los lotes en franja, lo que ejercita el picker.
+--   - No se siembra fila en worker_tokens: IssueWorkerTokenUseCase la
+--     crea lazy al primer GET /me/worker-qr y firma con la signing key
+--     activa del barrio. Ejercita el flujo real.
+--   - No se siembra guest_enrollments para el DNI 30999001: el primer
+--     scan en garita devuelve NEEDS_ENROLLMENT.WORKER y el guardia
+--     carga el DNI para completar el enrolamiento (WBS-122).
+-- =====================================================================
+
+INSERT INTO users (id, email, password_hash, full_name, document_number, status) VALUES
+('d0000005-0000-0000-0000-000000000000',
+ 'worker@test.com',
+ '$2b$12$R8StHQzyro7QZZkhkpRZA.GySx4FWPjzKzWcurXhov0D9VRouthsO',
+ 'Wanda Trabajadora', '30999001', 'ACTIVE')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES
+('d0000005-0000-0000-0000-000000000000',
+ '11111111-1111-1111-1111-111111111111', 'RESIDENT_MEMBER', TRUE)
+ON CONFLICT (user_id, neighborhood_id, role) DO NOTHING;
+
+INSERT INTO lots (id, neighborhood_id, code, street, number, status)
+VALUES ('55555555-5555-5555-5555-555555555555',
+        '11111111-1111-1111-1111-111111111111',
+        'A-15', 'Calle Falsa', '15', 'ACTIVE')
+ON CONFLICT (id) DO NOTHING;
+
+-- owner@test.com como OWNER del segundo lote, para que el mismo titular
+-- vea ambos workers en su UI de gestion (WBS-121).
+INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+VALUES ('d0000001-0000-0000-0000-000000000000',
+        '55555555-5555-5555-5555-555555555555', 'OWNER',
+        jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)
+ON CONFLICT (user_id, lot_id, permission_type) DO NOTHING;
+
+-- Permiso WORKER amplio en A-14: entra siempre.
+INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+VALUES ('d0000005-0000-0000-0000-000000000000',
+        '44444444-4444-4444-4444-444444444444', 'WORKER',
+        jsonb_build_object(
+            'service',    'Limpieza',
+            'weekdays',   jsonb_build_array(1,2,3,4,5,6,7),
+            'dailyFrom',  '00:00',
+            'dailyUntil', '23:59'),
+        TRUE)
+ON CONFLICT (user_id, lot_id, permission_type) DO NOTHING;
+
+-- Permiso WORKER angosto en A-15: solo lunes 09:00-10:00.
+INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+VALUES ('d0000005-0000-0000-0000-000000000000',
+        '55555555-5555-5555-5555-555555555555', 'WORKER',
+        jsonb_build_object(
+            'service',    'Jardineria',
+            'weekdays',   jsonb_build_array(1),
+            'dailyFrom',  '09:00',
+            'dailyUntil', '10:00'),
+        TRUE)
+ON CONFLICT (user_id, lot_id, permission_type) DO NOTHING;
 
 COMMIT;

@@ -85,11 +85,14 @@ Escucha en `http://localhost:8080`. OpenAPI en `openapi.json`.
 
 Todos los IDs estan fijos en `DevSeedRunner` + `src/main/resources/dev/dev-overlay.sql`.
 
-| Rol            | Email             | Password    |
-|----------------|-------------------|-------------|
-| ADMIN          | admin@dev.local   | admin123    |
-| GUARD          | guard@dev.local   | guard123    |
-| RESIDENT_OWNER | owner@dev.local   | resident123 |
+| Rol            | Email             | Password       |
+|----------------|-------------------|----------------|
+| ADMIN          | admin@dev.local   | admin123       |
+| GUARD          | guard@dev.local   | guard123       |
+| RESIDENT_OWNER | owner@dev.local   | resident123    |
+| RESIDENT_OWNER | owner@test.com    | OwnerPass123!  |
+| RESIDENT_MEMBER| family@test.com   | FamilyPass123! |
+| WORKER         | worker@test.com   | WorkerPass123! |
 
 Credenciales de desarrollo local unicamente. El seed no se corre en
 ningun entorno que no sea la maquina de un desarrollador. Para
@@ -101,9 +104,12 @@ nunca versionar el hash.
 | neighborhoodId | `11111111-1111-1111-1111-111111111111` |
 | gateId         | `22222222-2222-2222-2222-222222222222` |
 | lotId          | `33333333-3333-3333-3333-333333333333` |
+| lotIdA14       | `44444444-4444-4444-4444-444444444444` |
+| lotIdA15       | `55555555-5555-5555-5555-555555555555` |
 | adminUserId    | `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa` |
 | guardUserId    | `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` |
 | ownerUserId    | `cccccccc-cccc-cccc-cccc-cccccccccccc` |
+| workerUserId   | `d0000005-0000-0000-0000-000000000000` |
 
 Para emitir invitaciones vas a necesitar una `signing_keys` activa para el
 barrio. No viene en el seed porque el cifrado depende de `SECUREPASS_MASTER_KEY`;
