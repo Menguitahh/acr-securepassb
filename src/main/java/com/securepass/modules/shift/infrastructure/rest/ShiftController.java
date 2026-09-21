@@ -7,6 +7,8 @@ import com.securepass.modules.shift.application.OpenShiftUseCase;
 import com.securepass.modules.shift.domain.Shift;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -64,13 +66,21 @@ public class ShiftController {
         return ShiftResponse.from(closeUseCase.close(user.userId(), request.handoverNotes()));
     }
 
+    // 204 vs 200-nullable: el cliente discrimina por status, no por contenido.
+    // Antes devolvia 200 con body null y el front toleraba tres formas (404,
+    // 204, 200 vacio) porque el shape no era interpretable; ver securepassf#96.
     @GetMapping("/current")
     @PreAuthorize("hasRole('GUARD')")
-    public ShiftResponse current() {
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Turno abierto del guardia"),
+            @ApiResponse(responseCode = "204", description = "El guardia no tiene turno abierto", content = @io.swagger.v3.oas.annotations.media.Content)
+    })
+    public ResponseEntity<ShiftResponse> current() {
         CurrentUser user = guard.require();
         return currentUseCase.get(user.userId())
                 .map(ShiftResponse::from)
-                .orElse(null);
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping
