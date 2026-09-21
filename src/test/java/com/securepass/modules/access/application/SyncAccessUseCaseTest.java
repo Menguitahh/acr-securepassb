@@ -187,7 +187,7 @@ class SyncAccessUseCaseTest {
                 logId, neighborhoodId, gateId, guardId, invitationId, lotId,
                 Direction.IN, SubjectType.GUEST, true, null,
                 "Maria", "30123456", 0, jti, T0, true, false, enrollClientId);
-        when(enroller.enroll(any())).thenReturn(new EnrollmentResult.Enrolled(ge, log, "Maria"));
+        when(enroller.enroll(any())).thenReturn(EnrollmentResult.Enrolled.guest(ge, log, "Maria"));
 
         SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(enrollEv));
 
@@ -220,7 +220,7 @@ class SyncAccessUseCaseTest {
                 Direction.IN, SubjectType.GUEST, false, DenialReason.DOCUMENT_MISMATCH,
                 null, "99999999", 0, jti, T0, true, false, enrollClientId);
         when(enroller.enroll(any()))
-                .thenReturn(new EnrollmentResult.Denied(DenialReason.DOCUMENT_MISMATCH, log));
+                .thenReturn(EnrollmentResult.Denied.guest(DenialReason.DOCUMENT_MISMATCH, log));
 
         SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(enrollEv));
 
@@ -246,7 +246,7 @@ class SyncAccessUseCaseTest {
                 UUID.randomUUID(), neighborhoodId, gateId, guardId, invitationId, lotId,
                 Direction.IN, SubjectType.GUEST, true, null,
                 "Maria", "30123456", 0, jti, T0, true, false, enroll.clientEventId());
-        when(enroller.enroll(any())).thenReturn(new EnrollmentResult.Enrolled(ge, enrollLog, "Maria"));
+        when(enroller.enroll(any())).thenReturn(EnrollmentResult.Enrolled.guest(ge, enrollLog, "Maria"));
 
         SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(access, enroll));
 

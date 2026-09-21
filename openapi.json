@@ -3173,14 +3173,35 @@
             "type" : "string",
             "format" : "uuid"
           },
+          "subjectKind" : {
+            "type" : "string"
+          },
           "guest" : {
             "$ref" : "#/components/schemas/Guest"
+          },
+          "worker" : {
+            "$ref" : "#/components/schemas/Worker"
           }
         }
       },
       "Guest" : {
         "type" : "object",
         "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "document" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Worker" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
           "name" : {
             "type" : "string"
           },
@@ -3215,10 +3236,10 @@
           "active" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
           "nonEmpty" : {

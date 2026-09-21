@@ -1,6 +1,7 @@
 package com.securepass.modules.access.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.securepass.modules.access.domain.AccessDecision.SubjectKind;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
@@ -139,6 +140,8 @@ class EnrollGuestUseCaseTest {
 
         assertThat(result).isInstanceOf(EnrollmentResult.Enrolled.class);
         EnrollmentResult.Enrolled ok = (EnrollmentResult.Enrolled) result;
+        assertThat(ok.subjectKind()).isEqualTo(SubjectKind.GUEST);
+        assertThat(ok.workerUserId()).isNull();
         assertThat(ok.enrollment().documentNumber()).isEqualTo("30123456");
         assertThat(ok.enrollment().invitationId()).isEqualTo(invitationId);
         assertThat(ok.log().allowed()).isTrue();
@@ -157,7 +160,10 @@ class EnrollGuestUseCaseTest {
         EnrollmentResult result = useCase.enroll(cmd(token, "99999999"));
 
         assertThat(result).isInstanceOf(EnrollmentResult.Denied.class);
-        assertThat(((EnrollmentResult.Denied) result).reason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        EnrollmentResult.Denied denied = (EnrollmentResult.Denied) result;
+        assertThat(denied.reason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        assertThat(denied.subjectKind()).isEqualTo(SubjectKind.GUEST);
+        assertThat(denied.workerUserId()).isNull();
         ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
         verify(logs).saveIdempotent(captor.capture());
         assertThat(captor.getValue().denialReason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
@@ -338,6 +344,8 @@ class EnrollGuestUseCaseTest {
 
         assertThat(result).isInstanceOf(EnrollmentResult.Enrolled.class);
         EnrollmentResult.Enrolled ok = (EnrollmentResult.Enrolled) result;
+        assertThat(ok.subjectKind()).isEqualTo(SubjectKind.WORKER);
+        assertThat(ok.workerUserId()).isEqualTo(userId);
         assertThat(ok.enrollment().documentNumber()).isEqualTo("30123456");
         assertThat(ok.enrollment().invitationId()).isNull(); // ramo worker
         assertThat(ok.enrollment().neighborhoodId()).isEqualTo(neighborhoodId);
@@ -368,7 +376,10 @@ class EnrollGuestUseCaseTest {
         EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, workerJti), "99999999"));
 
         assertThat(result).isInstanceOf(EnrollmentResult.Denied.class);
-        assertThat(((EnrollmentResult.Denied) result).reason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        EnrollmentResult.Denied denied = (EnrollmentResult.Denied) result;
+        assertThat(denied.reason()).isEqualTo(DenialReason.DOCUMENT_MISMATCH);
+        assertThat(denied.subjectKind()).isEqualTo(SubjectKind.WORKER);
+        assertThat(denied.workerUserId()).isEqualTo(userId);
         ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
         verify(logs).saveIdempotent(captor.capture());
         AccessLog log = captor.getValue();
@@ -412,6 +423,12 @@ class EnrollGuestUseCaseTest {
         EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, workerJti), "30123456"));
 
         assertThat(result).isInstanceOf(EnrollmentResult.Enrolled.class);
+        EnrollmentResult.Enrolled ok = (EnrollmentResult.Enrolled) result;
+        // Retry desde AccessLog: subjectKind=WORKER se recupera del subjectType
+        // del log, pero workerUserId no viaja en el log (por diseño) — el
+        // primer response ya lo entrego al cliente.
+        assertThat(ok.subjectKind()).isEqualTo(SubjectKind.WORKER);
+        assertThat(ok.workerUserId()).isNull();
         verify(signingKeys, never()).findByKid(any(), any());
         verify(workerTokens, never()).findActive(any());
         verify(enrollments, never()).saveIfAbsent(any());

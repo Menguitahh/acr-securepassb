@@ -132,7 +132,7 @@ public class EnrollGuestUseCase {
                 inv.guestName(), cmd.documentNumber(), inv.companions(),
                 inv.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         stayLifecycle.onAllowed(log, inv); // BR-14
-        return new EnrollmentResult.Enrolled(enrollment, log, inv.guestName());
+        return EnrollmentResult.Enrolled.guest(enrollment, log, inv.guestName());
     }
 
     /**
@@ -181,17 +181,20 @@ public class EnrollGuestUseCase {
                 ctx.workerName(), cmd.documentNumber(), 0,
                 p.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
         // El trabajador no abre stay: no dispara stayLifecycle.
-        return new EnrollmentResult.Enrolled(enrollment, log, ctx.workerName());
+        return EnrollmentResult.Enrolled.worker(p.sub(), enrollment, log, ctx.workerName());
     }
 
     private EnrollmentResult denyUnknown(Command cmd, DenialReason reason) {
+        // Token no resuelto (INVALID_SIGNATURE): fallback a GUEST. La rama del
+        // sujeto no se puede determinar sin firma valida, y el shape del
+        // response necesita un kind concreto — GUEST es el default historico.
         AccessLog log = logs.saveIdempotent(new AccessLog(
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
                 null, null,
                 Direction.IN, SubjectType.GUEST, false, reason,
                 null, cmd.documentNumber(), 0,
                 null, cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
-        return new EnrollmentResult.Denied(reason, log);
+        return EnrollmentResult.Denied.guest(reason, log);
     }
 
     private EnrollmentResult denyGuest(Command cmd, Invitation inv, DenialReason reason) {
@@ -201,7 +204,7 @@ public class EnrollGuestUseCase {
                 Direction.IN, SubjectType.GUEST, false, reason,
                 null, cmd.documentNumber(), 0,
                 inv.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
-        return new EnrollmentResult.Denied(reason, log);
+        return EnrollmentResult.Denied.guest(reason, log);
     }
 
     private EnrollmentResult denyWorker(Command cmd, UUID userId, UUID jti, DenialReason reason) {
@@ -211,7 +214,7 @@ public class EnrollGuestUseCase {
                 Direction.IN, SubjectType.SERVICE, false, reason,
                 null, cmd.documentNumber(), 0,
                 jti, cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
-        return new EnrollmentResult.Denied(reason, log);
+        return EnrollmentResult.Denied.worker(userId, reason, log);
     }
 
     private static boolean clockSkew(Command cmd) {
@@ -220,11 +223,23 @@ public class EnrollGuestUseCase {
     }
 
     private EnrollmentResult reconstruct(AccessLog log, UUID neighborhoodId) {
-        if (!log.allowed()) return new EnrollmentResult.Denied(log.denialReason(), log);
+        // Ruteo por subjectType del log persistido. SERVICE es exclusivo de la
+        // rama worker en este endpoint; GUEST cubre invitado + fallback de
+        // token no resuelto (denyUnknown). workerUserId no viaja en el log:
+        // se acepta null en el retry — la primera respuesta ya lo llevo al
+        // cliente y este reconstruye desde su lado.
+        boolean isWorker = log.subjectType() == SubjectType.SERVICE;
+        if (!log.allowed()) {
+            return isWorker
+                    ? EnrollmentResult.Denied.worker(null, log.denialReason(), log)
+                    : EnrollmentResult.Denied.guest(log.denialReason(), log);
+        }
         GuestEnrollment enrollment = enrollments.findByPerson(neighborhoodId, log.subjectDocument())
                 .orElseThrow(() -> new IllegalStateException(
                         "log ALLOWED sin enrolamiento para documento " + log.subjectDocument()));
-        return new EnrollmentResult.Enrolled(enrollment, log, log.subjectName());
+        return isWorker
+                ? EnrollmentResult.Enrolled.workerFromLog(enrollment, log, log.subjectName())
+                : EnrollmentResult.Enrolled.guest(enrollment, log, log.subjectName());
     }
 
     public record Command(
