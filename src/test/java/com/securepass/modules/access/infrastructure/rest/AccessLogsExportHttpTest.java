@@ -8,6 +8,7 @@ import com.securepass.shared.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
@@ -42,6 +43,8 @@ class AccessLogsExportHttpTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired JwtService jwt;
     @Autowired ExportAccessLogsUseCase exports;
+    @Value("${securepass.cors.allowed-origins:https://admin.securepass.app}") String allowedOrigins;
+    String allowedOrigin;
 
     UUID barrio;
     UUID otroBarrio;
@@ -58,9 +61,11 @@ class AccessLogsExportHttpTest {
         otraGate = UUID.randomUUID();
         lot = UUID.randomUUID();
         adminId = UUID.randomUUID();
+        allowedOrigin = allowedOrigins.split(",")[0].trim();
 
         for (UUID n : List.of(barrio, otroBarrio)) {
-            jdbc.update("INSERT INTO neighborhoods (id, name, slug) VALUES (?, 'B', ?)", n, "b-" + UUID.randomUUID());
+            jdbc.update("INSERT INTO neighborhoods (id, name, slug, timezone) VALUES (?, 'B', ?, 'America/Argentina/Mendoza')",
+                    n, "b-" + UUID.randomUUID());
         }
         jdbc.update("INSERT INTO gates (id, neighborhood_id, name, direction) VALUES (?, ?, 'G', 'BOTH')", gate, barrio);
         jdbc.update("INSERT INTO gates (id, neighborhood_id, name, direction) VALUES (?, ?, 'G', 'BOTH')", otraGate, otroBarrio);
@@ -91,6 +96,7 @@ class AccessLogsExportHttpTest {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/v1/admin/reports/access-logs.csv?" + query))
                 .header("Authorization", "Bearer " + token)
+                .header("Origin", allowedOrigin)
                 .GET().build();
         return HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
     }
@@ -109,12 +115,15 @@ class AccessLogsExportHttpTest {
 
         assertThat(resp.statusCode()).isEqualTo(200);
         assertThat(resp.headers().firstValue("Content-Type")).hasValue("text/csv;charset=UTF-8");
+        // #192: 2026-09-01T00:00Z es 31/08 21:00 en Mendoza.
         assertThat(resp.headers().firstValue("Content-Disposition"))
-                .hasValue("attachment; filename=\"access-logs-2026-09-01-2026-09-10.csv\"");
+                .hasValue("attachment; filename=\"access-logs-2026-08-31-2026-09-09.csv\"");
+        assertThat(resp.headers().firstValue("Access-Control-Expose-Headers").orElse(""))
+                .contains("Content-Disposition");
         assertThat(resp.body().split("\r\n")).containsExactly(
-                "﻿captured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions",
-                "2026-09-02T10:00:00Z,L-12,IN,GUEST,ALLOWED,,\"Muñoz, \"\"Tito\"\"\",30111222,1",
-                "2026-09-03T10:00:00Z,L-12,IN,GUEST,DENIED,EXPIRED,\"'=HYPERLINK(\"\"x\"\")\",30111222,1");
+                "\uFEFFcaptured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions",
+                "2026-09-02T07:00:00-03:00,L-12,IN,GUEST,ALLOWED,,\"Muñoz, \"\"Tito\"\"\",30111222,1",
+                "2026-09-03T07:00:00-03:00,L-12,IN,GUEST,DENIED,EXPIRED,\"'=HYPERLINK(\"\"x\"\")\",30111222,1");
 
         Map<String, Object> audit = jdbc.queryForMap(
                 "SELECT neighborhood_id, range_from, range_to, lot_id, result FROM access_log_exports WHERE actor_user_id = ?",
@@ -187,5 +196,21 @@ class AccessLogsExportHttpTest {
             assertThat(exportsAudited()).isEqualTo(auditedBefore);
         }
         assertThat(export(range(), Role.ADMIN).statusCode()).isEqualTo(200);
+    }
+
+    // #192: el offset se calcula por fila. Mendoza salio del horario de verano
+    // el 2008-03-16 (-02:00 -> -03:00); un archivo que cruza el cambio lleva los dos.
+    @Test
+    void offsetPorFilaCuandoElRangoCruzaUnCambioDeHorario() throws Exception {
+        insertLog(barrio, gate, lot, "ALLOWED", null, "antes", "2008-03-10T15:00:00Z");
+        insertLog(barrio, gate, lot, "ALLOWED", null, "despues", "2008-03-20T15:00:00Z");
+
+        HttpResponse<String> resp = export("from=2008-03-01T00:00:00Z&to=2008-03-31T00:00:00Z", Role.ADMIN);
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        String[] lines = resp.body().split("\r\n");
+        assertThat(lines).hasSize(3);
+        assertThat(lines[1]).startsWith("2008-03-10T13:00:00-02:00,");
+        assertThat(lines[2]).startsWith("2008-03-20T12:00:00-03:00,");
     }
 }

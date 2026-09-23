@@ -59,7 +59,7 @@ public class SecurityConfig {
         cfg.setAllowedOrigins(allowedOrigins);
         cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Device-Id"));
-        cfg.setExposedHeaders(List.of("Retry-After"));
+        cfg.setExposedHeaders(List.of("Retry-After", "Content-Disposition"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

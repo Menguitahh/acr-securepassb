@@ -6,11 +6,11 @@ import com.securepass.shared.exception.RateLimitExceededException;
 import com.securepass.shared.security.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,14 +21,16 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class ExportAccessLogsUseCaseTest {
 
     private static final Instant TO = Instant.parse("2026-09-23T00:00:00Z");
+    private static final ZoneId MENDOZA = ZoneId.of("America/Argentina/Mendoza");
 
     private AccessLogQuery query;
     private AccessLogExportAudit audit;
@@ -41,6 +43,15 @@ class ExportAccessLogsUseCaseTest {
         audit = mock(AccessLogExportAudit.class);
         useCase = new ExportAccessLogsUseCase(query, audit, 2);
         admin = new CurrentUser(UUID.randomUUID(), UUID.randomUUID(), List.of(Role.ADMIN), List.of());
+        when(query.timezone(admin.neighborhoodId())).thenReturn(MENDOZA);
+    }
+
+    // #192: el export sale en la hora del barrio del actor.
+    @Test
+    void elExportLlevaLaZonaDelBarrio() {
+        try (ExportAccessLogsUseCase.Export export = start()) {
+            assertThat(export.zone()).isEqualTo(MENDOZA);
+        }
     }
 
     @Test
@@ -51,9 +62,8 @@ class ExportAccessLogsUseCaseTest {
         AccessLogQuery.ExportFilter filter = useCase.start(admin, from, TO, lot, Boolean.FALSE).filter();
 
         assertThat(filter).isEqualTo(new AccessLogQuery.ExportFilter(admin.neighborhoodId(), lot, from, TO, Boolean.FALSE));
-        InOrder order = inOrder(audit, query);
-        order.verify(audit).record(admin.userId(), filter);
-        order.verifyNoMoreInteractions();
+        verify(audit).record(admin.userId(), filter);
+        verify(query, never()).forEach(any(), any());
     }
 
     @Test

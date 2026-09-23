@@ -25,7 +25,8 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 /**
@@ -41,7 +42,12 @@ public class AdminReportsController {
     private static final String HEADER =
             "captured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions\r\n";
     // BOM: sin el, Excel abre el UTF-8 como ANSI y rompe tildes y enies.
-    private static final String BOM = "﻿";
+    private static final String BOM = "\uFEFF";
+    // #192: hora del barrio con offset en cada celda. Formato fijo porque
+    // OffsetDateTime.toString omite los segundos en :00 y la fraccion varia.
+    // El offset sale de atZone por fila: un rango que cruza un cambio de
+    // horario (Mendoza 2008: -02:00 -> -03:00) lleva los dos.
+    private static final DateTimeFormatter CAPTURED_AT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
     public enum Result { ALLOWED, DENIED }
 
@@ -70,14 +76,15 @@ public class AdminReportsController {
         // Valida, toma slot y audita antes de tocar la respuesta: un 422 o 429
         // ya no se puede mandar una vez que empezo el body.
         try (ExportAccessLogsUseCase.Export export = useCase.start(admin, from, to, lotId, allowedOnly)) {
-            String filename = "access-logs-" + day(from) + "-" + day(to) + ".csv";
+            ZoneId zone = export.zone();
+            String filename = "access-logs-" + LocalDate.ofInstant(from, zone) + "-" + LocalDate.ofInstant(to, zone) + ".csv";
             response.setContentType(TEXT_CSV.toString());
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
             Writer w = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
             w.write(BOM);
             w.write(HEADER);
             try {
-                export.stream(row -> writeRow(w, row));
+                export.stream(row -> writeRow(w, row, zone));
             } catch (UncheckedIOException e) {
                 throw e.getCause();
             }
@@ -85,10 +92,10 @@ public class AdminReportsController {
         }
     }
 
-    private static void writeRow(Writer w, AccessLogQuery.Item i) {
+    private static void writeRow(Writer w, AccessLogQuery.Item i, ZoneId zone) {
         try {
             w.write(String.join(",",
-                    i.capturedAt().toString(),
+                    CAPTURED_AT.format(i.capturedAt().atZone(zone)),
                     cell(i.lotCode()),
                     i.direction().name(),
                     i.subjectType().name(),
@@ -111,9 +118,5 @@ public class AdminReportsController {
         String v = "=+-@\t\r".indexOf(value.charAt(0)) >= 0 ? "'" + value : value;
         if (v.chars().noneMatch(c -> c == ',' || c == '"' || c == '\n' || c == '\r')) return v;
         return '"' + v.replace("\"", "\"\"") + '"';
-    }
-
-    private static LocalDate day(Instant instant) {
-        return LocalDate.ofInstant(instant, ZoneOffset.UTC);
     }
 }

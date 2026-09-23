@@ -5,6 +5,7 @@ import com.securepass.modules.access.domain.Direction;
 import com.securepass.modules.access.domain.SubjectType;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -15,6 +16,9 @@ public interface AccessLogQuery {
 
     /** Recorre todas las filas del filtro sin paginar, en orden cronologico (export CSV, US-32). */
     void forEach(ExportFilter filter, Consumer<Item> sink);
+
+    /** Zona del barrio ({@code neighborhoods.timezone}, NOT NULL y validada al provisionar). */
+    ZoneId timezone(UUID neighborhoodId);
 
     record Filter(
             UUID neighborhoodId,

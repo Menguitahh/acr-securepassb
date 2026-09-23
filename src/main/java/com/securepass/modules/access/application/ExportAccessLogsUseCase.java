@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +63,9 @@ public class ExportAccessLogsUseCase {
                     "el rango excede el maximo de " + MAX_RANGE.toDays() + " dias");
         }
 
+        // #192: antes de tomar slot, asi un fallo aca no deja nada que liberar.
+        ZoneId zone = logs.timezone(actor.neighborhoodId());
+
         // Sin espera: encolar retendria el hilo igual. El rechazo no se audita,
         // no sale ningun dato.
         if (!slots.tryAcquire()) throw new RateLimitExceededException(RETRY_AFTER);
@@ -73,21 +77,28 @@ public class ExportAccessLogsUseCase {
             slots.release();
             throw e;
         }
-        return new Export(filter);
+        return new Export(filter, zone);
     }
 
     /** Export en curso. Ocupa un slot hasta {@link #close}; usar con try-with-resources. */
     public final class Export implements AutoCloseable {
 
         private final AccessLogQuery.ExportFilter filter;
+        private final ZoneId zone;
         private final AtomicBoolean closed = new AtomicBoolean();
 
-        private Export(AccessLogQuery.ExportFilter filter) {
+        private Export(AccessLogQuery.ExportFilter filter, ZoneId zone) {
             this.filter = filter;
+            this.zone = zone;
         }
 
         public AccessLogQuery.ExportFilter filter() {
             return filter;
+        }
+
+        /** Zona del barrio: el CSV sale en hora local con offset por fila (#192). */
+        public ZoneId zone() {
+            return zone;
         }
 
         public void stream(Consumer<AccessLogQuery.Item> sink) {

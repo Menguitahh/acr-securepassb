@@ -14,6 +14,7 @@ import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.ZoneId;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -111,6 +112,16 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         if (f.lotIdFilter() != null) q.param("lotFilter", f.lotIdFilter());
         if (f.allowedOnly() != null) q.param("result", f.allowedOnly() ? "ALLOWED" : "DENIED");
         q.query((RowCallbackHandler) rs -> sink.accept(map(rs)));
+    }
+
+    @Override
+    public ZoneId timezone(UUID neighborhoodId) {
+        String tz = jdbc.sql("SELECT timezone FROM neighborhoods WHERE id = :nid")
+                .param("nid", neighborhoodId)
+                .query(String.class)
+                .optional()
+                .orElseThrow(() -> new IllegalStateException("neighborhood " + neighborhoodId + " no existe"));
+        return ZoneId.of(tz);
     }
 
     private static Item map(ResultSet rs) throws SQLException {
