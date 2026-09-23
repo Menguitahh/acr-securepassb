@@ -1,7 +1,9 @@
 package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.TestcontainersConfiguration;
+import com.securepass.modules.access.application.ExportAccessLogsUseCase;
 import com.securepass.modules.identity.domain.Role;
+import com.securepass.shared.security.CurrentUser;
 import com.securepass.shared.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,7 @@ class AccessLogsExportHttpTest {
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
     @Autowired JwtService jwt;
+    @Autowired ExportAccessLogsUseCase exports;
 
     UUID barrio;
     UUID otroBarrio;
@@ -167,5 +170,22 @@ class AccessLogsExportHttpTest {
                 "UPDATE access_log_exports SET range_to = now() WHERE actor_user_id = ?", adminId))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("access_log_exports es append-only");
+    }
+
+    // #189: con los slots ocupados, 429 con Retry-After y sin fila de auditoria.
+    @Test
+    void conLosSlotsOcupadosEs429() throws Exception {
+        CurrentUser otroAdmin = new CurrentUser(adminId, barrio, List.of(Role.ADMIN), List.of());
+        try (var a = exports.start(otroAdmin, FROM, TO, null, null);
+             var b = exports.start(otroAdmin, FROM, TO, null, null)) {
+            int auditedBefore = exportsAudited();
+
+            HttpResponse<String> resp = export(range(), Role.ADMIN);
+
+            assertThat(resp.statusCode()).isEqualTo(429);
+            assertThat(resp.headers().firstValue("Retry-After")).hasValue("30");
+            assertThat(exportsAudited()).isEqualTo(auditedBefore);
+        }
+        assertThat(export(range(), Role.ADMIN).statusCode()).isEqualTo(200);
     }
 }

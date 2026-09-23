@@ -58,6 +58,7 @@ public class AdminReportsController {
     // SecurityContext (403 con el body ya comprometido). Sigue siendo streaming.
     @GetMapping(value = "/access-logs.csv", produces = "text/csv")
     @ApiResponse(responseCode = "200", content = @Content(mediaType = "text/csv", schema = @Schema(type = "string")))
+    @ApiResponse(responseCode = "429", description = "Hay demasiados exports en curso; reintentar tras Retry-After")
     public void accessLogs(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
@@ -66,22 +67,22 @@ public class AdminReportsController {
             HttpServletResponse response) throws IOException {
         CurrentUser admin = guard.require();
         Boolean allowedOnly = result == null ? null : result == Result.ALLOWED;
-        // Valida y audita antes de tocar la respuesta: un 422 ya no se puede
-        // mandar una vez que empezo el body.
-        AccessLogQuery.ExportFilter filter = useCase.start(admin, from, to, lotId, allowedOnly);
-
-        String filename = "access-logs-" + day(from) + "-" + day(to) + ".csv";
-        response.setContentType(TEXT_CSV.toString());
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
-        Writer w = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
-        w.write(BOM);
-        w.write(HEADER);
-        try {
-            useCase.stream(filter, row -> writeRow(w, row));
-        } catch (UncheckedIOException e) {
-            throw e.getCause();
+        // Valida, toma slot y audita antes de tocar la respuesta: un 422 o 429
+        // ya no se puede mandar una vez que empezo el body.
+        try (ExportAccessLogsUseCase.Export export = useCase.start(admin, from, to, lotId, allowedOnly)) {
+            String filename = "access-logs-" + day(from) + "-" + day(to) + ".csv";
+            response.setContentType(TEXT_CSV.toString());
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+            Writer w = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
+            w.write(BOM);
+            w.write(HEADER);
+            try {
+                export.stream(row -> writeRow(w, row));
+            } catch (UncheckedIOException e) {
+                throw e.getCause();
+            }
+            w.flush();
         }
-        w.flush();
     }
 
     private static void writeRow(Writer w, AccessLogQuery.Item i) {

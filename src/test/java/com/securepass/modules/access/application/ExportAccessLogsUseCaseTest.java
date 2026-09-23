@@ -2,6 +2,7 @@ package com.securepass.modules.access.application;
 
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.exception.BusinessRuleViolationException;
+import com.securepass.shared.exception.RateLimitExceededException;
 import com.securepass.shared.security.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -35,7 +39,7 @@ class ExportAccessLogsUseCaseTest {
     void setUp() {
         query = mock(AccessLogQuery.class);
         audit = mock(AccessLogExportAudit.class);
-        useCase = new ExportAccessLogsUseCase(query, audit);
+        useCase = new ExportAccessLogsUseCase(query, audit, 2);
         admin = new CurrentUser(UUID.randomUUID(), UUID.randomUUID(), List.of(Role.ADMIN), List.of());
     }
 
@@ -44,7 +48,7 @@ class ExportAccessLogsUseCaseTest {
         UUID lot = UUID.randomUUID();
         Instant from = TO.minus(Duration.ofDays(7));
 
-        AccessLogQuery.ExportFilter filter = useCase.start(admin, from, TO, lot, Boolean.FALSE);
+        AccessLogQuery.ExportFilter filter = useCase.start(admin, from, TO, lot, Boolean.FALSE).filter();
 
         assertThat(filter).isEqualTo(new AccessLogQuery.ExportFilter(admin.neighborhoodId(), lot, from, TO, Boolean.FALSE));
         InOrder order = inOrder(audit, query);
@@ -54,16 +58,18 @@ class ExportAccessLogsUseCaseTest {
 
     @Test
     void streamDelegaEnElQuery() {
-        AccessLogQuery.ExportFilter filter = useCase.start(admin, TO.minus(Duration.ofDays(1)), TO, null, null);
+        ExportAccessLogsUseCase.Export export = useCase.start(admin, TO.minus(Duration.ofDays(1)), TO, null, null);
 
-        useCase.stream(filter, row -> {});
+        export.stream(row -> {});
+
+        AccessLogQuery.ExportFilter filter = export.filter();
 
         verify(query).forEach(eq(filter), any());
     }
 
     @Test
     void rangoDeNoventaDiasExactosSePermite() {
-        AccessLogQuery.ExportFilter filter = useCase.start(admin, TO.minus(Duration.ofDays(90)), TO, null, null);
+        AccessLogQuery.ExportFilter filter = useCase.start(admin, TO.minus(Duration.ofDays(90)), TO, null, null).filter();
 
         verify(audit).record(admin.userId(), filter);
     }
@@ -110,5 +116,66 @@ class ExportAccessLogsUseCaseTest {
         assertThatThrownBy(() -> useCase.start(orphan, TO.minusSeconds(60), TO, null, null))
                 .isInstanceOf(AccessDeniedException.class);
         verifyNoInteractions(audit);
+    }
+
+    // #189: el cursor retiene una conexion del pool durante todo el export.
+    @Test
+    void tercerExportConcurrenteEs429SinAuditar() {
+        ExportAccessLogsUseCase.Export a = start();
+        ExportAccessLogsUseCase.Export b = start();
+        clearInvocations(audit);
+
+        assertThatThrownBy(this::start)
+                .isInstanceOf(RateLimitExceededException.class)
+                .satisfies(e -> assertThat(((RateLimitExceededException) e).retryAfter()).isPositive());
+        verifyNoInteractions(audit);
+
+        a.close();
+        b.close();
+    }
+
+    @Test
+    void cerrarLiberaElSlotYEsIdempotente() {
+        ExportAccessLogsUseCase.Export a = start();
+        ExportAccessLogsUseCase.Export b = start();
+
+        a.close();
+        a.close();
+
+        ExportAccessLogsUseCase.Export c = start();
+        assertThatThrownBy(this::start).isInstanceOf(RateLimitExceededException.class);
+        b.close();
+        c.close();
+    }
+
+    @Test
+    void siFallaLaAuditoriaSeLiberaElSlot() {
+        doThrow(new IllegalStateException("db caida")).when(audit).record(any(), any());
+        assertThatThrownBy(this::start).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(this::start).isInstanceOf(IllegalStateException.class);
+
+        doNothing().when(audit).record(any(), any());
+        start().close();
+        start().close();
+    }
+
+    @Test
+    void siFallaElStreamSeLiberaAlCerrar() {
+        doThrow(new IllegalStateException("cursor roto")).when(query).forEach(any(), any());
+        for (int i = 0; i < 3; i++) {
+            try (ExportAccessLogsUseCase.Export e = start()) {
+                assertThatThrownBy(() -> e.stream(row -> {})).isInstanceOf(IllegalStateException.class);
+            }
+        }
+    }
+
+    @Test
+    void limiteDebeSerPositivo() {
+        assertThatThrownBy(() -> new ExportAccessLogsUseCase(query, audit, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private ExportAccessLogsUseCase.Export start() {
+        return useCase.start(admin, TO.minus(Duration.ofDays(1)), TO, null, null);
     }
 }

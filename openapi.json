@@ -1583,6 +1583,9 @@
                 }
               }
             }
+          },
+          "429" : {
+            "description" : "Hay demasiados exports en curso; reintentar tras Retry-After"
           }
         }
       }
