@@ -1406,9 +1406,6 @@
         ],
         "operationId" : "current",
         "responses" : {
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
-          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1418,6 +1415,9 @@
                 }
               }
             }
+          },
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -1519,6 +1519,67 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reports/access-logs.csv" : {
+      "get" : {
+        "tags" : [
+          "admin-reports-controller"
+        ],
+        "operationId" : "accessLogs",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "lotId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "result",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "enum" : [
+                "ALLOWED",
+                "DENIED"
+              ]
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "text/csv" : {
+                "schema" : {
+                  "type" : "string"
                 }
               }
             }

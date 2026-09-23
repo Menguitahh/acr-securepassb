@@ -7,10 +7,14 @@ import com.securepass.modules.access.domain.SubjectType;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public interface AccessLogQuery {
 
     Page list(Filter filter);
+
+    /** Recorre todas las filas del filtro sin paginar, en orden cronologico (export CSV, US-32). */
+    void forEach(ExportFilter filter, Consumer<Item> sink);
 
     record Filter(
             UUID neighborhoodId,
@@ -27,6 +31,19 @@ public interface AccessLogQuery {
             if (page < 0) throw new IllegalArgumentException("page >= 0");
             if (size < 1 || size > 100) throw new IllegalArgumentException("size 1..100");
             lotIdsAllowed = lotIdsAllowed == null ? List.of() : List.copyOf(lotIdsAllowed);
+        }
+    }
+
+    record ExportFilter(
+            UUID neighborhoodId,
+            UUID lotIdFilter,
+            Instant from,
+            Instant to,
+            Boolean allowedOnly
+    ) {
+        public ExportFilter {
+            if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
+            if (from == null || to == null) throw new IllegalArgumentException("from y to requeridos");
         }
     }
 

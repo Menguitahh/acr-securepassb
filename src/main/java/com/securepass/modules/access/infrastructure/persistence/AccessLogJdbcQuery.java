@@ -4,19 +4,32 @@ import com.securepass.modules.access.application.AccessLogQuery;
 import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
 import com.securepass.modules.access.domain.SubjectType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @Repository
 public class AccessLogJdbcQuery implements AccessLogQuery {
 
-    private final JdbcClient jdbc;
+    private static final int EXPORT_FETCH_SIZE = 500;
 
-    public AccessLogJdbcQuery(JdbcClient jdbc) {
+    private final JdbcClient jdbc;
+    private final JdbcClient streaming;
+
+    public AccessLogJdbcQuery(JdbcClient jdbc, DataSource dataSource) {
         this.jdbc = jdbc;
+        JdbcTemplate template = new JdbcTemplate(dataSource);
+        template.setFetchSize(EXPORT_FETCH_SIZE);
+        this.streaming = JdbcClient.create(template);
     }
 
     @Override
@@ -68,22 +81,51 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         }
         itemsQ.param("size", f.size()).param("offset", (long) f.page() * f.size());
 
-        var items = itemsQ.query((rs, i) -> {
-            String reason = rs.getString("denial_reason");
-            return new Item(
-                    rs.getObject("id", UUID.class),
-                    rs.getObject("lot_id", UUID.class),
-                    rs.getString("lot_code"),
-                    Direction.valueOf(rs.getString("direction")),
-                    SubjectType.valueOf(rs.getString("subject_type")),
-                    "ALLOWED".equals(rs.getString("result")),
-                    reason == null ? null : DenialReason.valueOf(reason),
-                    rs.getString("subject_name"),
-                    rs.getString("subject_document"),
-                    rs.getInt("companions"),
-                    rs.getTimestamp("captured_at").toInstant());
-        }).list();
+        var items = itemsQ.query((rs, i) -> map(rs)).list();
         long total = countQ.query(Long.class).single();
         return new Page(items, f.page(), f.size(), total);
+    }
+
+    // Cursor server-side: Postgres solo respeta fetchSize dentro de una
+    // transaccion; sin ella trae el rango entero a memoria antes de escribir.
+    @Override
+    @Transactional(readOnly = true)
+    public void forEach(ExportFilter f, Consumer<Item> sink) {
+        StringBuilder where = new StringBuilder(
+                "WHERE al.neighborhood_id = :nid AND al.captured_at >= :from AND al.captured_at <= :to");
+        if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
+        if (f.allowedOnly() != null) where.append(" AND al.result = :result");
+
+        var q = streaming.sql("""
+                SELECT al.id, al.lot_id, l.code AS lot_code,
+                       al.direction, al.subject_type, al.result, al.denial_reason,
+                       al.subject_name, al.subject_document, al.companions, al.captured_at
+                  FROM access_logs al
+                  LEFT JOIN lots l ON l.id = al.lot_id
+                """ + where + """
+                 ORDER BY al.captured_at, al.id
+                """)
+                .param("nid", f.neighborhoodId())
+                .param("from", Timestamp.from(f.from()))
+                .param("to", Timestamp.from(f.to()));
+        if (f.lotIdFilter() != null) q.param("lotFilter", f.lotIdFilter());
+        if (f.allowedOnly() != null) q.param("result", f.allowedOnly() ? "ALLOWED" : "DENIED");
+        q.query((RowCallbackHandler) rs -> sink.accept(map(rs)));
+    }
+
+    private static Item map(ResultSet rs) throws SQLException {
+        String reason = rs.getString("denial_reason");
+        return new Item(
+                rs.getObject("id", UUID.class),
+                rs.getObject("lot_id", UUID.class),
+                rs.getString("lot_code"),
+                Direction.valueOf(rs.getString("direction")),
+                SubjectType.valueOf(rs.getString("subject_type")),
+                "ALLOWED".equals(rs.getString("result")),
+                reason == null ? null : DenialReason.valueOf(reason),
+                rs.getString("subject_name"),
+                rs.getString("subject_document"),
+                rs.getInt("companions"),
+                rs.getTimestamp("captured_at").toInstant());
     }
 }
