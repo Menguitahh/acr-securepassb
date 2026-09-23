@@ -85,13 +85,13 @@ public class ShiftController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public List<ShiftResponse> list(
+    public List<ShiftSummaryResponse> list(
             @RequestParam(required = false) UUID gateId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
         CurrentUser user = guard.require();
         if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
         return listUseCase.list(user.neighborhoodId(), gateId, from, to).stream()
-                .map(ShiftResponse::from).toList();
+                .map(ShiftSummaryResponse::from).toList();
     }
 }

@@ -21,5 +21,5 @@ public interface ShiftRepository {
 
     void close(Shift closedShift);
 
-    List<Shift> listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int limit);
+    List<ShiftSummary> listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int limit);
 }

@@ -1,6 +1,7 @@
 package com.securepass.modules.shift.infrastructure.persistence;
 
 import com.securepass.modules.shift.application.ShiftRepository;
+import com.securepass.modules.shift.application.ShiftSummary;
 import com.securepass.modules.shift.domain.Shift;
 import com.securepass.shared.exception.StateConflictException;
 import org.springframework.dao.DuplicateKeyException;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -80,16 +80,20 @@ public class ShiftJdbcRepository implements ShiftRepository {
     }
 
     @Override
-    public List<Shift> listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int limit) {
-        StringBuilder where = new StringBuilder("WHERE neighborhood_id = :nid");
-        if (gateId != null) where.append(" AND gate_id = :gate");
-        if (from != null) where.append(" AND started_at >= :from");
-        if (to != null) where.append(" AND started_at <= :to");
+    public List<ShiftSummary> listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int limit) {
+        StringBuilder where = new StringBuilder("WHERE s.neighborhood_id = :nid");
+        if (gateId != null) where.append(" AND s.gate_id = :gate");
+        if (from != null) where.append(" AND s.started_at >= :from");
+        if (to != null) where.append(" AND s.started_at <= :to");
         var query = jdbc.sql("""
-                SELECT id, neighborhood_id, gate_id, guard_id, started_at, ended_at, handover_notes
-                  FROM guard_shifts
+                SELECT s.id, s.neighborhood_id, s.gate_id, s.guard_id, s.started_at, s.ended_at, s.handover_notes,
+                       u.full_name AS guard_full_name, g.name AS gate_name,
+                       (SELECT count(*) FROM access_logs l WHERE l.shift_id = s.id) AS access_count
+                  FROM guard_shifts s
+                  JOIN users u ON u.id = s.guard_id
+                  JOIN gates g ON g.id = s.gate_id
                 """ + where + """
-                 ORDER BY started_at DESC
+                 ORDER BY s.started_at DESC
                  LIMIT :limit
                 """)
                 .param("nid", neighborhoodId)
@@ -97,8 +101,12 @@ public class ShiftJdbcRepository implements ShiftRepository {
         if (gateId != null) query.param("gate", gateId);
         if (from != null) query.param("from", Timestamp.from(from));
         if (to != null) query.param("to", Timestamp.from(to));
-        List<Shift> out = new ArrayList<>(query.query(mapper()).list());
-        return out;
+        RowMapper<Shift> shift = mapper();
+        return query.query((rs, i) -> new ShiftSummary(
+                shift.mapRow(rs, i),
+                rs.getString("guard_full_name"),
+                rs.getString("gate_name"),
+                rs.getLong("access_count"))).list();
     }
 
     private RowMapper<Shift> mapper() {

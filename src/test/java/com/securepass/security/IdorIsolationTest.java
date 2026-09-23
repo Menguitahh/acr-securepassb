@@ -287,7 +287,7 @@ class IdorIsolationTest {
                 VALUES (?, ?, ?, ?, now())
                 """, shiftB, barrioB, gateB, residentB);
         var shifts = listShifts.list(barrioA, null, null, null);
-        assertThat(shifts).noneMatch(s -> s.id().equals(shiftB));
+        assertThat(shifts).noneMatch(s -> s.shift().id().equals(shiftB));
     }
 
     // ---------- helpers ----------

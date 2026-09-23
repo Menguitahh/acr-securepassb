@@ -1,6 +1,5 @@
 package com.securepass.modules.shift.application;
 
-import com.securepass.modules.shift.domain.Shift;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,7 +17,7 @@ public class ListShiftsUseCase {
         this.shifts = shifts;
     }
 
-    public List<Shift> list(UUID neighborhoodId, UUID gateId, Instant from, Instant to) {
+    public List<ShiftSummary> list(UUID neighborhoodId, UUID gateId, Instant from, Instant to) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         return shifts.listByFilter(neighborhoodId, gateId, from, to, MAX_LIMIT);
     }

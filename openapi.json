@@ -1390,7 +1390,7 @@
                 "schema" : {
                   "type" : "array",
                   "items" : {
-                    "$ref" : "#/components/schemas/ShiftResponse"
+                    "$ref" : "#/components/schemas/ShiftSummaryResponse"
                   }
                 }
               }
@@ -1406,6 +1406,9 @@
         ],
         "operationId" : "current",
         "responses" : {
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
+          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1415,9 +1418,6 @@
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -3236,10 +3236,10 @@
           "active" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
           "nonEmpty" : {
@@ -3415,6 +3415,48 @@
             "items" : {
               "$ref" : "#/components/schemas/OpenStay"
             }
+          }
+        }
+      },
+      "ShiftSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "gateName" : {
+            "type" : "string"
+          },
+          "guardId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "guardFullName" : {
+            "type" : "string"
+          },
+          "startedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "endedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "handoverNotes" : {
+            "type" : "string"
+          },
+          "accessCount" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         }
       },
