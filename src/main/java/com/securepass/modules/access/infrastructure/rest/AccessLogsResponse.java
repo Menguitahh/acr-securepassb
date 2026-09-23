@@ -2,6 +2,7 @@ package com.securepass.modules.access.infrastructure.rest;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.securepass.modules.access.application.AccessLogQuery;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.UUID;
 
 public record AccessLogsResponse(List<Item> items, int page, int size, long total) {
 
+    @Schema(name = "AccessLogItem")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Item(
             UUID id,

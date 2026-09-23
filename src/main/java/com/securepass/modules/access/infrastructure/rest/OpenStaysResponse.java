@@ -1,6 +1,7 @@
 package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.modules.access.application.OpenStayView;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -9,6 +10,7 @@ import java.util.UUID;
 
 public record OpenStaysResponse(List<Item> stays) {
 
+    @Schema(name = "OpenStay")
     public record Item(
             UUID id,
             UUID invitationId,

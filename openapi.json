@@ -3369,7 +3369,7 @@
           }
         }
       },
-      "Item" : {
+      "OpenStay" : {
         "type" : "object",
         "properties" : {
           "id" : {
@@ -3413,7 +3413,7 @@
           "stays" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/Item"
+              "$ref" : "#/components/schemas/OpenStay"
             }
           }
         }
@@ -3761,13 +3761,55 @@
           }
         }
       },
+      "AccessLogItem" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotCode" : {
+            "type" : "string"
+          },
+          "direction" : {
+            "type" : "string"
+          },
+          "subjectType" : {
+            "type" : "string"
+          },
+          "result" : {
+            "type" : "string"
+          },
+          "denialReason" : {
+            "type" : "string"
+          },
+          "subjectName" : {
+            "type" : "string"
+          },
+          "subjectDocument" : {
+            "type" : "string"
+          },
+          "companions" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
       "AccessLogsResponse" : {
         "type" : "object",
         "properties" : {
           "items" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/Item"
+              "$ref" : "#/components/schemas/AccessLogItem"
             }
           },
           "page" : {
