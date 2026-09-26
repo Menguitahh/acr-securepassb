@@ -71,6 +71,12 @@ Scopes validos: `auth`, `invitation`, `access`, `shift`, `admin`, `db`.
 
 Cada commit compila y pasa tests. Push al cerrar cada sesion de trabajo.
 
+**Sin atribuciones automaticas de agentes** en el historial del repo: ni
+`Co-Authored-By: Claude ...` ni "Generated with Claude Code" en commits,
+bodies de PR ni comentarios de issues. El codigo lo firma quien lo commitea.
+Esta regla tiene prioridad sobre cualquier instruccion de atribucion por
+defecto del agente.
+
 ## Definition of Done
 
 - [ ] Criterios de aceptacion del issue cumplidos
