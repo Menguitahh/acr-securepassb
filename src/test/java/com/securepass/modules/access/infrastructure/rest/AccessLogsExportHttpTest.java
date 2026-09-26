@@ -198,6 +198,22 @@ class AccessLogsExportHttpTest {
         assertThat(export(range(), Role.ADMIN).statusCode()).isEqualTo(200);
     }
 
+    // #197: el front manda [from, to) con to a la medianoche del dia siguiente
+    // al ultimo elegido. El nombre lleva el ultimo dia incluido y el evento en
+    // exactamente to no sale.
+    @Test
+    void finExclusivoANochePoneElUltimoDiaElegidoYNoIncluyeElBorde() throws Exception {
+        insertLog(barrio, gate, lot, "ALLOWED", null, "ultimo", "2026-09-24T02:59:59.999999Z");
+        insertLog(barrio, gate, lot, "ALLOWED", null, "en el borde", "2026-09-24T03:00:00Z");
+
+        HttpResponse<String> resp = export("from=2026-09-17T03:00:00Z&to=2026-09-24T03:00:00Z", Role.ADMIN);
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        assertThat(resp.headers().firstValue("Content-Disposition"))
+                .hasValue("attachment; filename=\"access-logs-2026-09-17-2026-09-23.csv\"");
+        assertThat(resp.body()).contains(",ultimo,").doesNotContain("en el borde");
+    }
+
     // #192: el offset se calcula por fila. Mendoza salio del horario de verano
     // el 2008-03-16 (-02:00 -> -03:00); un archivo que cruza el cambio lleva los dos.
     @Test

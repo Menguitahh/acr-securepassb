@@ -77,7 +77,9 @@ public class AdminReportsController {
         // ya no se puede mandar una vez que empezo el body.
         try (ExportAccessLogsUseCase.Export export = useCase.start(admin, from, to, lotId, allowedOnly)) {
             ZoneId zone = export.zone();
-            String filename = "access-logs-" + LocalDate.ofInstant(from, zone) + "-" + LocalDate.ofInstant(to, zone) + ".csv";
+            // #197: to es exclusivo; el ultimo dia es el del ultimo instante incluido.
+            LocalDate lastDay = LocalDate.ofInstant(to.minusNanos(1), zone);
+            String filename = "access-logs-" + LocalDate.ofInstant(from, zone) + "-" + lastDay + ".csv";
             response.setContentType(TEXT_CSV.toString());
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
             Writer w = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));

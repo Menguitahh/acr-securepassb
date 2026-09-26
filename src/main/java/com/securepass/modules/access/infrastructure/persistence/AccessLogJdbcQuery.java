@@ -87,13 +87,14 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         return new Page(items, f.page(), f.size(), total);
     }
 
+    // [from, to), igual que el front y las metricas (#197).
     // Cursor server-side: Postgres solo respeta fetchSize dentro de una
     // transaccion; sin ella trae el rango entero a memoria antes de escribir.
     @Override
     @Transactional(readOnly = true)
     public void forEach(ExportFilter f, Consumer<Item> sink) {
         StringBuilder where = new StringBuilder(
-                "WHERE al.neighborhood_id = :nid AND al.captured_at >= :from AND al.captured_at <= :to");
+                "WHERE al.neighborhood_id = :nid AND al.captured_at >= :from AND al.captured_at < :to");
         if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
         if (f.allowedOnly() != null) where.append(" AND al.result = :result");
 
