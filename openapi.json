@@ -1526,6 +1526,74 @@
         }
       }
     },
+    "/api/v1/admin/reports/access-logs.xlsx" : {
+      "get" : {
+        "tags" : [
+          "admin-reports-controller"
+        ],
+        "operationId" : "accessLogsXlsx",
+        "parameters" : [
+          {
+            "name" : "from",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "to",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "date-time"
+            }
+          },
+          {
+            "name" : "lotId",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "result",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "enum" : [
+                "ALLOWED",
+                "DENIED"
+              ]
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "binary"
+                }
+              }
+            }
+          },
+          "422" : {
+            "description" : "Rango invalido o mas filas que el limite del XLSX; usar el CSV o reducir el rango"
+          },
+          "429" : {
+            "description" : "Hay demasiados exports en curso; reintentar tras Retry-After"
+          }
+        }
+      }
+    },
     "/api/v1/admin/reports/access-logs.csv" : {
       "get" : {
         "tags" : [
@@ -3300,13 +3368,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
-            "type" : "boolean"
-          },
           "dailyOrderValid" : {
             "type" : "boolean"
           },
           "nonEmpty" : {
+            "type" : "boolean"
+          },
+          "scheduleBundled" : {
             "type" : "boolean"
           }
         }

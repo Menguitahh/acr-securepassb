@@ -93,26 +93,41 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
     @Override
     @Transactional(readOnly = true)
     public void forEach(ExportFilter f, Consumer<Item> sink) {
-        StringBuilder where = new StringBuilder(
-                "WHERE al.neighborhood_id = :nid AND al.captured_at >= :from AND al.captured_at < :to");
-        if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
-        if (f.allowedOnly() != null) where.append(" AND al.result = :result");
-
-        var q = streaming.sql("""
+        var q = bind(streaming.sql("""
                 SELECT al.id, al.lot_id, l.code AS lot_code,
                        al.direction, al.subject_type, al.result, al.denial_reason,
                        al.subject_name, al.subject_document, al.companions, al.captured_at
                   FROM access_logs al
                   LEFT JOIN lots l ON l.id = al.lot_id
-                """ + where + """
+                """ + exportWhere(f) + """
                  ORDER BY al.captured_at, al.id
-                """)
-                .param("nid", f.neighborhoodId())
+                """), f);
+        q.query((RowCallbackHandler) rs -> sink.accept(map(rs)));
+    }
+
+    // Mismo WHERE que forEach: el tope del XLSX tiene que contar las filas que
+    // despues se escriben (#195).
+    @Override
+    public long count(ExportFilter f) {
+        return bind(jdbc.sql("SELECT count(*) FROM access_logs al " + exportWhere(f)), f)
+                .query(Long.class).single();
+    }
+
+    private static String exportWhere(ExportFilter f) {
+        StringBuilder where = new StringBuilder(
+                "WHERE al.neighborhood_id = :nid AND al.captured_at >= :from AND al.captured_at < :to");
+        if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
+        if (f.allowedOnly() != null) where.append(" AND al.result = :result");
+        return where.toString();
+    }
+
+    private static JdbcClient.StatementSpec bind(JdbcClient.StatementSpec q, ExportFilter f) {
+        q.param("nid", f.neighborhoodId())
                 .param("from", Timestamp.from(f.from()))
                 .param("to", Timestamp.from(f.to()));
         if (f.lotIdFilter() != null) q.param("lotFilter", f.lotIdFilter());
         if (f.allowedOnly() != null) q.param("result", f.allowedOnly() ? "ALLOWED" : "DENIED");
-        q.query((RowCallbackHandler) rs -> sink.accept(map(rs)));
+        return q;
     }
 
     @Override

@@ -2,12 +2,14 @@ package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.modules.access.application.AccessLogQuery;
 import com.securepass.modules.access.application.ExportAccessLogsUseCase;
+import com.securepass.modules.access.application.ExportFormat;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.poi.poifs.crypt.temp.SXSSFWorkbookWithCustomZipEntrySource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,8 +32,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 /**
- * WBS-52 / US-32: export CSV de la bitacora. El barrio sale del JWT, igual
- * que en /admin/metrics: no hay parametro por barrio.
+ * WBS-52 / US-32: export de la bitacora. CSV para importar a otro sistema,
+ * XLSX para leer e imprimir (#195). El barrio sale del JWT, igual que en
+ * /admin/metrics: no hay parametro por barrio.
  */
 @RestController
 @RequestMapping("/api/v1/admin/reports")
@@ -39,6 +42,7 @@ import java.util.UUID;
 public class AdminReportsController {
 
     static final MediaType TEXT_CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
+    static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final String HEADER =
             "captured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions\r\n";
     // BOM: sin el, Excel abre el UTF-8 como ANSI y rompe tildes y enies.
@@ -72,16 +76,13 @@ public class AdminReportsController {
             @RequestParam(required = false) Result result,
             HttpServletResponse response) throws IOException {
         CurrentUser admin = guard.require();
-        Boolean allowedOnly = result == null ? null : result == Result.ALLOWED;
         // Valida, toma slot y audita antes de tocar la respuesta: un 422 o 429
         // ya no se puede mandar una vez que empezo el body.
-        try (ExportAccessLogsUseCase.Export export = useCase.start(admin, from, to, lotId, allowedOnly)) {
+        try (ExportAccessLogsUseCase.Export export =
+                     useCase.start(admin, from, to, lotId, allowedOnly(result), ExportFormat.CSV)) {
             ZoneId zone = export.zone();
-            // #197: to es exclusivo; el ultimo dia es el del ultimo instante incluido.
-            LocalDate lastDay = LocalDate.ofInstant(to.minusNanos(1), zone);
-            String filename = "access-logs-" + LocalDate.ofInstant(from, zone) + "-" + lastDay + ".csv";
             response.setContentType(TEXT_CSV.toString());
-            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, attachment(from, to, zone, "csv"));
             Writer w = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
             w.write(BOM);
             w.write(HEADER);
@@ -92,6 +93,47 @@ public class AdminReportsController {
             }
             w.flush();
         }
+    }
+
+    // #195: SXSSF genera a un temporal cifrado (AES, clave efimera por
+    // workbook) y recien despues escribe el zip. Hasta el write el body no se
+    // comprometio: un fallo del cursor todavia sale como 500. El cursor
+    // termina antes del write, asi que la conexion vuelve al pool antes de
+    // la descarga; el slot se retiene hasta el final.
+    @GetMapping(value = "/access-logs.xlsx", produces = XLSX)
+    @ApiResponse(responseCode = "200", content = @Content(mediaType = XLSX, schema = @Schema(type = "string", format = "binary")))
+    @ApiResponse(responseCode = "422", description = "Rango invalido o mas filas que el limite del XLSX; usar el CSV o reducir el rango")
+    @ApiResponse(responseCode = "429", description = "Hay demasiados exports en curso; reintentar tras Retry-After")
+    public void accessLogsXlsx(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(required = false) UUID lotId,
+            @RequestParam(required = false) Result result,
+            HttpServletResponse response) throws IOException {
+        CurrentUser admin = guard.require();
+        try (ExportAccessLogsUseCase.Export export =
+                     useCase.start(admin, from, to, lotId, allowedOnly(result), ExportFormat.XLSX);
+             // close() borra los temporales (llama a dispose(), deprecado en
+             // POI 5.5): cubre exito, fallo del cursor y corte de la descarga.
+             var wb = new SXSSFWorkbookWithCustomZipEntrySource()) {
+            AccessLogXlsxSheet sheet = new AccessLogXlsxSheet(wb, export.zone());
+            export.stream(sheet::append);
+            sheet.finish();
+            response.setContentType(XLSX);
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, attachment(from, to, export.zone(), "xlsx"));
+            wb.write(response.getOutputStream());
+        }
+    }
+
+    private static Boolean allowedOnly(Result result) {
+        return result == null ? null : result == Result.ALLOWED;
+    }
+
+    // #197: to es exclusivo; el ultimo dia es el del ultimo instante incluido.
+    private static String attachment(Instant from, Instant to, ZoneId zone, String extension) {
+        LocalDate lastDay = LocalDate.ofInstant(to.minusNanos(1), zone);
+        String filename = "access-logs-" + LocalDate.ofInstant(from, zone) + "-" + lastDay + "." + extension;
+        return "attachment; filename=\"" + filename + "\"";
     }
 
     private static void writeRow(Writer w, AccessLogQuery.Item i, ZoneId zone) {

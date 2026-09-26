@@ -972,7 +972,8 @@ Endpoints de residente para permanencia (US-42):
 | POST | `/admin/lots/{id}/members` | Vincular usuario a lote |
 | POST | `/admin/users` | Alta de usuario (v2, WBS-128). Body `{email, fullName, dni, role, lotId?}` con `role ∈ {RESIDENT_OWNER, GUARD}`. 201 con `{userId, role, status: PENDING_ACTIVATION}`. Dispara email de activación. |
 | POST | `/admin/users/{id}/resend-activation` | Reenvía el email de activación (v2, WBS-128). 3/hora por usuario. 409 si el usuario no está en `PENDING_ACTIVATION`. |
-| GET | `/admin/reports/access-logs.csv` | Export |
+| GET | `/admin/reports/access-logs.csv` | Export para importar a otro sistema: CSV RFC 4180, UTF-8 con BOM, `captured_at` ISO 8601 con offset. |
+| GET | `/admin/reports/access-logs.xlsx` | Export para leer e imprimir en Excel (#195): encabezados y valores en castellano, `Capturado el` como fecha de Excel en hora del barrio, filas denegadas destacadas. Mismos parámetros, rango máximo, límite de concurrencia y auditoría que el CSV. 422 si el filtro supera el límite de filas del XLSX. |
 
 **Códigos de conflicto en `POST /admin/users`** (HTTP 409, campo `code` en el body para que el frontend ramifique):
 
@@ -1466,7 +1467,7 @@ Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesa
 | US-29 | Como admin quiero ver afluencia por franja horaria. | P1 | Buckets de hora; rango configurable; separación peatonal/vehicular queda para v2 (sin patente no se distingue de forma fiable). |
 | US-30 | Como admin quiero ver los accesos denegados y su motivo. | P1 | Agrupados por `denial_reason`; drill-down al log individual. |
 | US-31 | Como admin quiero alertas de permanencia excedida. | P1 | BR-08; listado con lote, invitado y horas transcurridas. |
-| US-32 | Como admin quiero exportar la bitácora. | P1 | CSV con rango de fechas; la exportación queda registrada en auditoría. |
+| US-32 | Como admin quiero exportar la bitácora. | P1 | CSV con rango de fechas; la exportación queda registrada en auditoría. XLSX para lectura en Excel con el mismo rango (#195); la auditoría registra el formato. |
 | US-33 | Como admin quiero ver la bitácora de turnos de guardias. | P2 | Turno, guardia, garita, cantidad de accesos, nota de entrega. |
 
 ### Épica G — Enrolamiento y verificación de identidad

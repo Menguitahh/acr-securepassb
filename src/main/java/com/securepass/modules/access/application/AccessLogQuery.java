@@ -17,6 +17,9 @@ public interface AccessLogQuery {
     /** Recorre todas las filas del filtro sin paginar, en orden cronologico (export CSV, US-32). */
     void forEach(ExportFilter filter, Consumer<Item> sink);
 
+    /** Filas que recorreria {@link #forEach}; el XLSX la usa para rechazar antes de generar (#195). */
+    long count(ExportFilter filter);
+
     /** Zona del barrio ({@code neighborhoods.timezone}, NOT NULL y validada al provisionar). */
     ZoneId timezone(UUID neighborhoodId);
 

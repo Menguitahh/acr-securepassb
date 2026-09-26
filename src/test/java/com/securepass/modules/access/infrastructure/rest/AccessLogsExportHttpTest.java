@@ -2,6 +2,7 @@ package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.access.application.ExportAccessLogsUseCase;
+import com.securepass.modules.access.application.ExportFormat;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.security.CurrentUser;
 import com.securepass.shared.security.JwtService;
@@ -126,13 +127,14 @@ class AccessLogsExportHttpTest {
                 "2026-09-03T07:00:00-03:00,L-12,IN,GUEST,DENIED,EXPIRED,\"'=HYPERLINK(\"\"x\"\")\",30111222,1");
 
         Map<String, Object> audit = jdbc.queryForMap(
-                "SELECT neighborhood_id, range_from, range_to, lot_id, result FROM access_log_exports WHERE actor_user_id = ?",
+                "SELECT neighborhood_id, range_from, range_to, lot_id, result, format FROM access_log_exports WHERE actor_user_id = ?",
                 adminId);
         assertThat(audit.get("neighborhood_id")).isEqualTo(barrio);
         assertThat(((Timestamp) audit.get("range_from")).toInstant()).isEqualTo(FROM);
         assertThat(((Timestamp) audit.get("range_to")).toInstant()).isEqualTo(TO);
         assertThat(audit.get("lot_id")).isNull();
         assertThat(audit.get("result")).isNull();
+        assertThat(audit.get("format")).isEqualTo("CSV");
     }
 
     @Test
@@ -185,8 +187,8 @@ class AccessLogsExportHttpTest {
     @Test
     void conLosSlotsOcupadosEs429() throws Exception {
         CurrentUser otroAdmin = new CurrentUser(adminId, barrio, List.of(Role.ADMIN), List.of());
-        try (var a = exports.start(otroAdmin, FROM, TO, null, null);
-             var b = exports.start(otroAdmin, FROM, TO, null, null)) {
+        try (var a = exports.start(otroAdmin, FROM, TO, null, null, ExportFormat.CSV);
+             var b = exports.start(otroAdmin, FROM, TO, null, null, ExportFormat.CSV)) {
             int auditedBefore = exportsAudited();
 
             HttpResponse<String> resp = export(range(), Role.ADMIN);
