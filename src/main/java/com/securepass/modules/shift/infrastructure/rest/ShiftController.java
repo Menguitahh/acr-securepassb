@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -85,13 +84,13 @@ public class ShiftController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public List<ShiftSummaryResponse> list(
+    public ShiftsResponse list(
             @RequestParam(required = false) UUID gateId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(defaultValue = "0") int page) {
         CurrentUser user = guard.require();
         if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
-        return listUseCase.list(user.neighborhoodId(), gateId, from, to).stream()
-                .map(ShiftSummaryResponse::from).toList();
+        return ShiftsResponse.from(listUseCase.list(user.neighborhoodId(), gateId, from, to, page));
     }
 }

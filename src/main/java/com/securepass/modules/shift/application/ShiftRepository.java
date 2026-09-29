@@ -21,5 +21,8 @@ public interface ShiftRepository {
 
     void close(Shift closedShift);
 
-    List<ShiftSummary> listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int limit);
+    /** Pagina del listado admin (US-33), mas reciente primero; el rango es [from, to) sobre started_at. */
+    Page listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int page, int size);
+
+    record Page(List<ShiftSummary> items, int page, int size, long total) {}
 }

@@ -3,13 +3,13 @@ package com.securepass.modules.shift.application;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Service
 public class ListShiftsUseCase {
 
-    private static final int MAX_LIMIT = 200;
+    // Fijo, igual que /access-logs (#203).
+    private static final int PAGE_SIZE = 25;
 
     private final ShiftRepository shifts;
 
@@ -17,8 +17,8 @@ public class ListShiftsUseCase {
         this.shifts = shifts;
     }
 
-    public List<ShiftSummary> list(UUID neighborhoodId, UUID gateId, Instant from, Instant to) {
+    public ShiftRepository.Page list(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int page) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
-        return shifts.listByFilter(neighborhoodId, gateId, from, to, MAX_LIMIT);
+        return shifts.listByFilter(neighborhoodId, gateId, from, to, Math.max(0, page), PAGE_SIZE);
     }
 }

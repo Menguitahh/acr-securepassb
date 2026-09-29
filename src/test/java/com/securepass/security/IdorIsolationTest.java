@@ -286,7 +286,7 @@ class IdorIsolationTest {
                 INSERT INTO guard_shifts (id, neighborhood_id, gate_id, guard_id, started_at)
                 VALUES (?, ?, ?, ?, now())
                 """, shiftB, barrioB, gateB, residentB);
-        var shifts = listShifts.list(barrioA, null, null, null);
+        var shifts = listShifts.list(barrioA, null, null, null, 0).items();
         assertThat(shifts).noneMatch(s -> s.shift().id().equals(shiftB));
     }
 

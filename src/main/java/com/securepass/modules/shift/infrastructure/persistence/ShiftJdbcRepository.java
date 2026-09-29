@@ -80,11 +80,11 @@ public class ShiftJdbcRepository implements ShiftRepository {
     }
 
     @Override
-    public List<ShiftSummary> listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int limit) {
+    public Page listByFilter(UUID neighborhoodId, UUID gateId, Instant from, Instant to, int page, int size) {
         StringBuilder where = new StringBuilder("WHERE s.neighborhood_id = :nid");
         if (gateId != null) where.append(" AND s.gate_id = :gate");
         if (from != null) where.append(" AND s.started_at >= :from");
-        if (to != null) where.append(" AND s.started_at <= :to");
+        if (to != null) where.append(" AND s.started_at < :to");
         var query = jdbc.sql("""
                 SELECT s.id, s.neighborhood_id, s.gate_id, s.guard_id, s.started_at, s.ended_at, s.handover_notes,
                        u.full_name AS guard_full_name, g.name AS gate_name,
@@ -93,20 +93,25 @@ public class ShiftJdbcRepository implements ShiftRepository {
                   JOIN users u ON u.id = s.guard_id
                   JOIN gates g ON g.id = s.gate_id
                 """ + where + """
-                 ORDER BY s.started_at DESC
-                 LIMIT :limit
+                 ORDER BY s.started_at DESC, s.id
+                 LIMIT :size OFFSET :offset
                 """)
-                .param("nid", neighborhoodId)
-                .param("limit", limit);
-        if (gateId != null) query.param("gate", gateId);
-        if (from != null) query.param("from", Timestamp.from(from));
-        if (to != null) query.param("to", Timestamp.from(to));
+                .param("size", size)
+                .param("offset", (long) page * size);
+        var count = jdbc.sql("SELECT count(*) FROM guard_shifts s " + where);
+        for (var q : List.of(query, count)) {
+            q.param("nid", neighborhoodId);
+            if (gateId != null) q.param("gate", gateId);
+            if (from != null) q.param("from", Timestamp.from(from));
+            if (to != null) q.param("to", Timestamp.from(to));
+        }
         RowMapper<Shift> shift = mapper();
-        return query.query((rs, i) -> new ShiftSummary(
+        var items = query.query((rs, i) -> new ShiftSummary(
                 shift.mapRow(rs, i),
                 rs.getString("guard_full_name"),
                 rs.getString("gate_name"),
                 rs.getLong("access_count"))).list();
+        return new Page(items, page, size, count.query(Long.class).single());
     }
 
     private RowMapper<Shift> mapper() {

@@ -1380,6 +1380,16 @@
               "type" : "string",
               "format" : "date-time"
             }
+          },
+          {
+            "name" : "page",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32",
+              "default" : 0
+            }
           }
         ],
         "responses" : {
@@ -1388,10 +1398,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/ShiftSummaryResponse"
-                  }
+                  "$ref" : "#/components/schemas/ShiftsResponse"
                 }
               }
             }
@@ -3613,6 +3620,29 @@
             "type" : "string"
           },
           "accessCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "ShiftsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ShiftSummaryResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
             "type" : "integer",
             "format" : "int64"
           }

@@ -691,7 +691,7 @@ public sealed interface AccessDecision {
 
 Base: `/api/v1`. Todas las respuestas de error usan RFC 7807 (`application/problem+json`).
 
-Rangos `from`/`to` en `/access-logs`, `/admin/metrics/*` y `/admin/reports/*`: semiabiertos `[from, to)`. Un evento capturado en exactamente `to` queda afuera (#199).
+Rangos `from`/`to` en `/access-logs`, `/shifts`, `/admin/metrics/*` y `/admin/reports/*`: semiabiertos `[from, to)`. Un evento capturado en exactamente `to` queda afuera (#199).
 
 ### 7.1 Auth
 
@@ -961,7 +961,9 @@ Endpoints de residente para permanencia (US-42):
 | POST | `/shifts/open` | GUARD |
 | POST | `/shifts/close` | GUARD |
 | GET | `/shifts/current` | GUARD |
-| GET | `/shifts?gateId=&from=&to=` | ADMIN |
+| GET | `/shifts?gateId=&from=&to=&page=` | ADMIN |
+
+`GET /shifts` pagina de a 25, más reciente primero, con la misma forma que `/access-logs`: `{items, page, size, total}` (#203). El rango filtra por `started_at`.
 
 ### 7.5 Admin
 
