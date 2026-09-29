@@ -691,6 +691,8 @@ public sealed interface AccessDecision {
 
 Base: `/api/v1`. Todas las respuestas de error usan RFC 7807 (`application/problem+json`).
 
+Rangos `from`/`to` en `/access-logs`, `/admin/metrics/*` y `/admin/reports/*`: semiabiertos `[from, to)`. Un evento capturado en exactamente `to` queda afuera (#199).
+
 ### 7.1 Auth
 
 ```http

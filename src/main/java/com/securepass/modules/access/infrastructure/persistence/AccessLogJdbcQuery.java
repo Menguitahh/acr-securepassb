@@ -33,13 +33,15 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         this.streaming = JdbcClient.create(template);
     }
 
+    // [from, to), igual que export y metricas (#199). El WHERE lo comparten
+    // items y count.
     @Override
     public Page list(Filter f) {
         StringBuilder where = new StringBuilder("WHERE al.neighborhood_id = :nid");
         if (!f.lotIdsAllowed().isEmpty()) where.append(" AND al.lot_id = ANY(:lots)");
         if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
         if (f.from() != null) where.append(" AND al.captured_at >= :from");
-        if (f.to() != null) where.append(" AND al.captured_at <= :to");
+        if (f.to() != null) where.append(" AND al.captured_at < :to");
         if (f.allowedOnly() != null) {
             where.append(" AND al.result = :result");
         }
