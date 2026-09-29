@@ -879,7 +879,7 @@ POST /api/v1/access/sync
 | GET | `/lots?q=` | GUARD | Autocompletar por `code` (parcial, case-insensitive) sobre lotes `ACTIVE` del barrio del turno activo; devuelve `[{id, code}]` con tope 10; necesario para armar el body de `/access/manual`, que pide `lotId` UUID |
 | GET | `/access/keys` | GUARD | Claves públicas Ed25519 activas del barrio |
 | GET | `/access/revoked?since=` | GUARD | `jti` revocados desde `since` (alimenta `revoked_cache` de §8.1) |
-| GET | `/access-logs?from=&to=&lotId=&result=&page=` | ADMIN, RESIDENT (solo su lote) | Bitácora |
+| GET | `/access-logs?from=&to=&lotId=&result=&reason=&page=` | ADMIN, RESIDENT (solo su lote) | Bitácora. `reason` filtra por `denial_reason` (drill-down de US-30); 400 si no es un motivo válido o si va con `result=ALLOWED`. |
 | POST | `/access/enroll` | GUARD | Verifica el DNI contra la invitación y crea el enrolamiento |
 | GET | `/stays/open` | GUARD, ADMIN | Quiénes están adentro ahora |
 | POST | `/stays/{id}/close` | GUARD | Cierre manual de estadía (US-39) |

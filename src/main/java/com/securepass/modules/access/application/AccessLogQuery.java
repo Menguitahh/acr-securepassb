@@ -30,6 +30,7 @@ public interface AccessLogQuery {
             Instant from,
             Instant to,
             Boolean allowedOnly,
+            DenialReason reason,
             int page,
             int size
     ) {

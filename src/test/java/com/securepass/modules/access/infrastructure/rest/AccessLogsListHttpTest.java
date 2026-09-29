@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * GET /api/v1/access-logs: el rango es [from, to), igual que metricas y
  * export (#197). Un evento en exactamente `to` no pertenece al rango (#199).
+ * `reason` filtra por motivo para el drill-down de Denegados (US-30, #204).
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -60,23 +61,40 @@ class AccessLogsListHttpTest {
     }
 
     private void insertLog(String name, Instant at) {
+        insertLog(name, at, "ALLOWED", null);
+    }
+
+    private void insertLog(String name, Instant at, String result, String reason) {
         jdbc.update("""
                 INSERT INTO access_logs (
-                    id, neighborhood_id, gate_id, direction, subject_type, result,
+                    id, neighborhood_id, gate_id, direction, subject_type, result, denial_reason,
                     subject_name, companions, captured_at, client_event_id
-                ) VALUES (?, ?, ?, 'IN', 'GUEST', 'ALLOWED', ?, 0, ?, ?)
-                """, UUID.randomUUID(), barrio, gate, name, Timestamp.from(at), UUID.randomUUID());
+                ) VALUES (?, ?, ?, 'IN', 'GUEST', ?, ?, ?, 0, ?, ?)
+                """, UUID.randomUUID(), barrio, gate, result, reason, name, Timestamp.from(at), UUID.randomUUID());
+    }
+
+    private HttpResponse<String> get(String extra) throws Exception {
+        String token = jwt.issue(adminId, barrio, List.of(Role.ADMIN), List.of()).token();
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/access-logs?from=" + FROM + "&to=" + TO + extra))
+                .header("Authorization", "Bearer " + token)
+                .GET().build();
+        return HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
     }
 
     private JsonNode list() throws Exception {
-        String token = jwt.issue(adminId, barrio, List.of(Role.ADMIN), List.of()).token();
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:" + port + "/api/v1/access-logs?from=" + FROM + "&to=" + TO))
-                .header("Authorization", "Bearer " + token)
-                .GET().build();
-        HttpResponse<String> resp = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+        return list("");
+    }
+
+    private JsonNode list(String extra) throws Exception {
+        HttpResponse<String> resp = get(extra);
         assertThat(resp.statusCode()).isEqualTo(200);
         return json.readTree(resp.body());
+    }
+
+    private static void assertBadRequest(HttpResponse<String> resp) {
+        assertThat(resp.statusCode()).isEqualTo(400);
+        assertThat(resp.headers().firstValue("Content-Type")).hasValue("application/problem+json");
     }
 
     private static List<String> names(JsonNode body) {
@@ -104,5 +122,33 @@ class AccessLogsListHttpTest {
 
         assertThat(names(body)).containsExactly("ultimo del rango", "primero del rango");
         assertThat(body.get("total").asLong()).isEqualTo(2);
+    }
+
+    @Test
+    void reasonFiltraItemsYTotalPorMotivo() throws Exception {
+        Instant at = FROM.plusSeconds(3600);
+        insertLog("vencido 1", at, "DENIED", "EXPIRED");
+        insertLog("vencido 2", at.plusSeconds(60), "DENIED", "EXPIRED");
+        insertLog("revocado", at.plusSeconds(120), "DENIED", "REVOKED");
+        insertLog("permitido", at.plusSeconds(180));
+
+        JsonNode body = list("&reason=EXPIRED");
+
+        assertThat(names(body)).containsExactly("vencido 2", "vencido 1");
+        assertThat(body.get("total").asLong()).isEqualTo(2);
+        assertThat(names(list("&reason=EXPIRED&result=DENIED"))).containsExactly("vencido 2", "vencido 1");
+    }
+
+    // Un typo no puede parecer "sin denegados".
+    @Test
+    void reasonFueraDelEnumEs400() throws Exception {
+        assertBadRequest(get("&reason=EXPIRADO"));
+    }
+
+    // No existe un permitido con motivo de denegacion: combinacion invalida,
+    // no lista vacia.
+    @Test
+    void reasonConResultAllowedEs400() throws Exception {
+        assertBadRequest(get("&reason=EXPIRED&result=ALLOWED"));
     }
 }

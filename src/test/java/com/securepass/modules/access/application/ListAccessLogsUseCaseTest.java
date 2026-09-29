@@ -44,7 +44,7 @@ class ListAccessLogsUseCaseTest {
         CurrentUser resident = new CurrentUser(
                 UUID.randomUUID(), neighborhoodId, List.of(Role.RESIDENT_MEMBER), List.of(lot1, lot2));
 
-        useCase.list(resident, null, null, null, null, 0);
+        useCase.list(resident, null, null, null, null, null, 0);
 
         ArgumentCaptor<AccessLogQuery.Filter> captor = ArgumentCaptor.forClass(AccessLogQuery.Filter.class);
         verify(query).list(captor.capture());
@@ -58,7 +58,7 @@ class ListAccessLogsUseCaseTest {
                 UUID.randomUUID(), neighborhoodId, List.of(Role.RESIDENT_OWNER), List.of(lot1));
         UUID otro = UUID.randomUUID();
 
-        assertThatThrownBy(() -> useCase.list(resident, null, null, otro, null, 0))
+        assertThatThrownBy(() -> useCase.list(resident, null, null, otro, null, null, 0))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -67,7 +67,7 @@ class ListAccessLogsUseCaseTest {
         CurrentUser admin = new CurrentUser(
                 UUID.randomUUID(), neighborhoodId, List.of(Role.ADMIN), List.of());
 
-        useCase.list(admin, null, null, null, null, 0);
+        useCase.list(admin, null, null, null, null, null, 0);
 
         ArgumentCaptor<AccessLogQuery.Filter> captor = ArgumentCaptor.forClass(AccessLogQuery.Filter.class);
         verify(query).list(captor.capture());
@@ -80,7 +80,7 @@ class ListAccessLogsUseCaseTest {
         CurrentUser admin = new CurrentUser(
                 UUID.randomUUID(), neighborhoodId, List.of(Role.ADMIN), List.of());
 
-        useCase.list(admin, null, null, null, null, 0);
+        useCase.list(admin, null, null, null, null, null, 0);
 
         ArgumentCaptor<AccessLogQuery.Filter> captor = ArgumentCaptor.forClass(AccessLogQuery.Filter.class);
         verify(query).list(captor.capture());
@@ -94,7 +94,7 @@ class ListAccessLogsUseCaseTest {
         CurrentUser admin = new CurrentUser(
                 UUID.randomUUID(), neighborhoodId, List.of(Role.ADMIN), List.of());
 
-        useCase.list(admin, null, null, null, Boolean.TRUE, 0);
+        useCase.list(admin, null, null, null, Boolean.TRUE, null, 0);
 
         ArgumentCaptor<AccessLogQuery.Filter> captor = ArgumentCaptor.forClass(AccessLogQuery.Filter.class);
         verify(query).list(captor.capture());

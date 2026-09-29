@@ -1,5 +1,6 @@
 package com.securepass.modules.access.application;
 
+import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.security.CurrentUser;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,6 +29,7 @@ public class ListAccessLogsUseCase {
             Instant to,
             UUID lotIdFilter,
             Boolean allowedOnly,
+            DenialReason reason,
             int page) {
         if (actor == null) throw new IllegalArgumentException("actor requerido");
         if (actor.neighborhoodId() == null) {
@@ -58,6 +60,7 @@ public class ListAccessLogsUseCase {
                 effectiveFrom,
                 effectiveTo,
                 allowedOnly,
+                reason,
                 Math.max(0, page),
                 DEFAULT_SIZE));
     }

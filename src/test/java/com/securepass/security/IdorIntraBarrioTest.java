@@ -190,7 +190,7 @@ class IdorIntraBarrioTest {
     // ---------- 6. leer access logs filtrando por lotB ----------
     @Test
     void residentAleerAccessLogsFiltrandoPorLotB_rechaza() {
-        assertThatThrownBy(() -> listLogs.list(actorResidentA(), null, null, lotB.id(), null, 0))
+        assertThatThrownBy(() -> listLogs.list(actorResidentA(), null, null, lotB.id(), null, null, 0))
                 .as("residentA NO debe poder filtrar access logs por lotB")
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     }
@@ -198,7 +198,7 @@ class IdorIntraBarrioTest {
     // Y sin filtro explicito: la lista NO debe incluir logs de lotB.
     @Test
     void residentAlistarAccessLogsSinFiltro_noVeLotB() {
-        var page = listLogs.list(actorResidentA(), null, null, null, null, 0);
+        var page = listLogs.list(actorResidentA(), null, null, null, null, null, 0);
         assertThat(page.items())
                 .as("residentA sin filtro no debe ver logs de lotB")
                 .allSatisfy(item -> assertThat(item.lotId()).isEqualTo(lotA.id()));

@@ -197,14 +197,14 @@ class IdorIsolationTest {
     void residenteVeAccessLogsSoloDeSusLotes() {
         insertAccessLog(barrioA, gateA, lotA.id());
         insertAccessLog(barrioB, gateB, lotB.id());
-        var page = listLogs.list(residentActorA(), null, null, null, null, 0);
+        var page = listLogs.list(residentActorA(), null, null, null, null, null, 0);
         assertThat(page.items()).allSatisfy(item -> assertThat(item.lotId()).isEqualTo(lotA.id()));
     }
 
     @Test
     void adminNoVeAccessLogsDeOtroBarrio() {
         insertAccessLog(barrioB, gateB, lotB.id());
-        var page = listLogs.list(adminA(), null, null, null, null, 0);
+        var page = listLogs.list(adminA(), null, null, null, null, null, 0);
         assertThat(page.items()).noneMatch(item -> item.lotId() != null && item.lotId().equals(lotB.id()));
     }
 

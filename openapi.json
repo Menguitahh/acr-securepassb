@@ -1883,6 +1883,26 @@
             }
           },
           {
+            "name" : "reason",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "string",
+              "enum" : [
+                "INVALID_SIGNATURE",
+                "NOT_YET_VALID",
+                "EXPIRED",
+                "ALREADY_USED",
+                "REVOKED",
+                "OUT_OF_SCHEDULE",
+                "LOT_SUSPENDED",
+                "REPLAY",
+                "DOCUMENT_MISMATCH",
+                "UNKNOWN"
+              ]
+            }
+          },
+          {
             "name" : "page",
             "in" : "query",
             "required" : false,
@@ -1894,6 +1914,12 @@
           }
         ],
         "responses" : {
+          "400" : {
+            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
+            "content" : {
+              "application/problem+json" : { }
+            }
+          },
           "200" : {
             "description" : "OK",
             "content" : {

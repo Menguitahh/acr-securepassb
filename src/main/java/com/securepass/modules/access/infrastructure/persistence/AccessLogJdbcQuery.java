@@ -45,6 +45,7 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         if (f.allowedOnly() != null) {
             where.append(" AND al.result = :result");
         }
+        if (f.reason() != null) where.append(" AND al.denial_reason = :reason");
 
         var itemsQ = jdbc.sql("""
                 SELECT al.id, al.lot_id, l.code AS lot_code,
@@ -81,6 +82,10 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
             String result = f.allowedOnly() ? "ALLOWED" : "DENIED";
             itemsQ.param("result", result);
             countQ.param("result", result);
+        }
+        if (f.reason() != null) {
+            itemsQ.param("reason", f.reason().name());
+            countQ.param("reason", f.reason().name());
         }
         itemsQ.param("size", f.size()).param("offset", (long) f.page() * f.size());
 
