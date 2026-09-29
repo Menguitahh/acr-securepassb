@@ -94,8 +94,10 @@ public class RecordAccessAttemptUseCase {
     private AccessDecision decide(Command cmd) {
         boolean checkEnrollment = !cmd.syncedOffline();
         AccessDecision decision = cmd.direction() == Direction.IN
-                ? consumeUseCase.consume(cmd.token(), cmd.capturedAt(), cmd.clientEventId().toString(), checkEnrollment)
-                : validateUseCase.validate(cmd.token(), cmd.capturedAt(), Direction.OUT, checkEnrollment);
+                ? consumeUseCase.consume(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(),
+                        cmd.clientEventId().toString(), checkEnrollment)
+                : validateUseCase.validate(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(), Direction.OUT,
+                        checkEnrollment);
         if (cmd.syncedOffline()
                 && decision instanceof AccessDecision.Denied denied
                 && denied.reason() == DenialReason.ALREADY_USED) {

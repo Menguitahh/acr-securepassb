@@ -86,7 +86,7 @@ class RecordAccessAttemptUseCaseTest {
 
     @Test
     void inDelegaAConsumeYPersisteLog() {
-        when(consume.consume(eq("SP1.token"), eq(NOW), eq(clientEventId.toString()), eq(true)))
+        when(consume.consume(any(), eq("SP1.token"), eq(NOW), eq(clientEventId.toString()), eq(true)))
                 .thenReturn(allowed());
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
 
@@ -110,19 +110,19 @@ class RecordAccessAttemptUseCaseTest {
 
     @Test
     void outDelegaAValidateSinConsumir() {
-        when(validate.validate(eq("SP1.token"), eq(NOW), eq(Direction.OUT), eq(true))).thenReturn(allowed());
+        when(validate.validate(any(), eq("SP1.token"), eq(NOW), eq(Direction.OUT), eq(true))).thenReturn(allowed());
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
 
         RecordAccessAttemptUseCase.Result result = useCase.record(cmd(Direction.OUT));
 
         assertThat(result.decision()).isInstanceOf(AccessDecision.Allowed.class);
-        verify(consume, org.mockito.Mockito.never()).consume(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(consume, org.mockito.Mockito.never()).consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
         verify(logs).saveIdempotent(any());
     }
 
     @Test
     void deniedPersisteLogConDenialReason() {
-        when(consume.consume(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
                 .thenReturn(AccessDecision.Denied.of(DenialReason.EXPIRED));
 
         RecordAccessAttemptUseCase.Result result = useCase.record(cmd(Direction.IN));

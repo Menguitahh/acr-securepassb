@@ -282,7 +282,10 @@ class EnrollGuestUseCaseTest {
     }
 
     @Test
-    void invitationDeOtroBarrioEs404() {
+    // #211: segunda barrera. DENIED y no 404 (un 404 tira el batch de sync), y
+    // el log de este barrio no guarda invitacion ni lote del otro. Con jti
+    // distinto tambien: la barrera va antes que el chequeo de jti.
+    void invitationDeOtroBarrioDeniegaUnknownSinDatosDelOtroBarrio() {
         stubKeyOk();
         when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.empty());
         Invitation inv = new Invitation(
@@ -290,12 +293,19 @@ class EnrollGuestUseCaseTest {
                 InvitationType.SINGLE, InvitationStatus.ACTIVE,
                 "Maria Lopez", "30123456", 2, null,
                 NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(6)),
-                1, 0, "kid-1", jti, false, NOW);
+                1, 0, "kid-1", UUID.randomUUID(), false, NOW);
         when(invitations.findById(invitationId)).thenReturn(Optional.of(inv));
         String token = signed(payloadFor(invitationId, jti));
 
-        assertThatThrownBy(() -> useCase.enroll(cmd(token, "30123456")))
-                .isInstanceOf(ResourceNotFoundException.class);
+        EnrollmentResult result = useCase.enroll(cmd(token, "30123456"));
+
+        assertThat(result).isInstanceOf(EnrollmentResult.Denied.class);
+        assertThat(((EnrollmentResult.Denied) result).reason()).isEqualTo(DenialReason.UNKNOWN);
+        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
+        verify(logs).saveIdempotent(captor.capture());
+        assertThat(captor.getValue().invitationId()).isNull();
+        assertThat(captor.getValue().lotId()).isNull();
+        verify(enrollments, never()).saveIfAbsent(any());
     }
 
     @Test

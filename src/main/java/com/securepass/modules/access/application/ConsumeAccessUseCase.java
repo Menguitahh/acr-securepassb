@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 public class ConsumeAccessUseCase {
@@ -31,16 +32,13 @@ public class ConsumeAccessUseCase {
     }
 
     @Transactional
-    public AccessDecision consume(String token, Instant capturedAt, String clientEventId) {
-        return consume(token, capturedAt, clientEventId, true);
-    }
-
-    @Transactional
-    public AccessDecision consume(String token, Instant capturedAt, String clientEventId, boolean checkEnrollment) {
+    public AccessDecision consume(UUID neighborhoodId, String token, Instant capturedAt, String clientEventId,
+                                  boolean checkEnrollment) {
         if (clientEventId == null || clientEventId.isBlank()) {
             throw new IllegalArgumentException("clientEventId requerido");
         }
-        AccessDecision pre = validator.validate(token, capturedAt, com.securepass.modules.access.domain.Direction.IN, checkEnrollment);
+        AccessDecision pre = validator.validate(
+                neighborhoodId, token, capturedAt, com.securepass.modules.access.domain.Direction.IN, checkEnrollment);
         if (!(pre instanceof AccessDecision.Allowed allowed)) return pre;
 
         Invitation locked = invitations.findByIdForUpdate(allowed.invitationId()).orElse(null);

@@ -28,6 +28,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -105,7 +107,7 @@ class WorkerValidateTest {
                         WORKER_NAME, "30123456", MZA,
                         List.of(lot("L-1", List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0))))));
 
-        AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = useCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isInstanceOf(AccessDecision.AllowedWorker.class);
         AccessDecision.AllowedWorker w = (AccessDecision.AllowedWorker) d;
@@ -126,7 +128,7 @@ class WorkerValidateTest {
                         WORKER_NAME, "30123456", MZA,
                         List.of(lot("L-1", List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0))))));
 
-        AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = useCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE));
     }
@@ -145,7 +147,7 @@ class WorkerValidateTest {
                                 lot("L-2", List.of(2), LocalTime.of(9, 0), LocalTime.of(13, 0)),
                                 lot("L-3", List.of(3), LocalTime.of(9, 0), LocalTime.of(13, 0))))));
 
-        AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = useCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isInstanceOf(AccessDecision.AllowedWorker.class);
         AccessDecision.AllowedWorker w = (AccessDecision.AllowedWorker) d;
@@ -162,7 +164,7 @@ class WorkerValidateTest {
         when(workerQuery.loadContext(userId, nbh)).thenReturn(Optional.of(
                 new WorkerValidationQuery.WorkerContext(WORKER_NAME, "30123456", MZA, List.of())));
 
-        AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = useCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
     }
@@ -176,7 +178,7 @@ class WorkerValidateTest {
         when(workerTokens.findActive(userId)).thenReturn(Optional.of(
                 new WorkerTokenRepository.WorkerTokenRow(userId, nbh, currentActiveJti, Instant.now())));
 
-        AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = useCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
     }
@@ -187,7 +189,7 @@ class WorkerValidateTest {
         Instant capturedAt = Instant.parse("2026-03-03T13:00:00Z");
         when(workerTokens.findActive(any())).thenReturn(Optional.empty());
 
-        AccessDecision d = useCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = useCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
     }
@@ -211,7 +213,7 @@ class WorkerValidateTest {
                         WORKER_NAME, "30123456", MZA,
                         List.of(lot("L-1", List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0))))));
 
-        AccessDecision d = localUseCase.validate(workerToken(nbh, userId, jti), capturedAt, Direction.IN);
+        AccessDecision d = localUseCase.validate(nbh, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
 
         assertThat(d).isInstanceOf(AccessDecision.NeedsEnrollment.class);
         AccessDecision.NeedsEnrollment n = (AccessDecision.NeedsEnrollment) d;
@@ -220,5 +222,23 @@ class WorkerValidateTest {
         assertThat(n.subjectName()).isEqualTo(WORKER_NAME);
         assertThat(n.invitationId()).isNull();
         assertThat(n.lotCode()).isNull();
+    }
+
+    // #211, segunda barrera: aunque la clave verifique en el barrio del
+    // guardia, los permisos se buscan en ese barrio y no en el del token. Un
+    // trabajador sin permisos aca sale REVOKED.
+    @Test
+    void trabajadorDeOtroBarrioSinPermisosAcaSaleRevoked() {
+        UUID barrioGuardia = UUID.randomUUID();
+        Instant capturedAt = Instant.parse("2026-03-03T13:00:00Z");
+        when(signingKeys.findByKid(barrioGuardia, "kid-1")).thenReturn(Optional.of(key));
+        when(workerTokens.findActive(userId)).thenReturn(Optional.of(
+                new WorkerTokenRepository.WorkerTokenRow(userId, nbh, jti, Instant.now())));
+        when(workerQuery.loadContext(userId, barrioGuardia)).thenReturn(Optional.empty());
+
+        AccessDecision d = useCase.validate(barrioGuardia, workerToken(nbh, userId, jti), capturedAt, Direction.IN, true);
+
+        assertThat(d).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
+        verify(workerQuery, never()).loadContext(userId, nbh);
     }
 }

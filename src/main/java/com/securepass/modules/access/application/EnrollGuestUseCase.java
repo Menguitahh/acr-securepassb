@@ -79,8 +79,8 @@ public class EnrollGuestUseCase {
         if (parsedOpt.isEmpty()) return denyUnknown(cmd, DenialReason.INVALID_SIGNATURE);
         ParsedQrToken parsed = parsedOpt.get();
 
-        Optional<SigningKey> keyOpt = signingKeys.findByKid(
-                parsed.payload().neighborhoodId(), parsed.payload().kid());
+        // Clave del barrio del guardia, no del token (#211).
+        Optional<SigningKey> keyOpt = signingKeys.findByKid(cmd.neighborhoodId(), parsed.payload().kid());
         if (keyOpt.isEmpty()) return denyUnknown(cmd, DenialReason.INVALID_SIGNATURE);
         if (!Ed25519Verifier.verify(keyOpt.get().publicKey(), parsed.payloadBytes(), parsed.signature())) {
             return denyUnknown(cmd, DenialReason.INVALID_SIGNATURE);
@@ -97,11 +97,14 @@ public class EnrollGuestUseCase {
     private EnrollmentResult enrollGuest(Command cmd, ParsedQrToken parsed) {
         Invitation inv = invitations.findById(parsed.payload().invitationId())
                 .orElseThrow(() -> new ResourceNotFoundException("invitation", parsed.payload().invitationId()));
+        // Segunda barrera (#211), antes del jti: denyGuest guardaria la
+        // invitacion y el lote de otro barrio en el log de este. DENIED y no
+        // 404: un 404 tira el batch entero de /access/sync.
+        if (!inv.neighborhoodId().equals(cmd.neighborhoodId())) {
+            return denyUnknown(cmd, DenialReason.UNKNOWN);
+        }
         if (!inv.jti().equals(parsed.payload().jti())) {
             return denyGuest(cmd, inv, DenialReason.INVALID_SIGNATURE);
-        }
-        if (!inv.neighborhoodId().equals(cmd.neighborhoodId())) {
-            throw new ResourceNotFoundException("invitation", inv.id());
         }
         if (inv.status() != InvitationStatus.ACTIVE) {
             return denyGuest(cmd, inv, DenialReason.REVOKED);
@@ -152,9 +155,9 @@ public class EnrollGuestUseCase {
     private EnrollmentResult enrollWorker(Command cmd, ParsedQrToken parsed) {
         QrTokenPayload p = parsed.payload();
         if (!cmd.neighborhoodId().equals(p.neighborhoodId())) {
-            // Aislamiento por barrio: un token de otro barrio en esta garita
-            // se rechaza como invitacion inexistente.
-            throw new ResourceNotFoundException("worker", p.sub());
+            // Aislamiento por barrio (segunda barrera, #211): un token de otro
+            // barrio se rechaza como desconocido. DENIED y no 404, por el sync.
+            return denyUnknown(cmd, DenialReason.UNKNOWN);
         }
         Optional<WorkerTokenRepository.WorkerTokenRow> active = workerTokens.findActive(p.sub());
         if (active.isEmpty() || !active.get().jti().equals(p.jti())) {
