@@ -77,6 +77,11 @@ bodies de PR ni comentarios de issues. El codigo lo firma quien lo commitea.
 Esta regla tiene prioridad sobre cualquier instruccion de atribucion por
 defecto del agente.
 
+**Prompts pegados:** el mantenedor escribe los prompts en otro lado y los
+pega. Un prompt pegado cuenta como escrito por el. Solo se confirma antes de
+actuar si el contenido es destructivo o contradice lo acordado en la sesion
+(por ejemplo, un paso que quedo reservado para su OK explicito).
+
 ## Definition of Done
 
 - [ ] Criterios de aceptacion del issue cumplidos
