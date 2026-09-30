@@ -1,7 +1,9 @@
 package com.securepass.modules.identity.infrastructure.rest;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.securepass.modules.identity.application.LoginUseCase;
 import com.securepass.modules.identity.application.LotSummary;
+import com.securepass.shared.schedule.ScheduleWindow;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -38,9 +40,23 @@ public record LoginResponse(
             List<LotPayload> lots
     ) {}
 
-    public record LotPayload(UUID id, String code, boolean canInvite, boolean isOwner) {
+    /**
+     * #179: {@code service} y {@code schedule} solo en {@code kind = WORKER}.
+     * La franja se evalua en {@code neighborhoodTimezone}.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record LotPayload(UUID id, String code, boolean canInvite, boolean isOwner,
+                             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LotSummary.Kind kind,
+                             String service, SchedulePayload schedule) {
         static LotPayload from(LotSummary l) {
-            return new LotPayload(l.id(), l.code(), l.canInvite(), l.isOwner());
+            return new LotPayload(l.id(), l.code(), l.canInvite(), l.isOwner(), l.kind(),
+                    l.service(), l.schedule() == null ? null : SchedulePayload.from(l.schedule()));
+        }
+    }
+
+    public record SchedulePayload(List<Integer> weekdays, String dailyFrom, String dailyUntil) {
+        static SchedulePayload from(ScheduleWindow s) {
+            return new SchedulePayload(s.weekdays(), s.dailyFrom().toString(), s.dailyUntil().toString());
         }
     }
 }

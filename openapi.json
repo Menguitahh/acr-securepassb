@@ -2658,6 +2658,9 @@
         }
       },
       "LotPayload" : {
+        "required" : [
+          "kind"
+        ],
         "type" : "object",
         "properties" : {
           "id" : {
@@ -2672,6 +2675,20 @@
           },
           "isOwner" : {
             "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [
+              "OWNER",
+              "MEMBER",
+              "WORKER"
+            ]
+          },
+          "service" : {
+            "type" : "string"
+          },
+          "schedule" : {
+            "$ref" : "#/components/schemas/SchedulePayload"
           }
         }
       },
@@ -2690,6 +2707,24 @@
           },
           "user" : {
             "$ref" : "#/components/schemas/UserPayload"
+          }
+        }
+      },
+      "SchedulePayload" : {
+        "type" : "object",
+        "properties" : {
+          "weekdays" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "dailyFrom" : {
+            "type" : "string"
+          },
+          "dailyUntil" : {
+            "type" : "string"
           }
         }
       },

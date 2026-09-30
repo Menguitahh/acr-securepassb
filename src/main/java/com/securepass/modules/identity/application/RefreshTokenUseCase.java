@@ -50,7 +50,7 @@ public class RefreshTokenUseCase {
 
         User user = found.get();
         UserProfileSummary summary = profiles.summarize(user.id());
-        List<UUID> lotIds = summary.lots().stream().map(LotSummary::id).toList();
+        List<UUID> lotIds = summary.residentLotIds();
         JwtService.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
         String newRefresh = generator.generate();
         store.save(newRefresh, consumed.familyId(), consumed.userId());

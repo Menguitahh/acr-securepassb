@@ -49,7 +49,7 @@ public class LoginUseCase {
         if (!encoder.matches(rawPassword, user.passwordHash())) return Failure.INVALID_CREDENTIALS;
 
         UserProfileSummary summary = profiles.summarize(user.id());
-        List<UUID> lotIds = summary.lots().stream().map(LotSummary::id).toList();
+        List<UUID> lotIds = summary.residentLotIds();
         JwtService.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
         String refreshToken = refresh.generate();
         UUID familyId = UUID.randomUUID();

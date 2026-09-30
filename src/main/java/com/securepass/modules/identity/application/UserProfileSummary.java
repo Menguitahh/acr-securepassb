@@ -14,4 +14,12 @@ public record UserProfileSummary(
         roles = roles == null ? List.of() : List.copyOf(roles);
         lots = lots == null ? List.of() : List.copyOf(lots);
     }
+
+    /**
+     * Lotes que van al JWT. Un lote WORKER no da acceso de residente a esa
+     * casa (bitacora, invitaciones, AccessGuard.requireLot): queda afuera (#179).
+     */
+    public List<UUID> residentLotIds() {
+        return lots.stream().filter(l -> l.kind() != LotSummary.Kind.WORKER).map(LotSummary::id).toList();
+    }
 }

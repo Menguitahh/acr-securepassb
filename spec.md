@@ -709,10 +709,17 @@ POST /api/v1/auth/login
   "user": {
     "id": "uuid", "fullName": "Juan Pérez",
     "neighborhoodId": "uuid", "roles": ["RESIDENT_OWNER"],
-    "lots": [{ "id": "uuid", "code": "M4-L12", "canInvite": true, "isOwner": true }]
+    "lots": [
+      { "id": "uuid", "code": "M4-L12", "canInvite": true, "isOwner": true, "kind": "OWNER" },
+      { "id": "uuid", "code": "M4-L20", "canInvite": false, "isOwner": false, "kind": "WORKER",
+        "service": "Jardinería",
+        "schedule": { "weekdays": [1, 3, 5], "dailyFrom": "08:00", "dailyUntil": "12:00" } }
+    ]
   }
 }
 ```
+
+`kind` es `OWNER`, `MEMBER` o `WORKER` (#179). `service` y `schedule` vienen solo en `WORKER`, y la franja se evalúa en `neighborhoodTimezone`. Los lotes `WORKER` no entran en el claim `lots` del JWT: trabajar en una casa no da acceso de residente a ella (bitácora, invitaciones, familia). Igual en `/auth/refresh`.
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
