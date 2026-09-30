@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
-import java.util.List;
 
 /**
  * WBS-117: sync de permisos WORKER activos del barrio. El scanner (WBS-118)
@@ -32,9 +31,9 @@ public class AccessPermissionsSyncController {
 
     @GetMapping("/permissions/sync")
     @PreAuthorize("hasRole('GUARD')")
-    public List<WorkerPermissionSyncResponse> sync(
+    public PermissionsSyncResponse sync(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant since) {
         CurrentUser actor = guard.require();
-        return useCase.list(actor, since).stream().map(WorkerPermissionSyncResponse::from).toList();
+        return PermissionsSyncResponse.from(useCase.list(actor, since));
     }
 }

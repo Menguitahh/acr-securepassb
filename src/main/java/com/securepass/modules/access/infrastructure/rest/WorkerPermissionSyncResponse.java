@@ -13,9 +13,9 @@ import java.util.UUID;
  * <p><b>Invariante de la respuesta</b>: todas las filas de una misma respuesta
  * comparten {@code timezone} (es propiedad del barrio, no del permiso; el sync
  * es siempre de un solo barrio, filtrado por el barrio del actor). La tz viaja
- * repetida a proposito para preservar el shape plano: evita un envelope
- * {@code {timezone, permissions[]}} que complicaria el consumo por ~30 bytes
- * por fila de redundancia. Ver WBS-117 issue #149 para la razon (la franja se
+ * repetida a proposito, en la misma fila que la franja: cada fila se evalua
+ * sola. Desde #180 la respuesta va envuelta en {@link PermissionsSyncResponse},
+ * pero la tz sigue en la fila. Ver WBS-117 issue #149 para la razon (la franja se
  * evalua en la zona del barrio, no del dispositivo ni del login).
  *
  * <p><b>Contrato para el cliente (WBS-118)</b>: el scanner debe hacer

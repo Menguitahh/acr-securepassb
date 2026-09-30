@@ -74,6 +74,29 @@ public class ActiveWorkerPermissionsJdbcQuery implements ActiveWorkerPermissions
                 .list();
     }
 
+    // Mismo universo que listActive (permiso WORKER activo en el barrio y token
+    // vigente): no expone personas que el sync no trae ya (D-13).
+    @Override
+    public List<UUID> enrolledWorkerIds(UUID neighborhoodId) {
+        return jdbc.sql("""
+                SELECT DISTINCT u.id
+                  FROM users u
+                  JOIN lot_permissions p ON p.user_id = u.id
+                  JOIN lots l ON l.id = p.lot_id
+                  JOIN worker_tokens wt ON wt.user_id = u.id AND wt.revoked_at IS NULL
+                 WHERE l.neighborhood_id = :nid
+                   AND p.permission_type = 'WORKER'
+                   AND p.active = TRUE
+                   AND EXISTS (SELECT 1 FROM guest_enrollments ge
+                                WHERE ge.neighborhood_id = :nid
+                                  AND ge.document_number = u.document_number)
+                 ORDER BY u.id
+                """)
+                .param("nid", neighborhoodId)
+                .query(UUID.class)
+                .list();
+    }
+
     private static List<Integer> toIntList(Array sqlArray) throws SQLException {
         if (sqlArray == null) return List.of();
         Object raw = sqlArray.getArray();

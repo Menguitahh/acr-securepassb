@@ -1813,10 +1813,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "type" : "array",
-                  "items" : {
-                    "$ref" : "#/components/schemas/WorkerPermissionSyncResponse"
-                  }
+                  "$ref" : "#/components/schemas/PermissionsSyncResponse"
                 }
               }
             }
@@ -3934,6 +3931,24 @@
           "revokedAt" : {
             "type" : "string",
             "format" : "date-time"
+          }
+        }
+      },
+      "PermissionsSyncResponse" : {
+        "type" : "object",
+        "properties" : {
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/WorkerPermissionSyncResponse"
+            }
+          },
+          "enrolledUserIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
           }
         }
       },
