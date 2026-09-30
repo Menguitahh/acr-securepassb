@@ -1169,6 +1169,7 @@ Se documentan porque son decisiones, no bugs:
 1. Una revocación emitida mientras el dispositivo está sin red no se conoce hasta la próxima sync. Mitigación: `revoked_cache` se refresca en cada latido de red (cada 60 s) y la ventana de exposición es corta.
 2. El cupo (`max_uses`) se controla por dispositivo. Dos garitas offline simultáneas pueden sobrepasar el cupo de un pase `EVENT`. Se detecta y audita en el sync (`REPLAY`), no se puede prevenir sin red. Para un pase `SINGLE`, el riesgo real es bajo (un solo acceso físico).
 3. El reloj del dispositivo se usa como `capturedAt`. Se compara contra `recorded_at` al sincronizar; una desviación > 5 min marca el log con `clock_skew` en auditoría.
+4. Al sincronizar, la franja del trabajador se evalúa en el `capturedAt` del evento, pero el permiso se toma como está en el momento del sync: no hay historial de permisos. Ejemplo: sin red, el jardinero entra a las 09:00 en franja y con permiso activo; a las 15:00 el titular le revoca el permiso; a las 21:00 vuelve la red y el evento de las 09:00 se guarda DENIED (`REVOKED`), aunque el ingreso fue válido. Pasa lo mismo con una invitación revocada después del scan. Es un borde raro (garita offline, revocación en esa ventana y sync posterior), y en garita se resuelve con el registro manual. Resolverlo requiere historial de permisos: #220, prioridad baja.
 
 ### 8.4 Política de sincronización
 
