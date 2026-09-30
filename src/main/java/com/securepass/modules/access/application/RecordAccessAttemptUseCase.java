@@ -52,9 +52,10 @@ public class RecordAccessAttemptUseCase {
 
         AccessDecision decision = decide(cmd);
         metrics.recordResult(metricLabel(decision), cmd.syncedOffline() ? "sync" : "validate");
-        // NEEDS_ENROLLMENT no es un intento de acceso completado: no se persiste.
-        // El guardia continua con /access/enroll (clientEventId nuevo).
-        if (decision instanceof AccessDecision.NeedsEnrollment) {
+        // NEEDS_ENROLLMENT y NEEDS_LOT_SELECTION (#217) no son intentos completados: no se persisten.
+        // El guardia sigue con /access/enroll o reenvia con lotId (clientEventId nuevo).
+        if (decision instanceof AccessDecision.NeedsEnrollment
+                || decision instanceof AccessDecision.NeedsLotSelection) {
             return new Result(decision, null, invitationFor(decision).orElse(null));
         }
         AccessLog toSave = buildLog(cmd, decision);
@@ -95,13 +96,19 @@ public class RecordAccessAttemptUseCase {
         boolean checkEnrollment = !cmd.syncedOffline();
         AccessDecision decision = cmd.direction() == Direction.IN
                 ? consumeUseCase.consume(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(),
-                        cmd.clientEventId().toString(), checkEnrollment)
+                        cmd.clientEventId().toString(), checkEnrollment, cmd.lotId())
                 : validateUseCase.validate(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(), Direction.OUT,
-                        checkEnrollment);
+                        checkEnrollment, cmd.lotId());
         if (cmd.syncedOffline()
                 && decision instanceof AccessDecision.Denied denied
                 && denied.reason() == DenialReason.ALREADY_USED) {
             return AccessDecision.Denied.of(DenialReason.REPLAY, denied.invitationId());
+        }
+        // #217: online, con mas de un lote en franja y sin eleccion, la garita
+        // elige antes de que se guarde nada. En sync el guardia ya no esta: se
+        // guarda como vino (lot_id NULL si no mando lotId).
+        if (!cmd.syncedOffline() && decision instanceof AccessDecision.AllowedWorker w && w.lots().size() > 1) {
+            return new AccessDecision.NeedsLotSelection(w.userId(), w.workerName(), w.lots());
         }
         return decision;
     }
@@ -125,7 +132,8 @@ public class RecordAccessAttemptUseCase {
                 && Duration.between(cmd.capturedAt(), Instant.now()).abs().compareTo(CLOCK_SKEW_THRESHOLD) > 0;
 
         // WBS-117: worker (AllowedWorker) -> subject SERVICE, sin invitationId,
-        // lot_id nulo si hay varios en franja (el guardia elige, WBS-119).
+        // lot_id nulo solo en sync sin lotId: online con varios lotes se pide
+        // elegir antes (#217), y con lotId validate deja un solo lote.
         if (decision instanceof AccessDecision.AllowedWorker w) {
             UUID lotId = w.lots().size() == 1 ? w.lots().get(0).lotId() : null;
             return new AccessLog(
@@ -173,6 +181,7 @@ public class RecordAccessAttemptUseCase {
         if (decision instanceof AccessDecision.Allowed) return "ALLOWED";
         if (decision instanceof AccessDecision.AllowedWorker) return "ALLOWED_WORKER";
         if (decision instanceof AccessDecision.NeedsEnrollment) return "NEEDS_ENROLLMENT";
+        if (decision instanceof AccessDecision.NeedsLotSelection) return "NEEDS_LOT_SELECTION";
         return ((AccessDecision.Denied) decision).reason().name();
     }
 
@@ -185,7 +194,9 @@ public class RecordAccessAttemptUseCase {
             int companions,
             Instant capturedAt,
             UUID clientEventId,
-            boolean syncedOffline
+            boolean syncedOffline,
+            // #217: lote que eligio la garita, o null. Lo valida ValidateAccessUseCase.
+            UUID lotId
     ) {
         public Command {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

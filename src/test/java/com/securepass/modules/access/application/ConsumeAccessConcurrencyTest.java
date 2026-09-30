@@ -77,7 +77,7 @@ class ConsumeAccessConcurrencyTest {
                 invitationId, neighborhoodId, lotId, userId,
                 Timestamp.from(validFrom), Timestamp.from(validUntil), jti);
 
-        when(validator.validate(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(
+        when(validator.validate(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any())).thenReturn(
                 new AccessDecision.Allowed(invitationId, jti, "Maria", "M4-L12", 0));
     }
 
@@ -114,7 +114,7 @@ class ConsumeAccessConcurrencyTest {
     private AccessDecision runAtBarrier(CyclicBarrier ready, CountDownLatch done, String eventId) {
         try {
             ready.await(10, TimeUnit.SECONDS);
-            return useCase.consume(java.util.UUID.randomUUID(), "token-mockeado", Instant.now(), eventId, true);
+            return useCase.consume(java.util.UUID.randomUUID(), "token-mockeado", Instant.now(), eventId, true, null);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {

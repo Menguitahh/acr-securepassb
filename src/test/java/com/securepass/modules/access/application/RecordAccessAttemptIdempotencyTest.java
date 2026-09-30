@@ -89,7 +89,7 @@ class RecordAccessAttemptIdempotencyTest {
                 Timestamp.from(now.minusSeconds(60)),
                 Timestamp.from(now.plusSeconds(3600)), jti);
 
-        when(validator.validate(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(
+        when(validator.validate(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any())).thenReturn(
                 new AccessDecision.Allowed(invitationId, jti, "Maria", "M4-L12", 0));
     }
 
@@ -97,7 +97,7 @@ class RecordAccessAttemptIdempotencyTest {
     void reintentoConMismoClientEventIdDevuelveMismoLogSinDuplicar() {
         RecordAccessAttemptUseCase.Command cmd = new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, gateId, guardId, "SP1.token", Direction.IN,
-                0, Instant.now(), clientEventId, false);
+                0, Instant.now(), clientEventId, false, null);
 
         RecordAccessAttemptUseCase.Result first = useCase.record(cmd);
         RecordAccessAttemptUseCase.Result retry = useCase.record(cmd);

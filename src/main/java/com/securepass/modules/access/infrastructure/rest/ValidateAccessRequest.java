@@ -16,12 +16,14 @@ public record ValidateAccessRequest(
         @NotNull Direction direction,
         @Min(0) @Max(20) int companions,
         @NotNull Instant capturedAt,
-        @NotNull UUID clientEventId
+        @NotNull UUID clientEventId,
+        // #217: lote que eligio el guardia (NEEDS_LOT_SELECTION), o null.
+        UUID lotId
 ) {
 
     public RecordAccessAttemptUseCase.Command toCommand(UUID neighborhoodId, UUID guardId) {
         return new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, gateId, guardId, token, direction,
-                companions, capturedAt, clientEventId, false);
+                companions, capturedAt, clientEventId, false, lotId);
     }
 }

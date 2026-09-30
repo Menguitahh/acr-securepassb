@@ -15,6 +15,7 @@ import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.crypto.Ed25519Verifier;
+import com.securepass.shared.exception.InvalidLotChoiceException;
 import com.securepass.shared.schedule.ScheduleWindow;
 import org.springframework.stereotype.Service;
 
@@ -56,9 +57,13 @@ public class ValidateAccessUseCase {
      * {@code neighborhoodId} es el barrio del guardia (JWT), no el del token:
      * la clave se busca ahi, asi que un QR de otro barrio no verifica (#211).
      * Sin sobrecargas que lo omitan: ningun camino puede saltearse el control.
+     *
+     * <p>#217: {@code lotId} es el lote que eligio la garita, o null. Si no es
+     * uno que este token habilita, {@link InvalidLotChoiceException} antes de
+     * consumir nada.
      */
     public AccessDecision validate(UUID neighborhoodId, String token, Instant capturedAt, Direction direction,
-                                   boolean checkEnrollment) {
+                                   boolean checkEnrollment, UUID lotId) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
         if (direction == null) throw new IllegalArgumentException("direction requerido");
@@ -76,7 +81,7 @@ public class ValidateAccessUseCase {
         // WBS-117: ruteo por subType. Worker no lleva invitationId, tiene su
         // propio flujo (permisos activos + franja evaluada en el barrio).
         if (QrTokenPayload.SUBTYPE_WORKER.equals(parsed.payload().subType())) {
-            return evaluateWorker(neighborhoodId, parsed, capturedAt, direction, checkEnrollment);
+            return evaluateWorker(neighborhoodId, parsed, capturedAt, direction, checkEnrollment, lotId);
         }
 
         Optional<Invitation> invOpt = invitations.findById(parsed.payload().invitationId());
@@ -92,6 +97,9 @@ public class ValidateAccessUseCase {
         if (!inv.jti().equals(parsed.payload().jti())) {
             return AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE);
         }
+        // #217: el lote del invitado sale de la invitacion. Si coincide se
+        // ignora; si la contradice es error del cliente.
+        if (lotId != null && !lotId.equals(inv.lotId())) throw new InvalidLotChoiceException();
         if (inv.status() == InvitationStatus.REVOKED) return AccessDecision.Denied.of(DenialReason.REVOKED, inv.id());
 
         Optional<LotSnapshot> lotOpt = lots.find(inv.lotId());
@@ -144,7 +152,7 @@ public class ValidateAccessUseCase {
      * permisos. Los egresos y los sync offline no chequean enrolamiento.
      */
     private AccessDecision evaluateWorker(UUID neighborhoodId, ParsedQrToken parsed, Instant capturedAt,
-                                          Direction direction, boolean checkEnrollment) {
+                                          Direction direction, boolean checkEnrollment, UUID lotId) {
         QrTokenPayload p = parsed.payload();
         Optional<WorkerTokenRepository.WorkerTokenRow> active = workerTokens.findActive(p.sub());
         if (active.isEmpty() || !active.get().jti().equals(p.jti())) {
@@ -166,6 +174,12 @@ public class ValidateAccessUseCase {
             }
         }
         if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
+        // #217: el lote elegido tiene que estar en franja en capturedAt (en
+        // sync es la hora del scan, no la del sync). Si no, error del cliente.
+        if (lotId != null) {
+            inSlot.removeIf(l -> !l.lotId().equals(lotId));
+            if (inSlot.isEmpty()) throw new InvalidLotChoiceException();
+        }
         if (direction == Direction.IN && checkEnrollment
                 && enrollments.findByPerson(neighborhoodId, ctx.workerDocument()).isEmpty()) {
             return AccessDecision.NeedsEnrollment.worker(p.sub(), ctx.workerName());

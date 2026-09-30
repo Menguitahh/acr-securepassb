@@ -63,6 +63,15 @@ public record ValidateAccessResponse(
                     "ALLOWED_WORKER", logId, null, null, null, null, null, null,
                     new WorkerDetail(w.userId(), w.workerName(), lots));
         }
+        // #217: sin logId, no se guardo nada. La garita reenvia con lotId.
+        if (result.decision() instanceof AccessDecision.NeedsLotSelection sel) {
+            List<LotChoice> lots = sel.lots().stream()
+                    .map(o -> new LotChoice(o.lotId(), o.lotCode(), o.service()))
+                    .toList();
+            return new ValidateAccessResponse(
+                    "NEEDS_LOT_SELECTION", null, null, "WORKER", null, null, null, null,
+                    new WorkerDetail(sel.userId(), sel.workerName(), lots));
+        }
         if (result.decision() instanceof AccessDecision.NeedsEnrollment needs) {
             if (needs.kind() == AccessDecision.SubjectKind.WORKER) {
                 return new ValidateAccessResponse(

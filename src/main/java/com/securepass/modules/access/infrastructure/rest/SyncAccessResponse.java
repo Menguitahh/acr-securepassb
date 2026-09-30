@@ -15,7 +15,8 @@ public record SyncAccessResponse(List<EventResult> results) {
             @Schema(implementation = DenialReason.class) String reason,
             UUID logId,
             UUID enrollmentId,
-            boolean clockSkew) {}
+            boolean clockSkew,
+            @Schema(implementation = SyncAccessUseCase.Rejection.class) String rejection) {}
 
     public static SyncAccessResponse from(SyncAccessUseCase.Report report) {
         List<EventResult> results = report.results().stream()
@@ -25,7 +26,8 @@ public record SyncAccessResponse(List<EventResult> results) {
                         r.reason() != null ? r.reason().name() : null,
                         r.logId(),
                         r.enrollmentId(),
-                        r.clockSkew()))
+                        r.clockSkew(),
+                        r.rejection() != null ? r.rejection().name() : null))
                 .toList();
         return new SyncAccessResponse(results);
     }

@@ -101,6 +101,20 @@ public sealed interface AccessDecision {
     }
 
     /**
+     * #217: trabajador con mas de un lote en franja y sin lote elegido. Online
+     * no se persiste: la garita muestra {@code lots} y reenvia con el lotId
+     * elegido y un clientEventId nuevo (mismo patron que NEEDS_ENROLLMENT).
+     */
+    record NeedsLotSelection(UUID userId, String workerName, List<LotOption> lots) implements AccessDecision {
+        public NeedsLotSelection {
+            if (userId == null) throw new IllegalArgumentException("userId requerido");
+            if (workerName == null || workerName.isBlank()) throw new IllegalArgumentException("workerName requerido");
+            if (lots == null || lots.size() < 2) throw new IllegalArgumentException("lots >= 2");
+            lots = List.copyOf(lots);
+        }
+    }
+
+    /**
      * #210: {@code invitationId} es el pase que se presento, cuando la firma
      * verifico y la invitacion es del barrio del guardia. Null si no hay pase
      * confiable (firma invalida, invitacion inexistente o de otro barrio).

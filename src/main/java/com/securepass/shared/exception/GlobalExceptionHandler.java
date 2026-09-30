@@ -105,6 +105,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(InvalidLotChoiceException.class)
+    public ProblemDetail handleInvalidLotChoice(InvalidLotChoiceException ex) {
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "invalid-lot", ex.getMessage());
+        pd.setProperty("code", "INVALID_LOT");
+        return pd;
+    }
+
     @ExceptionHandler(EmailRequiredException.class)
     public ProblemDetail handleEmailRequired(EmailRequiredException ex) {
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "email-required", ex.getMessage());

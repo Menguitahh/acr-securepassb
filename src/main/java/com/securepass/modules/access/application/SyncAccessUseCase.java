@@ -4,6 +4,9 @@ import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
+import com.securepass.shared.exception.InvalidLotChoiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,6 +19,8 @@ import java.util.UUID;
 public class SyncAccessUseCase {
 
     public static final int MAX_BATCH = 50;
+
+    private static final Logger LOG = LoggerFactory.getLogger(SyncAccessUseCase.class);
 
     private final RecordAccessAttemptUseCase recorder;
     private final EnrollGuestUseCase enroller;
@@ -46,17 +51,32 @@ public class SyncAccessUseCase {
     }
 
     private EventResult processAccess(UUID neighborhoodId, UUID guardId, Event ev) {
-        RecordAccessAttemptUseCase.Result result = recorder.record(new RecordAccessAttemptUseCase.Command(
-                neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
-                ev.companions(), ev.capturedAt(), ev.clientEventId(), true));
+        RecordAccessAttemptUseCase.Result result;
+        try {
+            result = recorder.record(new RecordAccessAttemptUseCase.Command(
+                    neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
+                    ev.companions(), ev.capturedAt(), ev.clientEventId(), true, ev.lotId()));
+        } catch (InvalidLotChoiceException e) {
+            // #217: evento mal formado, no decision de acceso. Terminal para este
+            // evento sin trabar el batch. No se guarda como acceso, pero el
+            // ingreso fisico pudo ocurrir: queda rastro.
+            // ponytail: rastro en el log de la app; tabla propia si hace falta
+            // consultarlo (propuesto en #217).
+            LOG.warn("sync: evento rechazado clientEventId={} guardId={} gateId={} lotId={} capturedAt={} motivo={}",
+                    ev.clientEventId(), guardId, ev.gateId(), ev.lotId(), ev.capturedAt(), Rejection.INVALID_LOT);
+            return EventResult.rejected(ev.clientEventId(), Rejection.INVALID_LOT);
+        }
         AccessLog log = result.log();
-        if (result.decision() instanceof AccessDecision.Allowed) {
+        // WBS-117 / #217: el trabajador permitido tambien es ALLOWED; antes caia
+        // en el cast a Denied (ClassCastException).
+        if (result.decision() instanceof AccessDecision.Allowed
+                || result.decision() instanceof AccessDecision.AllowedWorker) {
             return new EventResult(
-                    ev.clientEventId(), Outcome.ALLOWED, null, log.id(), null, log.clockSkew());
+                    ev.clientEventId(), Outcome.ALLOWED, null, log.id(), null, log.clockSkew(), null);
         }
         DenialReason reason = ((AccessDecision.Denied) result.decision()).reason();
         return new EventResult(
-                ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew());
+                ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew(), null);
     }
 
     private EventResult processEnroll(UUID neighborhoodId, UUID guardId, Event ev) {
@@ -67,11 +87,11 @@ public class SyncAccessUseCase {
         if (result instanceof EnrollmentResult.Enrolled ok) {
             return new EventResult(
                     ev.clientEventId(), Outcome.ENROLLED, null, log.id(),
-                    ok.enrollment().id(), log.clockSkew());
+                    ok.enrollment().id(), log.clockSkew(), null);
         }
         DenialReason reason = ((EnrollmentResult.Denied) result).reason();
         return new EventResult(
-                ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew());
+                ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew(), null);
     }
 
     public record Event(
@@ -82,7 +102,9 @@ public class SyncAccessUseCase {
             int companions,
             Instant capturedAt,
             String localDecision,
-            String documentNumber
+            String documentNumber,
+            // #217: lote que eligio el guardia offline, o null.
+            UUID lotId
     ) {
         public Event {
             if (clientEventId == null) throw new IllegalArgumentException("clientEventId requerido");
@@ -97,7 +119,14 @@ public class SyncAccessUseCase {
         }
     }
 
-    public enum Outcome { ALLOWED, DENIED, ENROLLED }
+    /**
+     * DENIED es una decision de acceso (lleva {@link DenialReason} y log);
+     * REJECTED es un evento mal formado (lleva {@link Rejection}, sin log).
+     * Los dos son terminales: el mobile saca el evento de la cola.
+     */
+    public enum Outcome { ALLOWED, DENIED, ENROLLED, REJECTED }
+
+    public enum Rejection { INVALID_LOT }
 
     public record EventResult(
             UUID clientEventId,
@@ -105,8 +134,13 @@ public class SyncAccessUseCase {
             DenialReason reason,
             UUID logId,
             UUID enrollmentId,
-            boolean clockSkew
-    ) {}
+            boolean clockSkew,
+            Rejection rejection
+    ) {
+        static EventResult rejected(UUID clientEventId, Rejection rejection) {
+            return new EventResult(clientEventId, Outcome.REJECTED, null, null, null, false, rejection);
+        }
+    }
 
     public record Report(List<EventResult> results) {}
 }

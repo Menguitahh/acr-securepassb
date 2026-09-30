@@ -880,8 +880,8 @@ POST /api/v1/access/sync
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| POST | `/access/validate` | GUARD | Validación online |
-| POST | `/access/sync` | GUARD | Batch offline, idempotente por `clientEventId` |
+| POST | `/access/validate` | GUARD | Validación online. `lotId` opcional (#217): un trabajador con más de un lote en franja y sin `lotId` recibe `NEEDS_LOT_SELECTION` con `worker.lots` y no se guarda nada; la garita reenvía con el `lotId` elegido y un `clientEventId` nuevo. En un invitado, un `lotId` igual al de la invitación se ignora. Un `lotId` que el token no habilita (fuera de franja, ajeno, o distinto del de la invitación) es 400 `INVALID_LOT`, sin consumir el pase. |
+| POST | `/access/sync` | GUARD | Batch offline, idempotente por `clientEventId`. `lotId` opcional por evento, con las mismas reglas que validate y la franja evaluada en el `capturedAt` del evento (#217). Un evento con `lotId` inválido sale `REJECTED` con `rejection: INVALID_LOT`: no se guarda como acceso, deja un WARN con `clientEventId` y guardia, y el resto del batch sigue. `REJECTED` (evento mal formado) no es `DENIED` (decisión de acceso); los dos son terminales. |
 | POST | `/access/manual` | GUARD | Ingreso sin QR (proveedor, visita imprevista) |
 | GET | `/lots?q=` | GUARD | Autocompletar por `code` (parcial, case-insensitive) sobre lotes `ACTIVE` del barrio del turno activo; devuelve `[{id, code}]` con tope 10; necesario para armar el body de `/access/manual`, que pide `lotId` UUID |
 | GET | `/access/keys` | GUARD | Claves públicas Ed25519 activas del barrio |

@@ -3027,6 +3027,10 @@
           "clientEventId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         }
       },
@@ -3184,6 +3188,10 @@
           "documentNumber" : {
             "pattern" : "^[0-9]{7,8}$",
             "type" : "string"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         }
       },
@@ -3220,7 +3228,8 @@
             "enum" : [
               "ALLOWED",
               "DENIED",
-              "ENROLLED"
+              "ENROLLED",
+              "REJECTED"
             ]
           },
           "reason" : {
@@ -3248,6 +3257,12 @@
           },
           "clockSkew" : {
             "type" : "boolean"
+          },
+          "rejection" : {
+            "type" : "string",
+            "enum" : [
+              "INVALID_LOT"
+            ]
           }
         }
       },

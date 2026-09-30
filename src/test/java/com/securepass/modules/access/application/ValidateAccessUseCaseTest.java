@@ -121,7 +121,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(from, until, 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
         AccessDecision.Allowed allowed = (AccessDecision.Allowed) decision;
@@ -133,7 +133,7 @@ class ValidateAccessUseCaseTest {
 
     @Test
     void invalidSignatureCuandoTokenNoParsea() {
-        AccessDecision decision = useCase.validate(neighborhoodId, "no-es-un-token", NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, "no-es-un-token", NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
     }
 
@@ -142,7 +142,7 @@ class ValidateAccessUseCaseTest {
         when(signingKeys.findByKid(neighborhoodId, "kid-1")).thenReturn(Optional.empty());
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
     }
@@ -156,7 +156,7 @@ class ValidateAccessUseCaseTest {
         when(signingKeys.findByKid(neighborhoodId, "kid-1")).thenReturn(Optional.of(wrongKey));
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
     }
@@ -167,7 +167,7 @@ class ValidateAccessUseCaseTest {
         when(invitations.findById(invitationId)).thenReturn(Optional.empty());
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.UNKNOWN));
     }
@@ -183,7 +183,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
     }
@@ -193,7 +193,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(singleInvitation(InvitationStatus.REVOKED, 0));
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED, invitationId));
     }
@@ -206,7 +206,7 @@ class ValidateAccessUseCaseTest {
         when(lots.find(lotId)).thenReturn(Optional.of(new LotSnapshot(lotId, "M4-L12", LotStatus.SUSPENDED, TZ)));
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED, invitationId));
     }
@@ -219,7 +219,7 @@ class ValidateAccessUseCaseTest {
         when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.NeedsEnrollment.class);
         AccessDecision.NeedsEnrollment needs = (AccessDecision.NeedsEnrollment) decision;
@@ -238,7 +238,7 @@ class ValidateAccessUseCaseTest {
         // el mock global ya devuelve enrolamiento presente
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
@@ -251,7 +251,7 @@ class ValidateAccessUseCaseTest {
         when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
@@ -271,7 +271,7 @@ class ValidateAccessUseCaseTest {
         when(enrollments.findByPerson(org.mockito.ArgumentMatchers.eq(neighborhoodId), org.mockito.ArgumentMatchers.anyString())).thenReturn(Optional.empty());
         String token = signedToken(payload(from, until, 1, InvitationType.EVENT));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
@@ -292,7 +292,7 @@ class ValidateAccessUseCaseTest {
         when(lots.find(lotId)).thenReturn(Optional.of(new LotSnapshot(lotId, "M4-L12", LotStatus.SUSPENDED, TZ)));
         String token = signedToken(payload(from, until, 1, InvitationType.EVENT));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
@@ -310,7 +310,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(from, until, 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.NOT_YET_VALID, invitationId));
     }
@@ -328,7 +328,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(from, until, 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED, invitationId));
     }
@@ -339,7 +339,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED, invitationId));
     }
@@ -350,7 +350,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId));
     }
@@ -361,7 +361,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId));
     }
@@ -374,7 +374,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true, null);
 
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
@@ -385,7 +385,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED, invitationId));
     }
@@ -403,7 +403,7 @@ class ValidateAccessUseCaseTest {
         stubHappyPath(inconsistente);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
-        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.UNKNOWN, invitationId));
     }
@@ -418,7 +418,7 @@ class ValidateAccessUseCaseTest {
                 InvitationType.SINGLE));
 
         AccessDecision decision = useCase.validate(UUID.randomUUID(), token, NOW,
-                com.securepass.modules.access.domain.Direction.IN, true);
+                com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
         verify(invitations, never()).findById(any());
@@ -436,7 +436,7 @@ class ValidateAccessUseCaseTest {
                 InvitationType.SINGLE));
 
         AccessDecision decision = useCase.validate(otroBarrio, token, NOW,
-                com.securepass.modules.access.domain.Direction.IN, true);
+                com.securepass.modules.access.domain.Direction.IN, true, null);
 
         assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.UNKNOWN));
         verify(lots, never()).find(any());

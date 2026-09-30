@@ -177,7 +177,7 @@ class SyncAccessUseCaseTest {
     void eventConDocumentNumberRuteaAEnrollerYExponeEnrollmentId() {
         UUID enrollClientId = UUID.randomUUID();
         SyncAccessUseCase.Event enrollEv = new SyncAccessUseCase.Event(
-                enrollClientId, "SP1.token", gateId, Direction.IN, 0, T0, "ALLOWED", "30123456");
+                enrollClientId, "SP1.token", gateId, Direction.IN, 0, T0, "ALLOWED", "30123456", null);
         UUID enrollmentId = UUID.randomUUID();
         UUID logId = UUID.randomUUID();
         GuestEnrollment ge = new GuestEnrollment(
@@ -213,7 +213,7 @@ class SyncAccessUseCaseTest {
     void enrollDeniedMapeaADeniedConReasonYSinEnrollmentId() {
         UUID enrollClientId = UUID.randomUUID();
         SyncAccessUseCase.Event enrollEv = new SyncAccessUseCase.Event(
-                enrollClientId, "SP1.token", gateId, Direction.IN, 0, T0, "ALLOWED", "99999999");
+                enrollClientId, "SP1.token", gateId, Direction.IN, 0, T0, "ALLOWED", "99999999", null);
         UUID logId = UUID.randomUUID();
         AccessLog log = new AccessLog(
                 logId, neighborhoodId, gateId, guardId, invitationId, lotId,
@@ -236,7 +236,7 @@ class SyncAccessUseCaseTest {
         SyncAccessUseCase.Event access = event(UUID.randomUUID(), T0);
         SyncAccessUseCase.Event enroll = new SyncAccessUseCase.Event(
                 UUID.randomUUID(), "SP1.enrollTok", gateId, Direction.IN, 0, T0.plusSeconds(1),
-                "ALLOWED", "30123456");
+                "ALLOWED", "30123456", null);
         when(recorder.record(any())).thenReturn(allowedResult(commandFor(access), false));
         UUID enrollmentId = UUID.randomUUID();
         GuestEnrollment ge = new GuestEnrollment(
@@ -271,13 +271,13 @@ class SyncAccessUseCaseTest {
 
     private SyncAccessUseCase.Event event(UUID clientEventId, Instant capturedAt) {
         return new SyncAccessUseCase.Event(
-                clientEventId, "SP1.token", gateId, Direction.IN, 0, capturedAt, "ALLOWED", null);
+                clientEventId, "SP1.token", gateId, Direction.IN, 0, capturedAt, "ALLOWED", null, null);
     }
 
     private RecordAccessAttemptUseCase.Command commandFor(SyncAccessUseCase.Event ev) {
         return new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
-                ev.companions(), ev.capturedAt(), ev.clientEventId(), true);
+                ev.companions(), ev.capturedAt(), ev.clientEventId(), true, null);
     }
 
     private RecordAccessAttemptUseCase.Result allowedResult(RecordAccessAttemptUseCase.Command cmd, boolean skew) {

@@ -42,7 +42,7 @@ class ConsumeAccessUseCaseTest {
         neighborhoodId = UUID.randomUUID();
         invitationId = UUID.randomUUID();
         jti = UUID.randomUUID();
-        when(validator.validate(any(), any(), any(), any(), anyBoolean()))
+        when(validator.validate(any(), any(), any(), any(), anyBoolean(), any()))
                 .thenReturn(new AccessDecision.Allowed(invitationId, jti, "Maria", "M4-L12", 0));
     }
 
@@ -55,7 +55,7 @@ class ConsumeAccessUseCaseTest {
     }
 
     private AccessDecision consume() {
-        return useCase.consume(neighborhoodId, "SP1.token", NOW, UUID.randomUUID().toString(), true);
+        return useCase.consume(neighborhoodId, "SP1.token", NOW, UUID.randomUUID().toString(), true, null);
     }
 
     @Test

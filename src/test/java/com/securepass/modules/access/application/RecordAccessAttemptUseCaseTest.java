@@ -71,7 +71,7 @@ class RecordAccessAttemptUseCaseTest {
     private RecordAccessAttemptUseCase.Command cmd(Direction dir) {
         return new RecordAccessAttemptUseCase.Command(
                 neighborhoodId, gateId, guardId, "SP1.token",
-                dir, 2, NOW, clientEventId, false);
+                dir, 2, NOW, clientEventId, false, null);
     }
 
     private Invitation invitation() {
@@ -89,7 +89,7 @@ class RecordAccessAttemptUseCaseTest {
 
     @Test
     void inDelegaAConsumeYPersisteLog() {
-        when(consume.consume(any(), eq("SP1.token"), eq(NOW), eq(clientEventId.toString()), eq(true)))
+        when(consume.consume(any(), eq("SP1.token"), eq(NOW), eq(clientEventId.toString()), eq(true), any()))
                 .thenReturn(allowed());
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
 
@@ -113,13 +113,13 @@ class RecordAccessAttemptUseCaseTest {
 
     @Test
     void outDelegaAValidateSinConsumir() {
-        when(validate.validate(any(), eq("SP1.token"), eq(NOW), eq(Direction.OUT), eq(true))).thenReturn(allowed());
+        when(validate.validate(any(), eq("SP1.token"), eq(NOW), eq(Direction.OUT), eq(true), any())).thenReturn(allowed());
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
 
         RecordAccessAttemptUseCase.Result result = useCase.record(cmd(Direction.OUT));
 
         assertThat(result.decision()).isInstanceOf(AccessDecision.Allowed.class);
-        verify(consume, org.mockito.Mockito.never()).consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(consume, org.mockito.Mockito.never()).consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any());
         verify(logs).saveIdempotent(any());
     }
 
@@ -135,7 +135,7 @@ class RecordAccessAttemptUseCaseTest {
     @EnumSource(value = DenialReason.class,
             names = {"NOT_YET_VALID", "EXPIRED", "ALREADY_USED", "REPLAY", "REVOKED", "LOT_SUSPENDED"})
     void deniedConPaseGuardaInvitacionLoteYJtiSinNombreNiDocumento(DenialReason reason) {
-        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any()))
                 .thenReturn(AccessDecision.Denied.of(reason, invitationId));
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
 
@@ -155,7 +155,7 @@ class RecordAccessAttemptUseCaseTest {
 
     @Test
     void invalidSignatureGuardaLosTresEnNull() {
-        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any()))
                 .thenReturn(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
 
         useCase.record(cmd(Direction.IN));
@@ -171,11 +171,11 @@ class RecordAccessAttemptUseCaseTest {
     // Sync offline: ALREADY_USED se reclasifica como REPLAY sin perder el pase.
     @Test
     void syncReplayConservaElVinculoAlPase() {
-        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any()))
                 .thenReturn(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId));
         when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
         var offline = new RecordAccessAttemptUseCase.Command(
-                neighborhoodId, gateId, guardId, "SP1.token", Direction.IN, 0, NOW, clientEventId, true);
+                neighborhoodId, gateId, guardId, "SP1.token", Direction.IN, 0, NOW, clientEventId, true, null);
 
         RecordAccessAttemptUseCase.Result result = useCase.record(offline);
 

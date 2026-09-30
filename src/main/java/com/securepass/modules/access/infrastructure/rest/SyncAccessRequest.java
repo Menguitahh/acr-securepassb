@@ -27,12 +27,13 @@ public record SyncAccessRequest(
             @Min(0) @Max(20) int companions,
             @NotNull Instant capturedAt,
             String localDecision,
-            @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber
+            @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber,
+            UUID lotId
     ) {
         public SyncAccessUseCase.Event toEvent() {
             return new SyncAccessUseCase.Event(
                     clientEventId, token, gateId, direction, companions, capturedAt,
-                    localDecision, documentNumber);
+                    localDecision, documentNumber, lotId);
         }
     }
 

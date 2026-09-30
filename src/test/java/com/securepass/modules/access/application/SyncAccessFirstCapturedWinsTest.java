@@ -112,9 +112,9 @@ class SyncAccessFirstCapturedWinsTest {
         Instant tLate = Instant.now().minusSeconds(30);
 
         SyncAccessUseCase.Event late = new SyncAccessUseCase.Event(
-                clientLate, token, gateId, Direction.IN, 0, tLate, "ALLOWED", null);
+                clientLate, token, gateId, Direction.IN, 0, tLate, "ALLOWED", null, null);
         SyncAccessUseCase.Event early = new SyncAccessUseCase.Event(
-                clientEarly, token, gateId, Direction.IN, 0, tEarly, "ALLOWED", null);
+                clientEarly, token, gateId, Direction.IN, 0, tEarly, "ALLOWED", null, null);
 
         SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(late, early));
 
