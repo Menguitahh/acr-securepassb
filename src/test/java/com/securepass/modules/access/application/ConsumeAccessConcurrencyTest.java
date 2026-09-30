@@ -98,7 +98,7 @@ class ConsumeAccessConcurrencyTest {
             List<AccessDecision> results = List.of(futures.get(0).get(), futures.get(1).get());
             long allowed = results.stream().filter(r -> r instanceof AccessDecision.Allowed).count();
             long alreadyUsed = results.stream()
-                    .filter(r -> r.equals(AccessDecision.Denied.of(DenialReason.ALREADY_USED)))
+                    .filter(r -> r.equals(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId)))
                     .count();
 
             assertThat(allowed).as("exactamente un thread debe recibir Allowed").isEqualTo(1);

@@ -11,6 +11,8 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
@@ -22,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -120,20 +123,66 @@ class RecordAccessAttemptUseCaseTest {
         verify(logs).saveIdempotent(any());
     }
 
-    @Test
-    void deniedPersisteLogConDenialReason() {
+    private AccessLog savedLog() {
+        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
+        verify(logs).saveIdempotent(captor.capture());
+        return captor.getValue();
+    }
+
+    // #210: un denegado con pase identificado guarda el vinculo al pase, no el
+    // nombre: el pase no prueba quien lo presento (REPLAY es la segunda copia).
+    @ParameterizedTest
+    @EnumSource(value = DenialReason.class,
+            names = {"NOT_YET_VALID", "EXPIRED", "ALREADY_USED", "REPLAY", "REVOKED", "LOT_SUSPENDED"})
+    void deniedConPaseGuardaInvitacionLoteYJtiSinNombreNiDocumento(DenialReason reason) {
         when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
-                .thenReturn(AccessDecision.Denied.of(DenialReason.EXPIRED));
+                .thenReturn(AccessDecision.Denied.of(reason, invitationId));
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
 
         RecordAccessAttemptUseCase.Result result = useCase.record(cmd(Direction.IN));
 
-        assertThat(result.decision()).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED));
-        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
-        verify(logs).saveIdempotent(captor.capture());
-        AccessLog log = captor.getValue();
+        AccessLog log = savedLog();
         assertThat(log.allowed()).isFalse();
-        assertThat(log.denialReason()).isEqualTo(DenialReason.EXPIRED);
+        assertThat(log.denialReason()).isEqualTo(reason);
+        assertThat(log.invitationId()).isEqualTo(invitationId);
+        assertThat(log.lotId()).isEqualTo(lotId);
+        assertThat(log.tokenJti()).isEqualTo(jti);
+        assertThat(log.subjectName()).isNull();
+        assertThat(log.subjectDocument()).isNull();
+        // La respuesta a la garita no cambia: un denegado no lleva invitacion.
+        assertThat(result.invitation()).isNull();
+    }
+
+    @Test
+    void invalidSignatureGuardaLosTresEnNull() {
+        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
+
+        useCase.record(cmd(Direction.IN));
+
+        AccessLog log = savedLog();
+        assertThat(log.denialReason()).isEqualTo(DenialReason.INVALID_SIGNATURE);
         assertThat(log.invitationId()).isNull();
+        assertThat(log.lotId()).isNull();
         assertThat(log.tokenJti()).isNull();
+        verify(invitations, never()).findById(any());
+    }
+
+    // Sync offline: ALREADY_USED se reclasifica como REPLAY sin perder el pase.
+    @Test
+    void syncReplayConservaElVinculoAlPase() {
+        when(consume.consume(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId));
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation()));
+        var offline = new RecordAccessAttemptUseCase.Command(
+                neighborhoodId, gateId, guardId, "SP1.token", Direction.IN, 0, NOW, clientEventId, true);
+
+        RecordAccessAttemptUseCase.Result result = useCase.record(offline);
+
+        assertThat(result.decision()).isEqualTo(AccessDecision.Denied.of(DenialReason.REPLAY, invitationId));
+        AccessLog log = savedLog();
+        assertThat(log.denialReason()).isEqualTo(DenialReason.REPLAY);
+        assertThat(log.invitationId()).isEqualTo(invitationId);
+        assertThat(log.lotId()).isEqualTo(lotId);
     }
 }

@@ -119,7 +119,7 @@ class AccessLogsXlsxExportHttpTest {
             XSSFSheet sh = wb.getSheetAt(0);
             assertThat(texts(sh.getRow(0))).containsExactly(
                     "Capturado el", "Código de lote", "Dirección", "Tipo", "Resultado",
-                    "Motivo de denegación", "Nombre", "Documento", "Acompañantes");
+                    "Motivo de denegación", "Nombre", "Documento", "Acompañantes", "Pase de");
             assertThat(sh.getRow(0).getCell(0).getCellStyle().getFont().getBold()).isTrue();
             assertThat(sh.getLastRowNum()).isEqualTo(2);
 
@@ -132,6 +132,7 @@ class AccessLogsXlsxExportHttpTest {
                     "L-12", "Ingreso", "Invitado", "Permitido", "", "Muñoz, \"Tito\"", "00123456");
             assertThat(ok.getCell(7).getCellType()).isEqualTo(CellType.STRING);
             assertThat(ok.getCell(8).getNumericCellValue()).isEqualTo(1);
+            assertThat(texts(ok).get(9)).isEmpty();
             assertThat(fill(ok.getCell(6))).isNull();
 
             XSSFRow denied = sh.getRow(2);
@@ -146,7 +147,7 @@ class AccessLogsXlsxExportHttpTest {
             }
 
             assertThat(sh.getPaneInformation().isFreezePane()).isTrue();
-            assertThat(sh.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:I3");
+            assertThat(sh.getCTWorksheet().getAutoFilter().getRef()).isEqualTo("A1:J3");
             assertThat(sh.getPrintSetup().getLandscape()).isTrue();
             assertThat(sh.getRepeatingRows().formatAsString()).isEqualTo("1:1");
         }
@@ -275,7 +276,7 @@ class AccessLogsXlsxExportHttpTest {
     private AccessLogQuery.Item item(int i) {
         return new AccessLogQuery.Item(UUID.randomUUID(), lot, "L-12", Direction.IN, SubjectType.GUEST,
                 i % 10 != 0, i % 10 == 0 ? DenialReason.EXPIRED : null,
-                SECRET_NAME + " " + i, SECRET_DOC, 1, FROM.plusSeconds(i));
+                SECRET_NAME + " " + i, SECRET_DOC, 1, FROM.plusSeconds(i), null);
     }
 
     private static long poiTempFiles() throws IOException {
@@ -308,7 +309,7 @@ class AccessLogsXlsxExportHttpTest {
     }
 
     private static List<String> texts(XSSFRow row) {
-        return java.util.stream.IntStream.range(0, 9)
+        return java.util.stream.IntStream.range(0, 10)
                 .mapToObj(c -> row.getCell(c) == null ? "" : row.getCell(c).toString())
                 .toList();
     }

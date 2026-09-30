@@ -23,7 +23,8 @@ public record AccessLogsResponse(List<Item> items, int page, int size, long tota
             String subjectName,
             String subjectDocument,
             int companions,
-            Instant capturedAt
+            Instant capturedAt,
+            String passHolderName
     ) {}
 
     public static AccessLogsResponse from(AccessLogQuery.Page page) {
@@ -34,7 +35,7 @@ public record AccessLogsResponse(List<Item> items, int page, int size, long tota
                         i.allowed() ? "ALLOWED" : "DENIED",
                         i.denialReason() == null ? null : i.denialReason().name(),
                         i.subjectName(), i.subjectDocument(), i.companions(),
-                        i.capturedAt()))
+                        i.capturedAt(), i.passHolderName()))
                 .toList();
         return new AccessLogsResponse(items, page.page(), page.size(), page.total());
     }

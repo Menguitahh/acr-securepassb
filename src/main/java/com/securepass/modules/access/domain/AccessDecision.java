@@ -100,13 +100,23 @@ public sealed interface AccessDecision {
         }
     }
 
-    record Denied(DenialReason reason) implements AccessDecision {
+    /**
+     * #210: {@code invitationId} es el pase que se presento, cuando la firma
+     * verifico y la invitacion es del barrio del guardia. Null si no hay pase
+     * confiable (firma invalida, invitacion inexistente o de otro barrio).
+     * Vincula el log al pase; no dice quien lo presento.
+     */
+    record Denied(DenialReason reason, UUID invitationId) implements AccessDecision {
         public Denied {
             if (reason == null) throw new IllegalArgumentException("reason requerido");
         }
 
         public static Denied of(DenialReason reason) {
-            return new Denied(reason);
+            return new Denied(reason, null);
+        }
+
+        public static Denied of(DenialReason reason, UUID invitationId) {
+            return new Denied(reason, invitationId);
         }
     }
 }

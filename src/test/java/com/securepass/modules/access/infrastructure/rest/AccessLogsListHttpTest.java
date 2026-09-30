@@ -74,7 +74,10 @@ class AccessLogsListHttpTest {
     }
 
     private HttpResponse<String> get(String extra) throws Exception {
-        String token = jwt.issue(adminId, barrio, List.of(Role.ADMIN), List.of()).token();
+        return get(extra, jwt.issue(adminId, barrio, List.of(Role.ADMIN), List.of()).token());
+    }
+
+    private HttpResponse<String> get(String extra, String token) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/v1/access-logs?from=" + FROM + "&to=" + TO + extra))
                 .header("Authorization", "Bearer " + token)
@@ -150,5 +153,78 @@ class AccessLogsListHttpTest {
     @Test
     void reasonConResultAllowedEs400() throws Exception {
         assertBadRequest(get("&reason=EXPIRED&result=ALLOWED"));
+    }
+
+    // #210: pase del lote, emitido por el admin del seed.
+    private UUID seedInvitation(UUID lot, String guestName) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO invitations (
+                    id, neighborhood_id, lot_id, created_by, type, status,
+                    guest_name, guest_document, companions,
+                    valid_from, valid_until, max_uses, used_count, token_kid, jti
+                ) VALUES (?, ?, ?, ?, 'SINGLE', 'ACTIVE', ?, '30123456', 0, ?, ?, 1, 0, 'kid-1', ?)
+                """, id, barrio, lot, adminId, guestName, Timestamp.from(FROM), Timestamp.from(TO), UUID.randomUUID());
+        return id;
+    }
+
+    private UUID seedLot() {
+        UUID lot = UUID.randomUUID();
+        jdbc.update("INSERT INTO lots (id, neighborhood_id, code) VALUES (?, ?, ?)",
+                lot, barrio, "L-" + lot.toString().substring(0, 8));
+        return lot;
+    }
+
+    private void insertLinkedLog(UUID lot, UUID invitation, String name, Instant at, String result, String reason) {
+        jdbc.update("""
+                INSERT INTO access_logs (
+                    id, neighborhood_id, gate_id, invitation_id, lot_id, direction, subject_type, result,
+                    denial_reason, subject_name, companions, captured_at, client_event_id
+                ) VALUES (?, ?, ?, ?, ?, 'IN', 'GUEST', ?, ?, ?, 0, ?, ?)
+                """, UUID.randomUUID(), barrio, gate, invitation, lot, result, reason, name,
+                Timestamp.from(at), UUID.randomUUID());
+    }
+
+    // #210: el denegado no copia el nombre a subjectName (no prueba quien
+    // presento el pase); el titular sale aparte, por join con la invitacion.
+    @Test
+    void deniedConPaseExponeElTitularAparteYSinSubjectName() throws Exception {
+        UUID lot = seedLot();
+        UUID inv = seedInvitation(lot, "Maria Lopez");
+        Instant at = FROM.plusSeconds(3600);
+        insertLinkedLog(lot, inv, null, at, "DENIED", "REPLAY");
+        insertLinkedLog(lot, inv, "Maria Lopez", at.plusSeconds(60), "ALLOWED", null);
+
+        JsonNode items = list().get("items");
+
+        JsonNode allowed = items.get(0);
+        JsonNode denied = items.get(1);
+        assertThat(denied.get("denialReason").asText()).isEqualTo("REPLAY");
+        assertThat(denied.get("passHolderName").asText()).isEqualTo("Maria Lopez");
+        assertThat(denied.has("subjectName")).isFalse();
+        assertThat(allowed.get("subjectName").asText()).isEqualTo("Maria Lopez");
+        assertThat(allowed.has("passHolderName")).isFalse();
+    }
+
+    // #210, decision abierta: el residente ve lo mismo que antes del fix. Los
+    // denegados de validate no tenian lote; el de enrolamiento si.
+    @Test
+    void residenteNoVeLosDenegadosDeValidateDeSuLote() throws Exception {
+        UUID lot = seedLot();
+        UUID inv = seedInvitation(lot, "Maria Lopez");
+        Instant at = FROM.plusSeconds(3600);
+        insertLinkedLog(lot, inv, "Maria Lopez", at, "ALLOWED", null);
+        insertLinkedLog(lot, inv, null, at.plusSeconds(60), "DENIED", "EXPIRED");
+        insertLinkedLog(lot, inv, null, at.plusSeconds(120), "DENIED", "DOCUMENT_MISMATCH");
+        String resident = jwt.issue(UUID.randomUUID(), barrio, List.of(Role.RESIDENT_OWNER), List.of(lot)).token();
+
+        HttpResponse<String> resp = get("", resident);
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        JsonNode body = json.readTree(resp.body());
+        List<String> seen = new ArrayList<>();
+        body.get("items").forEach(i -> seen.add(i.get("result").asText() + ":" + i.path("denialReason").asText()));
+        assertThat(seen).containsExactly("DENIED:DOCUMENT_MISMATCH", "ALLOWED:");
+        assertThat(body.get("total").asLong()).isEqualTo(2);
     }
 }

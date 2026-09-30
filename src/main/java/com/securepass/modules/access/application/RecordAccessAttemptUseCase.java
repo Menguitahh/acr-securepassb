@@ -69,7 +69,7 @@ public class RecordAccessAttemptUseCase {
 
     private Result reconstruct(AccessLog log) {
         if (!log.allowed()) {
-            return new Result(AccessDecision.Denied.of(log.denialReason()), log, null);
+            return new Result(AccessDecision.Denied.of(log.denialReason(), log.invitationId()), log, null);
         }
         // WBS-117: en un ALLOWED de worker (subject SERVICE) no hay invitationId.
         // La reconstruccion no puede recuperar la lista de lotes (validate la
@@ -101,7 +101,7 @@ public class RecordAccessAttemptUseCase {
         if (cmd.syncedOffline()
                 && decision instanceof AccessDecision.Denied denied
                 && denied.reason() == DenialReason.ALREADY_USED) {
-            return AccessDecision.Denied.of(DenialReason.REPLAY);
+            return AccessDecision.Denied.of(DenialReason.REPLAY, denied.invitationId());
         }
         return decision;
     }
@@ -136,7 +136,12 @@ public class RecordAccessAttemptUseCase {
                     cmd.clientEventId());
         }
 
-        Optional<Invitation> inv = invitationFor(decision);
+        // #210: el denegado guarda el vinculo al pase pero no el nombre ni el
+        // documento: el pase no prueba quien lo presento. La lectura muestra
+        // el titular aparte, por join con invitations.
+        Optional<Invitation> inv = decision instanceof AccessDecision.Denied d
+                ? Optional.ofNullable(d.invitationId()).flatMap(invitations::findById)
+                : invitationFor(decision);
         UUID tokenJti = inv.map(Invitation::jti).orElse(null);
         UUID invitationId = inv.map(Invitation::id).orElse(null);
         UUID lotId = inv.map(Invitation::lotId).orElse(null);

@@ -44,10 +44,10 @@ public class ConsumeAccessUseCase {
         Invitation locked = invitations.findByIdForUpdate(allowed.invitationId()).orElse(null);
         if (locked == null) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
         if (locked.status() == InvitationStatus.REVOKED) {
-            return AccessDecision.Denied.of(DenialReason.REVOKED);
+            return AccessDecision.Denied.of(DenialReason.REVOKED, locked.id());
         }
         if (locked.usedCount() >= locked.maxUses() || locked.status() == InvitationStatus.USED) {
-            return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
+            return AccessDecision.Denied.of(DenialReason.ALREADY_USED, locked.id());
         }
 
         int useSeq = locked.usedCount() + 1;
@@ -55,7 +55,7 @@ public class ConsumeAccessUseCase {
         AntiReplayStore.ClaimResult claim = antiReplay.claim(locked.jti(), useSeq, clientEventId, ttl);
 
         if (claim == AntiReplayStore.ClaimResult.REPLAY) {
-            return AccessDecision.Denied.of(DenialReason.REPLAY);
+            return AccessDecision.Denied.of(DenialReason.REPLAY, locked.id());
         }
         if (claim == AntiReplayStore.ClaimResult.IDEMPOTENT) {
             return allowed;

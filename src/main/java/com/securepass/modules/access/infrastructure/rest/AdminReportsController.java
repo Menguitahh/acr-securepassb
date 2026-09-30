@@ -44,7 +44,7 @@ public class AdminReportsController {
     static final MediaType TEXT_CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
     static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final String HEADER =
-            "captured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions\r\n";
+            "captured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions,pass_holder_name\r\n";
     // BOM: sin el, Excel abre el UTF-8 como ANSI y rompe tildes y enies.
     private static final String BOM = "\uFEFF";
     // #192: hora del barrio con offset en cada celda. Formato fijo porque
@@ -147,7 +147,8 @@ public class AdminReportsController {
                     i.denialReason() == null ? "" : i.denialReason().name(),
                     cell(i.subjectName()),
                     cell(i.subjectDocument()),
-                    Integer.toString(i.companions())));
+                    Integer.toString(i.companions()),
+                    cell(i.passHolderName())));
             w.write("\r\n");
         } catch (IOException e) {
             throw new UncheckedIOException(e);

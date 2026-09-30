@@ -38,7 +38,13 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
     @Override
     public Page list(Filter f) {
         StringBuilder where = new StringBuilder("WHERE al.neighborhood_id = :nid");
-        if (!f.lotIdsAllowed().isEmpty()) where.append(" AND al.lot_id = ANY(:lots)");
+        if (!f.lotIdsAllowed().isEmpty()) {
+            // #210, decision abierta: el residente ve lo mismo que antes de que
+            // los denegados de validate llevaran lote. Solo el de enrolamiento
+            // lo tenia. Si se decide que los vea, se borra esta linea.
+            where.append(" AND al.lot_id = ANY(:lots)")
+                    .append(" AND (al.result = 'ALLOWED' OR al.denial_reason = 'DOCUMENT_MISMATCH')");
+        }
         if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
         if (f.from() != null) where.append(" AND al.captured_at >= :from");
         if (f.to() != null) where.append(" AND al.captured_at < :to");
@@ -50,9 +56,12 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         var itemsQ = jdbc.sql("""
                 SELECT al.id, al.lot_id, l.code AS lot_code,
                        al.direction, al.subject_type, al.result, al.denial_reason,
-                       al.subject_name, al.subject_document, al.companions, al.captured_at
+                       al.subject_name, al.subject_document, al.companions, al.captured_at,
+                       i.guest_name AS pass_holder_name
                   FROM access_logs al
                   LEFT JOIN lots l ON l.id = al.lot_id
+                  LEFT JOIN invitations i ON i.id = al.invitation_id AND al.result = 'DENIED'
+                       AND i.neighborhood_id = al.neighborhood_id
                 """ + where + """
                  ORDER BY al.captured_at DESC
                  LIMIT :size OFFSET :offset
@@ -103,9 +112,12 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         var q = bind(streaming.sql("""
                 SELECT al.id, al.lot_id, l.code AS lot_code,
                        al.direction, al.subject_type, al.result, al.denial_reason,
-                       al.subject_name, al.subject_document, al.companions, al.captured_at
+                       al.subject_name, al.subject_document, al.companions, al.captured_at,
+                       i.guest_name AS pass_holder_name
                   FROM access_logs al
                   LEFT JOIN lots l ON l.id = al.lot_id
+                  LEFT JOIN invitations i ON i.id = al.invitation_id AND al.result = 'DENIED'
+                       AND i.neighborhood_id = al.neighborhood_id
                 """ + exportWhere(f) + """
                  ORDER BY al.captured_at, al.id
                 """), f);
@@ -160,6 +172,7 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
                 rs.getString("subject_name"),
                 rs.getString("subject_document"),
                 rs.getInt("companions"),
-                rs.getTimestamp("captured_at").toInstant());
+                rs.getTimestamp("captured_at").toInstant(),
+                rs.getString("pass_holder_name"));
     }
 }

@@ -195,7 +195,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED, invitationId));
     }
 
     @Test
@@ -208,7 +208,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED, invitationId));
     }
 
     // BR-12: sin enrolamiento, un IN a una invitacion de invitado devuelve NEEDS_ENROLLMENT.
@@ -312,7 +312,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.NOT_YET_VALID));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.NOT_YET_VALID, invitationId));
     }
 
     @Test
@@ -330,7 +330,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED, invitationId));
     }
 
     @Test
@@ -341,7 +341,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.EXPIRED, invitationId));
     }
 
     @Test
@@ -352,7 +352,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId));
     }
 
     @Test
@@ -363,7 +363,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.ALREADY_USED, invitationId));
     }
 
     @Test
@@ -387,7 +387,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED, invitationId));
     }
 
     // Fail-closed: si un status inconsistente esquiva todas las guardas
@@ -405,7 +405,7 @@ class ValidateAccessUseCaseTest {
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.IN, true);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.UNKNOWN));
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.UNKNOWN, invitationId));
     }
 
     // #211, primera barrera: la clave se busca con el barrio del guardia. El

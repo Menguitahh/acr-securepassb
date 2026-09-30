@@ -87,27 +87,29 @@ public class ValidateAccessUseCase {
         // de ella: el DENIED no lleva datos de otro barrio.
         if (!inv.neighborhoodId().equals(neighborhoodId)) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
 
+        // Token viejo tras rotar el jti: sale como firma invalida y sin vinculo
+        // al pase (#210). De aca en adelante los denegados llevan inv.id().
         if (!inv.jti().equals(parsed.payload().jti())) {
             return AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE);
         }
-        if (inv.status() == InvitationStatus.REVOKED) return AccessDecision.Denied.of(DenialReason.REVOKED);
+        if (inv.status() == InvitationStatus.REVOKED) return AccessDecision.Denied.of(DenialReason.REVOKED, inv.id());
 
         Optional<LotSnapshot> lotOpt = lots.find(inv.lotId());
-        if (lotOpt.isEmpty()) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
+        if (lotOpt.isEmpty()) return AccessDecision.Denied.of(DenialReason.UNKNOWN, inv.id());
         LotSnapshot lot = lotOpt.get();
         if (lot.status() != LotStatus.ACTIVE && !inv.residentPass()) {
-            return AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED);
+            return AccessDecision.Denied.of(DenialReason.LOT_SUSPENDED, inv.id());
         }
 
-        if (capturedAt.isBefore(inv.validFrom())) return AccessDecision.Denied.of(DenialReason.NOT_YET_VALID);
+        if (capturedAt.isBefore(inv.validFrom())) return AccessDecision.Denied.of(DenialReason.NOT_YET_VALID, inv.id());
         if (capturedAt.isAfter(inv.validUntil()) || inv.status() == InvitationStatus.EXPIRED) {
-            return AccessDecision.Denied.of(DenialReason.EXPIRED);
+            return AccessDecision.Denied.of(DenialReason.EXPIRED, inv.id());
         }
         // WBS-127: sacada la rama RECURRING. El unico consumidor de
         // ScheduleWindow ahora es evaluateWorker (WBS-117).
         if (direction == Direction.IN) {
-            if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED);
-            if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN);
+            if (inv.usedCount() >= inv.maxUses()) return AccessDecision.Denied.of(DenialReason.ALREADY_USED, inv.id());
+            if (inv.status() != InvitationStatus.ACTIVE) return AccessDecision.Denied.of(DenialReason.UNKNOWN, inv.id());
             // WBS-122: la verificacion es por persona, no por invitacion. Un
             // invitado ya verificado en el barrio pasa directo aunque sea su
             // primera vez en ESTA invitacion. residentPass no enrola (US-16);

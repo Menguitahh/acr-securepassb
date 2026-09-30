@@ -4030,6 +4030,9 @@
           "capturedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "passHolderName" : {
+            "type" : "string"
           }
         }
       },

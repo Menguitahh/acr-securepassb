@@ -122,9 +122,9 @@ class AccessLogsExportHttpTest {
         assertThat(resp.headers().firstValue("Access-Control-Expose-Headers").orElse(""))
                 .contains("Content-Disposition");
         assertThat(resp.body().split("\r\n")).containsExactly(
-                "\uFEFFcaptured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions",
-                "2026-09-02T07:00:00-03:00,L-12,IN,GUEST,ALLOWED,,\"Muñoz, \"\"Tito\"\"\",30111222,1",
-                "2026-09-03T07:00:00-03:00,L-12,IN,GUEST,DENIED,EXPIRED,\"'=HYPERLINK(\"\"x\"\")\",30111222,1");
+                "\uFEFFcaptured_at,lot_code,direction,subject_type,result,denial_reason,subject_name,subject_document,companions,pass_holder_name",
+                "2026-09-02T07:00:00-03:00,L-12,IN,GUEST,ALLOWED,,\"Muñoz, \"\"Tito\"\"\",30111222,1,",
+                "2026-09-03T07:00:00-03:00,L-12,IN,GUEST,DENIED,EXPIRED,\"'=HYPERLINK(\"\"x\"\")\",30111222,1,");
 
         Map<String, Object> audit = jdbc.queryForMap(
                 "SELECT neighborhood_id, range_from, range_to, lot_id, result, format FROM access_log_exports WHERE actor_user_id = ?",
@@ -230,5 +230,32 @@ class AccessLogsExportHttpTest {
         assertThat(lines).hasSize(3);
         assertThat(lines[1]).startsWith("2008-03-10T13:00:00-02:00,");
         assertThat(lines[2]).startsWith("2008-03-20T12:00:00-03:00,");
+    }
+
+    // #210: el titular del pase sale en su propia columna, no en subject_name.
+    // guest_name lo tipea el residente: pasa por la misma defensa de CSV injection.
+    @Test
+    void deniedConPaseExportaElTitularEnSuColumna() throws Exception {
+        UUID inv = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO invitations (
+                    id, neighborhood_id, lot_id, created_by, type, status,
+                    guest_name, guest_document, companions,
+                    valid_from, valid_until, max_uses, used_count, token_kid, jti
+                ) VALUES (?, ?, ?, ?, 'SINGLE', 'ACTIVE', '=Maria', '30123456', 0, ?, ?, 1, 0, 'kid-1', ?)
+                """, inv, barrio, lot, adminId, Timestamp.from(FROM), Timestamp.from(TO), UUID.randomUUID());
+        jdbc.update("""
+                INSERT INTO access_logs (
+                    id, neighborhood_id, gate_id, invitation_id, lot_id, direction, subject_type, result,
+                    denial_reason, companions, captured_at, client_event_id
+                ) VALUES (?, ?, ?, ?, ?, 'IN', 'GUEST', 'DENIED', 'REPLAY', 0, ?, ?)
+                """, UUID.randomUUID(), barrio, gate, inv, lot,
+                Timestamp.from(Instant.parse("2026-09-04T10:00:00Z")), UUID.randomUUID());
+
+        HttpResponse<String> resp = export(range(), Role.ADMIN);
+
+        assertThat(resp.statusCode()).isEqualTo(200);
+        assertThat(resp.body().split("\r\n")).contains(
+                "2026-09-04T07:00:00-03:00,L-12,IN,GUEST,DENIED,REPLAY,,,0,'=Maria");
     }
 }

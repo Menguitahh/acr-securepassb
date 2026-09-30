@@ -66,7 +66,9 @@ public interface AccessLogQuery {
             String subjectName,
             String subjectDocument,
             int companions,
-            Instant capturedAt
+            Instant capturedAt,
+            // #210: titular del pase en un denegado, por join. No es quien lo presento.
+            String passHolderName
     ) {}
 
     record Page(List<Item> items, int page, int size, long total) {}

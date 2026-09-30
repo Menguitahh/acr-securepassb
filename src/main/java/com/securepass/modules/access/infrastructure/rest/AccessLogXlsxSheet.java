@@ -28,10 +28,10 @@ final class AccessLogXlsxSheet {
 
     private static final String[] HEADERS = {
             "Capturado el", "Código de lote", "Dirección", "Tipo", "Resultado",
-            "Motivo de denegación", "Nombre", "Documento", "Acompañantes"};
+            "Motivo de denegación", "Nombre", "Documento", "Acompañantes", "Pase de"};
     // Fijos: autoSizeColumn mide con fuentes AWT (ausentes en una imagen slim)
     // y en streaming solo ve la ventana de filas en memoria.
-    private static final int[] WIDTHS = {20, 15, 11, 11, 11, 26, 36, 13, 15};
+    private static final int[] WIDTHS = {20, 15, 11, 11, 11, 26, 36, 13, 15, 36};
     private static final byte[] HEADER_FILL = {(byte) 0xD9, (byte) 0xD9, (byte) 0xD9};
     private static final byte[] DENIED_FILL = {(byte) 0xFD, (byte) 0xE2, (byte) 0xE2};
     private static final String DATE_FORMAT = "dd/mm/yyyy hh:mm:ss";
@@ -100,6 +100,7 @@ final class AccessLogXlsxSheet {
         Cell companions = row.createCell(8);
         companions.setCellValue(i.companions());
         if (base != null) companions.setCellStyle(base);
+        text(row, 9, i.passHolderName(), base);
     }
 
     /** Autofiltro sobre el rango escrito; va al final porque recien ahi se conoce la ultima fila. */
