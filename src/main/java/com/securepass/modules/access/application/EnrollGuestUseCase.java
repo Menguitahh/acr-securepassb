@@ -1,5 +1,6 @@
 package com.securepass.modules.access.application;
 
+import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
@@ -16,12 +17,14 @@ import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.crypto.Ed25519Verifier;
+import com.securepass.shared.exception.InvalidLotChoiceException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -113,6 +116,9 @@ public class EnrollGuestUseCase {
             // BR-12: no coincide -> DOCUMENT_MISMATCH y persistencia obligatoria.
             return denyGuest(cmd, inv, DenialReason.DOCUMENT_MISMATCH);
         }
+        // #217 / #219: el lote sale de la invitacion; uno distinto es error del
+        // cliente. Despues del DNI, antes de enrolar.
+        if (cmd.lotId() != null && !cmd.lotId().equals(inv.lotId())) throw new InvalidLotChoiceException();
         // ponytail: hueco conocido — el server no compara nombres. Issue #173
         // agrego guestName a NEEDS_ENROLLMENT para que el guardia haga el
         // cruce visual antes de confirmar; si detecta discrepancia, no
@@ -146,11 +152,10 @@ public class EnrollGuestUseCase {
      * DOCUMENT_MISMATCH persistido: es exactamente el caso "le prestaron el
      * QR a otro" que el enrolamiento viene a detectar.
      *
-     * <p>{@code lot_id} en el log queda NULL de forma deliberada. El
-     * enrolamiento ocurre una sola vez por persona y no es la via normal de
-     * ingreso: computar aca la franja para elegir lote duplicaria
-     * evaluateWorker. El proximo scan pasa por validate y resuelve el lote
-     * correcto para ese momento.
+     * <p>#219: el enroll es el primer ingreso, asi que evalua franja y lote
+     * con {@link WorkerLots}, igual que validate. Antes guardaba {@code lot_id}
+     * NULL y no miraba la franja: un enroll directo dejaba entrar a cualquier
+     * hora.
      */
     private EnrollmentResult enrollWorker(Command cmd, ParsedQrToken parsed) {
         QrTokenPayload p = parsed.payload();
@@ -174,12 +179,22 @@ public class EnrollGuestUseCase {
             // corresponde al user del token. Persistir el intento.
             return denyWorker(cmd, p.sub(), p.jti(), DenialReason.DOCUMENT_MISMATCH);
         }
+        // #219: despues del DNI (un DOCUMENT_MISMATCH se audita aunque el lote
+        // este mal) y antes de guardar nada. Misma regla que validate.
+        List<AccessDecision.LotOption> inSlot = WorkerLots.inSlot(ctx, cmd.capturedAt(), cmd.lotId());
+        if (inSlot.isEmpty()) return denyWorker(cmd, p.sub(), p.jti(), DenialReason.OUT_OF_SCHEDULE);
+        if (inSlot.size() > 1 && !cmd.syncedOffline()) {
+            // Online el guardia tiene la lista de NEEDS_ENROLLMENT: tiene que elegir.
+            throw new InvalidLotChoiceException("hay mas de un lote en franja: falta elegir el lote");
+        }
+        // En sync sin lotId y con varios lotes, lot_id queda NULL (el guardia ya no esta).
+        UUID lotId = inSlot.size() == 1 ? inSlot.get(0).lotId() : null;
         GuestEnrollment enrollment = enrollments.saveIfAbsent(new GuestEnrollment(
                 UUID.randomUUID(), cmd.neighborhoodId(), null, cmd.documentNumber(),
                 Instant.now(), cmd.guardId(), cmd.gateId()));
         AccessLog log = logs.saveIdempotent(new AccessLog(
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
-                null, null,
+                null, lotId,
                 Direction.IN, SubjectType.SERVICE, true, null,
                 ctx.workerName(), cmd.documentNumber(), 0,
                 p.jti(), cmd.capturedAt(), cmd.syncedOffline(), clockSkew(cmd), cmd.clientEventId()));
@@ -253,7 +268,9 @@ public class EnrollGuestUseCase {
             String documentNumber,
             UUID clientEventId,
             Instant capturedAt,
-            boolean syncedOffline
+            boolean syncedOffline,
+            // #219: lote que eligio la garita (NEEDS_ENROLLMENT.WORKER), o null.
+            UUID lotId
     ) {
         public Command {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

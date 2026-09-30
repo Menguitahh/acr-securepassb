@@ -30,8 +30,10 @@ public record ValidateAccessResponse(
     /**
      * WBS-117: shape ALLOWED del trabajador. {@code lots} tiene los lotes en
      * franja horaria; si {@code lots.size()==1} la garita entra directo, si >1
-     * el guardia elige (US-67, spec §L). Issue #173: en NEEDS_ENROLLMENT
-     * ({@code lots == null}) {@code name} tambien viaja para que el guardia
+     * el guardia elige (US-67, spec §L). En NEEDS_LOT_SELECTION (#217) y en
+     * NEEDS_ENROLLMENT (#219) tambien viajan los lotes en franja: en el enroll
+     * la garita manda DNI y lote juntos. Issue #173: en NEEDS_ENROLLMENT
+     * {@code name} tambien viaja para que el guardia
      * pueda cotejarlo contra el documento antes de confirmar el enroll — el
      * backend no compara nombres, la unica verificacion es visual. Ver el
      * javadoc de {@link AccessDecision.NeedsEnrollment}.
@@ -56,28 +58,22 @@ public record ValidateAccessResponse(
                     "ALLOWED", logId, null, null, null, guest, new LotDetail(allowed.lotCode()), invDetail, null);
         }
         if (result.decision() instanceof AccessDecision.AllowedWorker w) {
-            List<LotChoice> lots = w.lots().stream()
-                    .map(o -> new LotChoice(o.lotId(), o.lotCode(), o.service()))
-                    .toList();
             return new ValidateAccessResponse(
                     "ALLOWED_WORKER", logId, null, null, null, null, null, null,
-                    new WorkerDetail(w.userId(), w.workerName(), lots));
+                    new WorkerDetail(w.userId(), w.workerName(), choices(w.lots())));
         }
         // #217: sin logId, no se guardo nada. La garita reenvia con lotId.
         if (result.decision() instanceof AccessDecision.NeedsLotSelection sel) {
-            List<LotChoice> lots = sel.lots().stream()
-                    .map(o -> new LotChoice(o.lotId(), o.lotCode(), o.service()))
-                    .toList();
             return new ValidateAccessResponse(
                     "NEEDS_LOT_SELECTION", null, null, "WORKER", null, null, null, null,
-                    new WorkerDetail(sel.userId(), sel.workerName(), lots));
+                    new WorkerDetail(sel.userId(), sel.workerName(), choices(sel.lots())));
         }
         if (result.decision() instanceof AccessDecision.NeedsEnrollment needs) {
             if (needs.kind() == AccessDecision.SubjectKind.WORKER) {
                 return new ValidateAccessResponse(
                         "NEEDS_ENROLLMENT", null, null, "WORKER",
                         null, null, null, null,
-                        new WorkerDetail(needs.userId(), needs.subjectName(), null));
+                        new WorkerDetail(needs.userId(), needs.subjectName(), choices(needs.lots())));
             }
             GuestDetail guest = new GuestDetail(needs.subjectName(), null, 0);
             return new ValidateAccessResponse(
@@ -87,5 +83,9 @@ public record ValidateAccessResponse(
         AccessDecision.Denied denied = (AccessDecision.Denied) result.decision();
         return new ValidateAccessResponse(
                 "DENIED", logId, denied.reason().name(), null, null, null, null, null, null);
+    }
+
+    private static List<LotChoice> choices(List<AccessDecision.LotOption> lots) {
+        return lots.stream().map(o -> new LotChoice(o.lotId(), o.lotCode(), o.service())).toList();
     }
 }

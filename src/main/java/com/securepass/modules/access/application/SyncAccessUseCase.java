@@ -57,14 +57,7 @@ public class SyncAccessUseCase {
                     neighborhoodId, ev.gateId(), guardId, ev.token(), ev.direction(),
                     ev.companions(), ev.capturedAt(), ev.clientEventId(), true, ev.lotId()));
         } catch (InvalidLotChoiceException e) {
-            // #217: evento mal formado, no decision de acceso. Terminal para este
-            // evento sin trabar el batch. No se guarda como acceso, pero el
-            // ingreso fisico pudo ocurrir: queda rastro.
-            // ponytail: rastro en el log de la app; tabla propia si hace falta
-            // consultarlo (propuesto en #217).
-            LOG.warn("sync: evento rechazado clientEventId={} guardId={} gateId={} lotId={} capturedAt={} motivo={}",
-                    ev.clientEventId(), guardId, ev.gateId(), ev.lotId(), ev.capturedAt(), Rejection.INVALID_LOT);
-            return EventResult.rejected(ev.clientEventId(), Rejection.INVALID_LOT);
+            return reject(guardId, ev);
         }
         AccessLog log = result.log();
         // WBS-117 / #217: el trabajador permitido tambien es ALLOWED; antes caia
@@ -80,9 +73,14 @@ public class SyncAccessUseCase {
     }
 
     private EventResult processEnroll(UUID neighborhoodId, UUID guardId, Event ev) {
-        EnrollmentResult result = enroller.enroll(new EnrollGuestUseCase.Command(
-                neighborhoodId, ev.gateId(), guardId, ev.token(), ev.documentNumber(),
-                ev.clientEventId(), ev.capturedAt(), true));
+        EnrollmentResult result;
+        try {
+            result = enroller.enroll(new EnrollGuestUseCase.Command(
+                    neighborhoodId, ev.gateId(), guardId, ev.token(), ev.documentNumber(),
+                    ev.clientEventId(), ev.capturedAt(), true, ev.lotId()));
+        } catch (InvalidLotChoiceException e) {
+            return reject(guardId, ev); // #219: misma regla que el acceso
+        }
         AccessLog log = result.log();
         if (result instanceof EnrollmentResult.Enrolled ok) {
             return new EventResult(
@@ -92,6 +90,17 @@ public class SyncAccessUseCase {
         DenialReason reason = ((EnrollmentResult.Denied) result).reason();
         return new EventResult(
                 ev.clientEventId(), Outcome.DENIED, reason, log.id(), null, log.clockSkew(), null);
+    }
+
+    // #217: evento mal formado, no decision de acceso. Terminal para este
+    // evento sin trabar el batch. No se guarda como acceso, pero el ingreso
+    // fisico pudo ocurrir: queda rastro.
+    // ponytail: rastro en el log de la app; tabla propia cuando aparezca la
+    // senal de #222.
+    private static EventResult reject(UUID guardId, Event ev) {
+        LOG.warn("sync: evento rechazado clientEventId={} guardId={} gateId={} lotId={} capturedAt={} motivo={}",
+                ev.clientEventId(), guardId, ev.gateId(), ev.lotId(), ev.capturedAt(), Rejection.INVALID_LOT);
+        return EventResult.rejected(ev.clientEventId(), Rejection.INVALID_LOT);
     }
 
     public record Event(

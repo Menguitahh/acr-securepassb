@@ -13,11 +13,13 @@ public record EnrollRequest(
         @NotNull @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber,
         @NotNull UUID gateId,
         @NotNull UUID clientEventId,
-        Instant capturedAt
+        Instant capturedAt,
+        // #219: lote elegido de NEEDS_ENROLLMENT.WORKER; obligatorio si hubo mas de uno.
+        UUID lotId
 ) {
     public EnrollGuestUseCase.Command toCommand(UUID neighborhoodId, UUID guardId) {
         return new EnrollGuestUseCase.Command(
                 neighborhoodId, gateId, guardId, token, documentNumber,
-                clientEventId, capturedAt != null ? capturedAt : Instant.now(), false);
+                clientEventId, capturedAt != null ? capturedAt : Instant.now(), false, lotId);
     }
 }

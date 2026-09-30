@@ -79,6 +79,7 @@ class LotChoiceHttpTest {
     UUID invitation;
     UUID worker;
     String guestToken;
+    String workerDni;
 
     @BeforeEach
     void seed() {
@@ -94,7 +95,7 @@ class LotChoiceHttpTest {
         UUID owner = UUID.randomUUID();
         UUID jti = UUID.randomUUID();
         String guestDni = String.valueOf(30_000_000 + ThreadLocalRandom.current().nextInt(9_000_000));
-        String workerDni = String.valueOf(40_000_000 + ThreadLocalRandom.current().nextInt(9_000_000));
+        workerDni = String.valueOf(40_000_000 + ThreadLocalRandom.current().nextInt(9_000_000));
 
         jdbc.update("INSERT INTO neighborhoods (id, name, slug, timezone) VALUES (?, 'B', ?, 'America/Argentina/Mendoza')",
                 barrio, "b-" + barrio);
@@ -109,7 +110,7 @@ class LotChoiceHttpTest {
                 VALUES (?, ?, 'h', 'Trabajador', ?, 'ACTIVE')
                 """, worker, "w-" + worker + "@t.com", workerDni);
         String[][] lots = {
-                {todoElDia.toString(), "L-1", "[1,2,3,4,5,6,7]", "00:00", "23:59"},
+                {todoElDia.toString(), "L-1", "[1,2,3,4,5]", "00:00", "23:59"},
                 {soloJuevesALaManana.toString(), "L-2", "[4]", "09:00", "11:00"},
                 {fueraDeFranja.toString(), "L-3", "[1]", "08:00", "09:00"}};
         for (String[] l : lots) {
@@ -225,9 +226,16 @@ class LotChoiceHttpTest {
     }
 
     @Test
-    void onlineConLotIdFueraDeFranjaEs400YNoGuarda() throws Exception {
-        assertInvalidLot(validate(workerToken(), fueraDeFranja));
-        assertThat(logs()).isZero();
+    void onlineConLoteDelTrabajadorFueraDeFranjaSeDeniegaYSeAudita() throws Exception {
+        // #219: el lote es suyo; que la franja haya cerrado es una decision de
+        // acceso, no un error del cliente (p. ej. cerro entre la lista y el reenvio).
+        HttpResponse<String> resp = validate(workerToken(), fueraDeFranja);
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).isEqualTo("DENIED");
+        assertThat(body.get("reason").asText()).isEqualTo("OUT_OF_SCHEDULE");
+        assertThat(logs()).isEqualTo(1);
     }
 
     @Test
@@ -273,7 +281,7 @@ class LotChoiceHttpTest {
         UUID bueno = UUID.randomUUID();
 
         JsonNode results = sync(
-                event(malo, token, fueraDeFranja, CAPTURED_AT),
+                event(malo, token, UUID.randomUUID(), CAPTURED_AT),
                 event(bueno, token, todoElDia, CAPTURED_AT.plusSeconds(60))).get("results");
 
         JsonNode rechazado = results.get(0);
@@ -288,5 +296,163 @@ class LotChoiceHttpTest {
         // El ingreso fisico ocurrio: no se pierde en silencio.
         assertThat(output.getOut()).contains("WARN").contains(malo.toString()).contains(guard.toString())
                 .contains("INVALID_LOT");
+    }
+
+    @Test
+    void syncConLoteDelTrabajadorFueraDeFranjaSaleDenied() throws Exception {
+        UUID ev = UUID.randomUUID();
+
+        JsonNode result = sync(event(ev, workerToken(), fueraDeFranja, CAPTURED_AT)).get("results").get(0);
+
+        assertThat(result.get("result").asText()).isEqualTo("DENIED");
+        assertThat(result.get("reason").asText()).isEqualTo("OUT_OF_SCHEDULE");
+    }
+
+    // ---- #219: primer ingreso del trabajador por enroll ----
+
+    // Domingo 10:00 en Mendoza: ningun lote en franja.
+    private static final Instant DOMINGO = Instant.parse("2026-11-08T13:00:00Z");
+
+    private void desenrolar() {
+        jdbc.update("DELETE FROM guest_enrollments WHERE neighborhood_id = ? AND document_number = ?", barrio, workerDni);
+    }
+
+    private int enrolamientos() {
+        return jdbc.queryForObject("SELECT count(*) FROM guest_enrollments WHERE neighborhood_id = ? AND document_number = ?",
+                Integer.class, barrio, workerDni);
+    }
+
+    private HttpResponse<String> enroll(String token, String dni, UUID lotId, Instant capturedAt, UUID clientEventId)
+            throws Exception {
+        return post("enroll", "{\"token\":\"" + token + "\",\"documentNumber\":\"" + dni + "\","
+                + "\"gateId\":\"" + gate + "\",\"clientEventId\":\"" + clientEventId + "\","
+                + "\"capturedAt\":\"" + capturedAt + "\""
+                + (lotId == null ? "" : ",\"lotId\":\"" + lotId + "\"") + "}");
+    }
+
+    private HttpResponse<String> enroll(UUID lotId, Instant capturedAt) throws Exception {
+        return enroll(workerToken(), workerDni, lotId, capturedAt, UUID.randomUUID());
+    }
+
+    @Test
+    void needsEnrollmentDelTrabajadorTraeLosLotesEnFranja() throws Exception {
+        desenrolar();
+
+        HttpResponse<String> resp = validate(workerToken(), null);
+
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).isEqualTo("NEEDS_ENROLLMENT");
+        assertThat(lotIds(body.get("worker").get("lots")))
+                .containsExactlyInAnyOrder(todoElDia.toString(), soloJuevesALaManana.toString());
+        assertThat(logs()).isZero();
+    }
+
+    @Test
+    void enrollConLoteElegidoGuardaEseLoteYEnrola() throws Exception {
+        desenrolar();
+        UUID ev = UUID.randomUUID();
+
+        HttpResponse<String> resp = enroll(workerToken(), workerDni, soloJuevesALaManana, CAPTURED_AT, ev);
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        assertThat(json.readTree(resp.body()).get("result").asText()).isEqualTo("ALLOWED");
+        assertThat(jdbc.queryForObject("SELECT lot_id FROM access_logs WHERE client_event_id = ?", UUID.class, ev))
+                .isEqualTo(soloJuevesALaManana);
+        assertThat(enrolamientos()).isEqualTo(1);
+    }
+
+    @Test
+    void enrollConVariosLotesYSinLotIdEs400YNoEnrola() throws Exception {
+        desenrolar();
+
+        assertInvalidLot(enroll(null, CAPTURED_AT));
+
+        assertThat(enrolamientos()).isZero();
+        assertThat(logs()).isZero();
+    }
+
+    @Test
+    void enrollConLoteAjenoEs400YNoEnrola() throws Exception {
+        desenrolar();
+
+        assertInvalidLot(enroll(UUID.randomUUID(), CAPTURED_AT));
+
+        assertThat(enrolamientos()).isZero();
+        assertThat(logs()).isZero();
+    }
+
+    @Test
+    void enrollConLoteDelTrabajadorFueraDeFranjaSeDeniegaYNoEnrola() throws Exception {
+        desenrolar();
+
+        HttpResponse<String> resp = enroll(fueraDeFranja, CAPTURED_AT);
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).isEqualTo("DENIED");
+        assertThat(body.get("reason").asText()).isEqualTo("OUT_OF_SCHEDULE");
+        assertThat(enrolamientos()).isZero();
+        assertThat(logs()).isEqualTo(1);
+    }
+
+    // Antes no se evaluaba la franja: un enroll directo dejaba entrar a
+    // cualquier hora con tener un permiso activo.
+    @Test
+    void enrollSinNingunLoteEnFranjaSeDeniegaYNoEnrola() throws Exception {
+        desenrolar();
+
+        HttpResponse<String> resp = enroll(null, DOMINGO);
+
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).as(resp.body()).isEqualTo("DENIED");
+        assertThat(body.get("reason").asText()).isEqualTo("OUT_OF_SCHEDULE");
+        assertThat(enrolamientos()).isZero();
+    }
+
+    // El documento antes que el lote: un DOCUMENT_MISMATCH se audita aunque
+    // el lote tambien este mal.
+    @Test
+    void enrollConOtroDniYLoteAjenoAuditaElMismatch() throws Exception {
+        desenrolar();
+
+        HttpResponse<String> resp = enroll(workerToken(), "11222333", UUID.randomUUID(), CAPTURED_AT, UUID.randomUUID());
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).isEqualTo("DENIED");
+        assertThat(body.get("reason").asText()).isEqualTo("DOCUMENT_MISMATCH");
+        assertThat(logs()).isEqualTo(1);
+    }
+
+    @Test
+    void syncDeEnrollConLoteElegidoGuardaEseLote() throws Exception {
+        desenrolar();
+        UUID ev = UUID.randomUUID();
+        String evento = "{\"clientEventId\":\"" + ev + "\",\"token\":\"" + workerToken() + "\","
+                + "\"gateId\":\"" + gate + "\",\"direction\":\"IN\",\"companions\":0,"
+                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"documentNumber\":\"" + workerDni + "\","
+                + "\"lotId\":\"" + soloJuevesALaManana + "\"}";
+
+        JsonNode result = sync(evento).get("results").get(0);
+
+        assertThat(result.get("result").asText()).isEqualTo("ENROLLED");
+        assertThat(jdbc.queryForObject("SELECT lot_id FROM access_logs WHERE client_event_id = ?", UUID.class, ev))
+                .isEqualTo(soloJuevesALaManana);
+    }
+
+    @Test
+    void syncDeEnrollConLoteAjenoSaleRejected() throws Exception {
+        desenrolar();
+        UUID ev = UUID.randomUUID();
+        String evento = "{\"clientEventId\":\"" + ev + "\",\"token\":\"" + workerToken() + "\","
+                + "\"gateId\":\"" + gate + "\",\"direction\":\"IN\",\"companions\":0,"
+                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"documentNumber\":\"" + workerDni + "\","
+                + "\"lotId\":\"" + UUID.randomUUID() + "\"}";
+
+        JsonNode result = sync(evento).get("results").get(0);
+
+        assertThat(result.get("result").asText()).isEqualTo("REJECTED");
+        assertThat(result.get("rejection").asText()).isEqualTo("INVALID_LOT");
+        assertThat(enrolamientos()).isZero();
     }
 }

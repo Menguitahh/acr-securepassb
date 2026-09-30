@@ -55,8 +55,9 @@ public sealed interface AccessDecision {
      *       {@code subjectName} obligatorios; {@code userId} debe ser null.</li>
      *   <li>{@link SubjectKind#WORKER}: {@code userId} y {@code subjectName}
      *       obligatorios; {@code invitationId} y {@code lotCode} deben ser
-     *       null. El lote se decide en el proximo scan (validate computa la
-     *       franja); el enrolamiento pasa una sola vez por persona.</li>
+     *       null. {@code lots} obligatorio: los lotes en franja, armados por el
+     *       servidor (#219). La garita manda DNI y lote juntos en el enroll;
+     *       el enrolamiento pasa una sola vez por persona.</li>
      * </ul>
      *
      * <p>Issue #173: {@code subjectName} viaja en ambas ramas. Revierte la
@@ -70,7 +71,8 @@ public sealed interface AccessDecision {
      * ("invitacion dice PEREZ, documento dice PEREZ") en el unico momento en
      * que ese cruce sirve: antes de confirmar el enroll.
      */
-    record NeedsEnrollment(SubjectKind kind, UUID invitationId, UUID userId, String subjectName, String lotCode)
+    record NeedsEnrollment(SubjectKind kind, UUID invitationId, UUID userId, String subjectName, String lotCode,
+                           List<LotOption> lots)
             implements AccessDecision {
         public NeedsEnrollment {
             if (kind == null) throw new IllegalArgumentException("kind requerido");
@@ -82,21 +84,24 @@ public sealed interface AccessDecision {
                     if (lotCode == null || lotCode.isBlank())
                         throw new IllegalArgumentException("lotCode requerido para GUEST");
                     if (userId != null) throw new IllegalArgumentException("userId no aplica a GUEST");
+                    if (lots != null) throw new IllegalArgumentException("lots no aplica a GUEST");
                 }
                 case WORKER -> {
                     if (userId == null) throw new IllegalArgumentException("userId requerido para WORKER");
                     if (invitationId != null) throw new IllegalArgumentException("invitationId no aplica a WORKER");
                     if (lotCode != null) throw new IllegalArgumentException("lotCode no aplica a WORKER");
+                    if (lots == null || lots.isEmpty()) throw new IllegalArgumentException("lots requerido para WORKER");
                 }
             }
+            if (lots != null) lots = List.copyOf(lots);
         }
 
         public static NeedsEnrollment guest(UUID invitationId, String guestName, String lotCode) {
-            return new NeedsEnrollment(SubjectKind.GUEST, invitationId, null, guestName, lotCode);
+            return new NeedsEnrollment(SubjectKind.GUEST, invitationId, null, guestName, lotCode, null);
         }
 
-        public static NeedsEnrollment worker(UUID userId, String workerName) {
-            return new NeedsEnrollment(SubjectKind.WORKER, null, userId, workerName, null);
+        public static NeedsEnrollment worker(UUID userId, String workerName, List<LotOption> lots) {
+            return new NeedsEnrollment(SubjectKind.WORKER, null, userId, workerName, null, lots);
         }
     }
 

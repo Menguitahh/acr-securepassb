@@ -20,7 +20,6 @@ import com.securepass.shared.schedule.ScheduleWindow;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -167,22 +166,13 @@ public class ValidateAccessUseCase {
             return AccessDecision.Denied.of(DenialReason.REVOKED);
         }
         WorkerValidationQuery.WorkerContext ctx = ctxOpt.get();
-        List<AccessDecision.LotOption> inSlot = new ArrayList<>();
-        for (WorkerValidationQuery.ActiveWorkerLot lot : ctx.lots()) {
-            if (lot.schedule().contains(capturedAt, ctx.neighborhoodTimezone())) {
-                inSlot.add(new AccessDecision.LotOption(lot.lotId(), lot.lotCode(), lot.service()));
-            }
-        }
+        // #217 / #219: en sync, capturedAt es la hora del scan, no la del sync.
+        List<AccessDecision.LotOption> inSlot = WorkerLots.inSlot(ctx, capturedAt, lotId);
         if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
-        // #217: el lote elegido tiene que estar en franja en capturedAt (en
-        // sync es la hora del scan, no la del sync). Si no, error del cliente.
-        if (lotId != null) {
-            inSlot.removeIf(l -> !l.lotId().equals(lotId));
-            if (inSlot.isEmpty()) throw new InvalidLotChoiceException();
-        }
+        // #219: NEEDS_ENROLLMENT lleva los lotes; la garita manda DNI y lote juntos.
         if (direction == Direction.IN && checkEnrollment
                 && enrollments.findByPerson(neighborhoodId, ctx.workerDocument()).isEmpty()) {
-            return AccessDecision.NeedsEnrollment.worker(p.sub(), ctx.workerName());
+            return AccessDecision.NeedsEnrollment.worker(p.sub(), ctx.workerName(), inSlot);
         }
         return new AccessDecision.AllowedWorker(p.sub(), p.jti(), ctx.workerName(), inSlot);
     }

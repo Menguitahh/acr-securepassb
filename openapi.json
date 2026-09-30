@@ -3365,6 +3365,10 @@
           "capturedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
           }
         }
       },

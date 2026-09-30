@@ -122,7 +122,7 @@ class EnrollGuestUseCaseTest {
 
     private EnrollGuestUseCase.Command cmd(String token, String document) {
         return new EnrollGuestUseCase.Command(
-                neighborhoodId, gateId, guardId, token, document, clientEventId, NOW, false);
+                neighborhoodId, gateId, guardId, token, document, clientEventId, NOW, false, null);
     }
 
     private void stubKeyOk() {
@@ -347,8 +347,8 @@ class EnrollGuestUseCaseTest {
         when(logs.findByClientEventId(clientEventId)).thenReturn(Optional.empty());
         when(workerTokens.findActive(userId)).thenReturn(Optional.of(
                 new WorkerTokenRepository.WorkerTokenRow(userId, neighborhoodId, workerJti, NOW)));
-        when(workerQuery.loadContext(userId, neighborhoodId))
-                .thenReturn(Optional.of(workerCtx("Juan Jardinero", "30123456")));
+        WorkerValidationQuery.WorkerContext ctx = workerCtx("Juan Jardinero", "30123456");
+        when(workerQuery.loadContext(userId, neighborhoodId)).thenReturn(Optional.of(ctx));
 
         EnrollmentResult result = useCase.enroll(cmd(signedWorkerToken(userId, workerJti), "30123456"));
 
@@ -365,7 +365,7 @@ class EnrollGuestUseCaseTest {
         assertThat(log.allowed()).isTrue();
         assertThat(log.subjectType()).isEqualTo(SubjectType.SERVICE);
         assertThat(log.invitationId()).isNull();
-        assertThat(log.lotId()).isNull(); // deliberado: proxima entrada resuelve franja
+        assertThat(log.lotId()).isEqualTo(ctx.lots().get(0).lotId()); // #219: unico lote en franja
         assertThat(log.subjectName()).isEqualTo("Juan Jardinero");
         assertThat(log.tokenJti()).isEqualTo(workerJti);
     }
