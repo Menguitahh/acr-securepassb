@@ -151,6 +151,7 @@ final class AccessLogXlsxSheet {
             case LOT_SUSPENDED -> "Lote suspendido";
             case REPLAY -> "Pase usado dos veces";
             case DOCUMENT_MISMATCH -> "Documento no coincide";
+            case NOT_ENROLLED -> "Sin enrolamiento";
             case UNKNOWN -> "Motivo desconocido";
         };
     }

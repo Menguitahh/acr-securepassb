@@ -117,9 +117,9 @@ class SyncAccessEnrollFirstCapturedWinsTest {
         // Si el sort por capturedAt esta ausente, el enrolamiento persistido
         // va a quedar con gate/guard del tardio, y el test falla.
         SyncAccessUseCase.Event late = new SyncAccessUseCase.Event(
-                clientLate, tokenLate, gateLate, Direction.IN, 0, tLate, "ALLOWED", documento, null);
+                clientLate, tokenLate, gateLate, Direction.IN, 0, tLate, SyncAccessUseCase.LocalDecision.ALLOWED, null, documento, null);
         SyncAccessUseCase.Event early = new SyncAccessUseCase.Event(
-                clientEarly, tokenEarly, gateEarly, Direction.IN, 0, tEarly, "ALLOWED", documento, null);
+                clientEarly, tokenEarly, gateEarly, Direction.IN, 0, tEarly, SyncAccessUseCase.LocalDecision.ALLOWED, null, documento, null);
 
         SyncAccessUseCase.Report report = useCase.sync(
                 neighborhoodId, guardLate, List.of(late, early));

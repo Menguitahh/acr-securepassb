@@ -4,11 +4,14 @@ import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
+import com.securepass.modules.access.domain.SubjectType;
 import com.securepass.shared.exception.InvalidLotChoiceException;
+import com.securepass.shared.metrics.AccessMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,10 +27,15 @@ public class SyncAccessUseCase {
 
     private final RecordAccessAttemptUseCase recorder;
     private final EnrollGuestUseCase enroller;
+    private final AccessLogRepository logs;
+    private final AccessMetrics metrics;
 
-    public SyncAccessUseCase(RecordAccessAttemptUseCase recorder, EnrollGuestUseCase enroller) {
+    public SyncAccessUseCase(RecordAccessAttemptUseCase recorder, EnrollGuestUseCase enroller,
+                             AccessLogRepository logs, AccessMetrics metrics) {
         this.recorder = recorder;
         this.enroller = enroller;
+        this.logs = logs;
+        this.metrics = metrics;
     }
 
     public Report sync(UUID neighborhoodId, UUID guardId, List<Event> events) {
@@ -43,11 +51,41 @@ public class SyncAccessUseCase {
 
         List<EventResult> results = new ArrayList<>(ordered.size());
         for (Event ev : ordered) {
-            results.add(ev.documentNumber() != null
-                    ? processEnroll(neighborhoodId, guardId, ev)
-                    : processAccess(neighborhoodId, guardId, ev));
+            results.add(process(neighborhoodId, guardId, ev));
         }
         return new Report(results);
+    }
+
+    private EventResult process(UUID neighborhoodId, UUID guardId, Event ev) {
+        if (ev.localDecision() == LocalDecision.DENIED) return recordLocalDenied(neighborhoodId, guardId, ev);
+        if (ev.documentNumber() != null) return processEnroll(neighborhoodId, guardId, ev);
+        return processAccess(neighborhoodId, guardId, ev);
+    }
+
+    /**
+     * Spec 8.4: el sync nunca sube un DENIED local a ALLOWED. El guardia no
+     * dejo pasar a nadie: es un hecho, no algo a evaluar. Se guarda con el
+     * motivo de la garita, sin re-decidir, sin consumir el pase ni enrolar.
+     */
+    // ponytail: sin vinculo al pase (invitation, jti, sujeto); vincularlo como
+    // #210 pide verificar la firma, agregar si el admin necesita saber de quien
+    // fue el rechazo offline.
+    private EventResult recordLocalDenied(UUID neighborhoodId, UUID guardId, Event ev) {
+        boolean clockSkew = Duration.between(ev.capturedAt(), Instant.now()).abs()
+                .compareTo(RecordAccessAttemptUseCase.CLOCK_SKEW_THRESHOLD) > 0;
+        AccessLog toSave = new AccessLog(
+                UUID.randomUUID(), neighborhoodId, ev.gateId(), guardId,
+                null, null, ev.direction(), SubjectType.GUEST,
+                false, ev.localDenialReason(), null, ev.documentNumber(), ev.companions(),
+                null, ev.capturedAt(), true, clockSkew, ev.clientEventId());
+        AccessLog log = logs.saveIdempotent(toSave);
+        if (log.id().equals(toSave.id())) metrics.recordResult(ev.localDenialReason().name(), "sync");
+        // Un reintento del mismo clientEventId devuelve lo que quedo guardado.
+        if (log.allowed()) {
+            return new EventResult(ev.clientEventId(), Outcome.ALLOWED, null, log.id(), null, log.clockSkew(), null);
+        }
+        return new EventResult(
+                ev.clientEventId(), Outcome.DENIED, log.denialReason(), log.id(), null, log.clockSkew(), null);
     }
 
     private EventResult processAccess(UUID neighborhoodId, UUID guardId, Event ev) {
@@ -110,7 +148,9 @@ public class SyncAccessUseCase {
             Direction direction,
             int companions,
             Instant capturedAt,
-            String localDecision,
+            LocalDecision localDecision,
+            // Motivo de la garita; obligatorio si localDecision es DENIED, null si es ALLOWED.
+            DenialReason localDenialReason,
             String documentNumber,
             // #217: lote que eligio el guardia offline, o null.
             UUID lotId
@@ -122,10 +162,20 @@ public class SyncAccessUseCase {
             if (direction == null) throw new IllegalArgumentException("direction requerido");
             if (companions < 0) throw new IllegalArgumentException("companions >= 0");
             if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
+            if (localDecision == null) throw new IllegalArgumentException("localDecision requerido");
+            if (!localDenialReasonConsistent(localDecision, localDenialReason)) {
+                throw new IllegalArgumentException("localDenialReason requerido si y solo si localDecision es DENIED");
+            }
             if (documentNumber != null && documentNumber.isBlank()) {
                 throw new IllegalArgumentException("documentNumber vacio");
             }
         }
+    }
+
+    public enum LocalDecision { ALLOWED, DENIED }
+
+    public static boolean localDenialReasonConsistent(LocalDecision decision, DenialReason reason) {
+        return (decision == LocalDecision.DENIED) == (reason != null);
     }
 
     /**

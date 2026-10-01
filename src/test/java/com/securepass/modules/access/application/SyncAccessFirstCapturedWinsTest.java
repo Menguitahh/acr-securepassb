@@ -86,6 +86,9 @@ class SyncAccessFirstCapturedWinsTest {
                 UUID.randomUUID(), neighborhoodId, kid,
                 kp.publicKey(), cipher.encrypt(kp.privateKey()),
                 true, Instant.now(), null));
+        // La garita solo deja pasar offline a quien tiene en enrollments_cache.
+        jdbc.update("INSERT INTO guest_enrollments (id, neighborhood_id, document_number) VALUES (?, ?, '30123456')",
+                UUID.randomUUID(), neighborhoodId);
 
         Instant validFrom = Instant.now().minusSeconds(3600);
         Instant validUntil = Instant.now().plusSeconds(3600);
@@ -112,9 +115,9 @@ class SyncAccessFirstCapturedWinsTest {
         Instant tLate = Instant.now().minusSeconds(30);
 
         SyncAccessUseCase.Event late = new SyncAccessUseCase.Event(
-                clientLate, token, gateId, Direction.IN, 0, tLate, "ALLOWED", null, null);
+                clientLate, token, gateId, Direction.IN, 0, tLate, SyncAccessUseCase.LocalDecision.ALLOWED, null, null, null);
         SyncAccessUseCase.Event early = new SyncAccessUseCase.Event(
-                clientEarly, token, gateId, Direction.IN, 0, tEarly, "ALLOWED", null, null);
+                clientEarly, token, gateId, Direction.IN, 0, tEarly, SyncAccessUseCase.LocalDecision.ALLOWED, null, null, null);
 
         SyncAccessUseCase.Report report = useCase.sync(neighborhoodId, guardId, List.of(late, early));
 

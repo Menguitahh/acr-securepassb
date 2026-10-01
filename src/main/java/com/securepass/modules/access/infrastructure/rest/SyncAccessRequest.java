@@ -1,8 +1,11 @@
 package com.securepass.modules.access.infrastructure.rest;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.securepass.modules.access.application.SyncAccessUseCase;
+import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,14 +29,22 @@ public record SyncAccessRequest(
             @NotNull Direction direction,
             @Min(0) @Max(20) int companions,
             @NotNull Instant capturedAt,
-            String localDecision,
+            @NotNull SyncAccessUseCase.LocalDecision localDecision,
+            DenialReason localDenialReason,
             @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber,
             UUID lotId
     ) {
         public SyncAccessUseCase.Event toEvent() {
             return new SyncAccessUseCase.Event(
                     clientEventId, token, gateId, direction, companions, capturedAt,
-                    localDecision, documentNumber, lotId);
+                    localDecision, localDenialReason, documentNumber, lotId);
+        }
+
+        @JsonIgnore
+        @AssertTrue(message = "localDenialReason requerido si y solo si localDecision es DENIED")
+        public boolean isLocalDenialReasonValid() {
+            return localDecision == null
+                    || SyncAccessUseCase.localDenialReasonConsistent(localDecision, localDenialReason);
         }
     }
 

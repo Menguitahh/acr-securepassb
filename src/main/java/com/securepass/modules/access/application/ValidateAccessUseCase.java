@@ -62,7 +62,7 @@ public class ValidateAccessUseCase {
      * consumir nada.
      */
     public AccessDecision validate(UUID neighborhoodId, String token, Instant capturedAt, Direction direction,
-                                   boolean checkEnrollment, UUID lotId) {
+                                   UUID lotId) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
         if (direction == null) throw new IllegalArgumentException("direction requerido");
@@ -80,7 +80,7 @@ public class ValidateAccessUseCase {
         // WBS-117: ruteo por subType. Worker no lleva invitationId, tiene su
         // propio flujo (permisos activos + franja evaluada en el barrio).
         if (QrTokenPayload.SUBTYPE_WORKER.equals(parsed.payload().subType())) {
-            return evaluateWorker(neighborhoodId, parsed, capturedAt, direction, checkEnrollment, lotId);
+            return evaluateWorker(neighborhoodId, parsed, capturedAt, direction, lotId);
         }
 
         Optional<Invitation> invOpt = invitations.findById(parsed.payload().invitationId());
@@ -120,9 +120,9 @@ public class ValidateAccessUseCase {
             // WBS-122: la verificacion es por persona, no por invitacion. Un
             // invitado ya verificado en el barrio pasa directo aunque sea su
             // primera vez en ESTA invitacion. residentPass no enrola (US-16);
-            // egresos no requieren enrolamiento. En sync offline el mobile ya
-            // verifico contra su cache, no repetimos server-side.
-            if (checkEnrollment && !inv.residentPass()
+            // egresos no requieren enrolamiento. En sync tambien se chequea:
+            // la cache del mobile da por enrolado un DNI que no pudo verificar.
+            if (!inv.residentPass()
                     && enrollments.findByPerson(neighborhoodId, inv.guestDocument()).isEmpty()) {
                 return AccessDecision.NeedsEnrollment.guest(inv.id(), inv.guestName(), lot.code());
             }
@@ -148,10 +148,10 @@ public class ValidateAccessUseCase {
      * <p>WBS-122: si pasa franja pero la persona no esta verificada en el
      * barrio, devuelve {@code NeedsEnrollment.worker(userId)}. La verificacion
      * es por persona; una vez enrolado no vuelve a pedirse aunque cambien los
-     * permisos. Los egresos y los sync offline no chequean enrolamiento.
+     * permisos. Los egresos no chequean enrolamiento.
      */
     private AccessDecision evaluateWorker(UUID neighborhoodId, ParsedQrToken parsed, Instant capturedAt,
-                                          Direction direction, boolean checkEnrollment, UUID lotId) {
+                                          Direction direction, UUID lotId) {
         QrTokenPayload p = parsed.payload();
         Optional<WorkerTokenRepository.WorkerTokenRow> active = workerTokens.findActive(p.sub());
         if (active.isEmpty() || !active.get().jti().equals(p.jti())) {
@@ -170,7 +170,7 @@ public class ValidateAccessUseCase {
         List<AccessDecision.LotOption> inSlot = WorkerLots.inSlot(ctx, capturedAt, lotId);
         if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
         // #219: NEEDS_ENROLLMENT lleva los lotes; la garita manda DNI y lote juntos.
-        if (direction == Direction.IN && checkEnrollment
+        if (direction == Direction.IN
                 && enrollments.findByPerson(neighborhoodId, ctx.workerDocument()).isEmpty()) {
             return AccessDecision.NeedsEnrollment.worker(p.sub(), ctx.workerName(), inSlot);
         }

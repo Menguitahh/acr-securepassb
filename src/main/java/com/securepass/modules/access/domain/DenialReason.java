@@ -10,5 +10,6 @@ public enum DenialReason {
     LOT_SUSPENDED,
     REPLAY,
     DOCUMENT_MISMATCH,
+    NOT_ENROLLED,
     UNKNOWN
 }

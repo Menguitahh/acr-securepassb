@@ -137,28 +137,42 @@ class SyncLocalDecisionHttpTest {
         return json.readTree(resp.body()).get("token").asText();
     }
 
-    private String event(UUID clientEventId, String token, Instant capturedAt, String localDecision, String dni) {
+    private String event(UUID clientEventId, String token, Instant capturedAt, String local, String dni) {
         return "{\"clientEventId\":\"" + clientEventId + "\",\"token\":\"" + token + "\","
                 + "\"gateId\":\"" + gate + "\",\"direction\":\"IN\",\"companions\":0,"
-                + "\"capturedAt\":\"" + capturedAt + "\",\"localDecision\":\"" + localDecision + "\""
+                + "\"capturedAt\":\"" + capturedAt + "\"" + local
                 + (dni == null ? "" : ",\"documentNumber\":\"" + dni + "\"") + "}";
     }
 
-    private JsonNode sync(String... events) throws Exception {
+    private static final String ALLOWED = ",\"localDecision\":\"ALLOWED\"";
+
+    private static String denied(String reason) {
+        return ",\"localDecision\":\"DENIED\",\"localDenialReason\":\"" + reason + "\"";
+    }
+
+    private HttpResponse<String> post(String... events) throws Exception {
         String guardJwt = jwt.issue(guard, barrio, List.of(Role.GUARD), List.of()).token();
-        HttpResponse<String> resp = http.send(HttpRequest.newBuilder()
+        return http.send(HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/v1/access/sync"))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + guardJwt)
                 .POST(HttpRequest.BodyPublishers.ofString(
                         "{\"deviceId\":\"" + UUID.randomUUID() + "\",\"events\":[" + String.join(",", events) + "]}"))
                 .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private JsonNode sync(String... events) throws Exception {
+        HttpResponse<String> resp = post(events);
         assertThat(resp.statusCode()).as("sync: %s", resp.body()).isEqualTo(200);
         return json.readTree(resp.body()).get("results");
     }
 
-    private List<Boolean> allowedLogs(UUID clientEventId) {
-        return jdbc.queryForList("SELECT allowed FROM access_logs WHERE client_event_id = ?", Boolean.class, clientEventId);
+    private int logs() {
+        return jdbc.queryForObject("SELECT count(*) FROM access_logs WHERE neighborhood_id = ?", Integer.class, barrio);
+    }
+
+    private List<String> results(UUID clientEventId) {
+        return jdbc.queryForList("SELECT result FROM access_logs WHERE client_event_id = ?", String.class, clientEventId);
     }
 
     // Caso real: la garita rechazo por franja; despues se amplio la franja y
@@ -168,10 +182,13 @@ class SyncLocalDecisionHttpTest {
         enrolarTrabajador();
         UUID ev = UUID.randomUUID();
 
-        JsonNode result = sync(event(ev, workerToken(), CAPTURED_AT, "DENIED", null)).get(0);
+        JsonNode result = sync(event(ev, workerToken(), CAPTURED_AT, denied("OUT_OF_SCHEDULE"), null)).get(0);
 
-        assertThat(result.get("result").asText()).as(result.toString()).isNotEqualTo("ALLOWED");
-        assertThat(allowedLogs(ev)).doesNotContain(true);
+        assertThat(result.get("result").asText()).as(result.toString()).isEqualTo("DENIED");
+        assertThat(result.get("reason").asText()).isEqualTo("OUT_OF_SCHEDULE");
+        assertThat(results(ev)).containsExactly("DENIED");
+        assertThat(jdbc.queryForObject("SELECT denial_reason FROM access_logs WHERE client_event_id = ?",
+                String.class, ev)).isEqualTo("OUT_OF_SCHEDULE");
     }
 
     // Mismo hueco en invitados, con mas dano: consume el pase, abre una
@@ -180,10 +197,11 @@ class SyncLocalDecisionHttpTest {
     void unDeniedLocalDeInvitadoNoConsumeNiAbreEstadia() throws Exception {
         UUID ev = UUID.randomUUID();
 
-        JsonNode result = sync(event(ev, guestToken, CAPTURED_AT, "DENIED", null)).get(0);
+        JsonNode result = sync(event(ev, guestToken, CAPTURED_AT, denied("EXPIRED"), null)).get(0);
 
-        assertThat(result.get("result").asText()).as(result.toString()).isNotEqualTo("ALLOWED");
-        assertThat(allowedLogs(ev)).doesNotContain(true);
+        assertThat(result.get("result").asText()).as(result.toString()).isEqualTo("DENIED");
+        assertThat(result.get("reason").asText()).isEqualTo("EXPIRED");
+        assertThat(results(ev)).containsExactly("DENIED");
         assertThat(jdbc.queryForObject("SELECT used_count FROM invitations WHERE id = ?", Integer.class, invitation))
                 .isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM stays WHERE invitation_id = ?", Integer.class, invitation))
@@ -200,11 +218,54 @@ class SyncLocalDecisionHttpTest {
         UUID acceso = UUID.randomUUID();
 
         JsonNode results = sync(
-                event(enroll, token, CAPTURED_AT, "ALLOWED", "11222333"),
-                event(acceso, token, CAPTURED_AT.plusSeconds(13), "ALLOWED", null));
+                event(enroll, token, CAPTURED_AT, ALLOWED, "11222333"),
+                event(acceso, token, CAPTURED_AT.plusSeconds(13), ALLOWED, null));
 
         assertThat(results.get(0).get("reason").asText()).isEqualTo("DOCUMENT_MISMATCH");
-        assertThat(results.get(1).get("result").asText()).as(results.get(1).toString()).isNotEqualTo("ALLOWED");
-        assertThat(allowedLogs(acceso)).doesNotContain(true);
+        assertThat(results.get(1).get("result").asText()).as(results.get(1).toString()).isEqualTo("DENIED");
+        assertThat(results.get(1).get("reason").asText()).isEqualTo("NOT_ENROLLED");
+        assertThat(results(acceso)).containsExactly("DENIED");
+    }
+
+    // El caso seguro sigue auditado: local ALLOWED de un invitado no enrolado.
+    @Test
+    void invitadoNoEnroladoEntroOfflineYSeAuditaSinConsumirNiAbrirEstadia() throws Exception {
+        jdbc.update("DELETE FROM guest_enrollments WHERE neighborhood_id = ?", barrio);
+        UUID ev = UUID.randomUUID();
+
+        JsonNode result = sync(event(ev, guestToken, CAPTURED_AT, ALLOWED, null)).get(0);
+
+        assertThat(result.get("result").asText()).as(result.toString()).isEqualTo("DENIED");
+        assertThat(result.get("reason").asText()).isEqualTo("NOT_ENROLLED");
+        assertThat(jdbc.queryForObject("SELECT used_count FROM invitations WHERE id = ?", Integer.class, invitation))
+                .isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM stays WHERE invitation_id = ?", Integer.class, invitation))
+                .isZero();
+    }
+
+    @Test
+    void trabajadorEnroladoConAllowedLocalSigueEntrando() throws Exception {
+        enrolarTrabajador();
+
+        JsonNode result = sync(event(UUID.randomUUID(), workerToken(), CAPTURED_AT, ALLOWED, null)).get(0);
+
+        assertThat(result.get("result").asText()).as(result.toString()).isEqualTo("ALLOWED");
+    }
+
+    // Contrato: localDecision obligatorio; localDenialReason si y solo si DENIED.
+    @Test
+    void contratoInvalidoEs400YNoGuardaNada() throws Exception {
+        UUID ev = UUID.randomUUID();
+        List<String> invalidos = List.of(
+                event(ev, guestToken, CAPTURED_AT, "", null),
+                event(ev, guestToken, CAPTURED_AT, ",\"localDecision\":\"DENIED\"", null),
+                event(ev, guestToken, CAPTURED_AT, ALLOWED + ",\"localDenialReason\":\"EXPIRED\"", null),
+                event(ev, guestToken, CAPTURED_AT, ",\"localDecision\":\"MAYBE\"", null));
+
+        for (String invalido : invalidos) {
+            HttpResponse<String> resp = post(invalido);
+            assertThat(resp.statusCode()).as("%s -> %s", invalido, resp.body()).isEqualTo(400);
+        }
+        assertThat(logs()).isZero();
     }
 }

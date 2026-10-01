@@ -176,7 +176,7 @@ class CrossNeighborhoodQrHttpTest {
     private HttpResponse<String> sync(String token, String dni) throws Exception {
         String event = "{\"clientEventId\":\"" + UUID.randomUUID() + "\",\"token\":\"" + token + "\","
                 + "\"gateId\":\"" + gateA + "\",\"direction\":\"IN\",\"companions\":0,"
-                + "\"capturedAt\":\"" + CAPTURED_AT + "\""
+                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"localDecision\":\"ALLOWED\""
                 + (dni == null ? "" : ",\"documentNumber\":\"" + dni + "\"") + "}";
         return post("sync", "{\"deviceId\":\"" + UUID.randomUUID() + "\",\"events\":[" + event + "]}");
     }
