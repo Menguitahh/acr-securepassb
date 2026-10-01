@@ -10,8 +10,11 @@ import com.securepass.modules.invitation.domain.InvitationType;
 import com.securepass.shared.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,6 +30,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ExtendWith(OutputCaptureExtension.class)
 class SyncLocalDecisionHttpTest {
 
     // Jueves 10:00 en Mendoza, dentro de la franja de L-1.
@@ -252,20 +257,70 @@ class SyncLocalDecisionHttpTest {
         assertThat(result.get("result").asText()).as(result.toString()).isEqualTo("ALLOWED");
     }
 
-    // Contrato: localDecision obligatorio; localDenialReason si y solo si DENIED.
+    // Guardia cancela el paso del DNI: la garita no dejo pasar y no hay documento.
     @Test
-    void contratoInvalidoEs400YNoGuardaNada() throws Exception {
+    void dniCanceladoQuedaNotEnrolledSinEnrolar() throws Exception {
         UUID ev = UUID.randomUUID();
-        List<String> invalidos = List.of(
-                event(ev, guestToken, CAPTURED_AT, "", null),
-                event(ev, guestToken, CAPTURED_AT, ",\"localDecision\":\"DENIED\"", null),
-                event(ev, guestToken, CAPTURED_AT, ALLOWED + ",\"localDenialReason\":\"EXPIRED\"", null),
-                event(ev, guestToken, CAPTURED_AT, ",\"localDecision\":\"MAYBE\"", null));
 
-        for (String invalido : invalidos) {
-            HttpResponse<String> resp = post(invalido);
-            assertThat(resp.statusCode()).as("%s -> %s", invalido, resp.body()).isEqualTo(400);
+        JsonNode result = sync(event(ev, workerToken(), CAPTURED_AT, denied("NOT_ENROLLED"), null)).get(0);
+
+        assertThat(result.get("result").asText()).as(result.toString()).isEqualTo("DENIED");
+        assertThat(result.get("reason").asText()).isEqualTo("NOT_ENROLLED");
+        assertThat(results(ev)).containsExactly("DENIED");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM guest_enrollments WHERE neighborhood_id = ? AND document_number = ?",
+                Integer.class, barrio, workerDni)).isZero();
+    }
+
+    // Motivos que solo produce la garita offline: senal de dispositivo
+    // desincronizado, no se aplanan a UNKNOWN.
+    @Test
+    void motivosDeGaritaDesincronizadaSeGuardanTalCual() throws Exception {
+        UUID sinTrabajador = UUID.randomUUID();
+        UUID sinTz = UUID.randomUUID();
+
+        JsonNode results = sync(
+                event(sinTrabajador, workerToken(), CAPTURED_AT, denied("WORKER_NOT_SYNCED"), null),
+                event(sinTz, guestToken, CAPTURED_AT.plusSeconds(1), denied("NEIGHBORHOOD_TZ_MISSING"), null));
+
+        assertThat(results.get(0).get("reason").asText()).isEqualTo("WORKER_NOT_SYNCED");
+        assertThat(results.get(1).get("reason").asText()).isEqualTo("NEIGHBORHOOD_TZ_MISSING");
+        assertThat(jdbc.queryForObject("SELECT denial_reason FROM access_logs WHERE client_event_id = ?",
+                String.class, sinTrabajador)).isEqualTo("WORKER_NOT_SYNCED");
+        assertThat(jdbc.queryForObject("SELECT denial_reason FROM access_logs WHERE client_event_id = ?",
+                String.class, sinTz)).isEqualTo("NEIGHBORHOOD_TZ_MISSING");
+    }
+
+    // #217: un evento mal armado sale REJECTED sin trabar el outbox; el resto
+    // del batch sigue.
+    @Test
+    void decisionLocalMalArmadaSaleRejectedYElRestoSigue(CapturedOutput output) throws Exception {
+        List<String> malArmados = List.of(
+                "",
+                ",\"localDecision\":\"DENIED\"",
+                ALLOWED + ",\"localDenialReason\":\"EXPIRED\"",
+                ",\"localDecision\":\"MAYBE\"",
+                denied("NO_EXISTE"));
+        List<UUID> ids = new ArrayList<>();
+        List<String> events = new ArrayList<>();
+        for (int i = 0; i < malArmados.size(); i++) {
+            UUID id = UUID.randomUUID();
+            ids.add(id);
+            events.add(event(id, guestToken, CAPTURED_AT.plusSeconds(i), malArmados.get(i), null));
         }
-        assertThat(logs()).isZero();
+        UUID bueno = UUID.randomUUID();
+        events.add(event(bueno, guestToken, CAPTURED_AT.plusSeconds(60), ALLOWED, null));
+
+        JsonNode results = sync(events.toArray(String[]::new));
+
+        for (int i = 0; i < ids.size(); i++) {
+            JsonNode r = results.get(i);
+            assertThat(r.get("clientEventId").asText()).isEqualTo(ids.get(i).toString());
+            assertThat(r.get("result").asText()).as("%s -> %s", malArmados.get(i), r).isEqualTo("REJECTED");
+            assertThat(r.get("rejection").asText()).isEqualTo("INVALID_LOCAL_DECISION");
+            assertThat(results(ids.get(i))).isEmpty();
+            assertThat(output.getOut()).contains(ids.get(i).toString());
+        }
+        assertThat(results.get(ids.size()).get("result").asText()).isEqualTo("ALLOWED");
+        assertThat(output.getOut()).contains("WARN").contains(guard.toString()).contains("INVALID_LOCAL_DECISION");
     }
 }

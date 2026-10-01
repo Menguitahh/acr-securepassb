@@ -227,7 +227,7 @@ class OfflineFieldValidationTest {
 
     private SyncAccessUseCase.Event event(String token, Instant capturedAt) {
         return new SyncAccessUseCase.Event(
-                UUID.randomUUID(), token, gateId, Direction.IN, 0, capturedAt, SyncAccessUseCase.LocalDecision.ALLOWED, null, null, null);
+                UUID.randomUUID(), token, gateId, Direction.IN, 0, capturedAt, "ALLOWED", null, null, null);
     }
 
     private String insertActiveSingle(UUID invitationId) {

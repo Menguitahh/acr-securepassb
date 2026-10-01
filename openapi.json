@@ -1903,6 +1903,8 @@
                 "REPLAY",
                 "DOCUMENT_MISMATCH",
                 "NOT_ENROLLED",
+                "WORKER_NOT_SYNCED",
+                "NEIGHBORHOOD_TZ_MISSING",
                 "UNKNOWN"
               ]
             }
@@ -3193,6 +3195,7 @@
           },
           "localDenialReason" : {
             "type" : "string",
+            "description" : "Obligatorio si y solo si localDecision es DENIED",
             "enum" : [
               "INVALID_SIGNATURE",
               "NOT_YET_VALID",
@@ -3204,6 +3207,8 @@
               "REPLAY",
               "DOCUMENT_MISMATCH",
               "NOT_ENROLLED",
+              "WORKER_NOT_SYNCED",
+              "NEIGHBORHOOD_TZ_MISSING",
               "UNKNOWN"
             ]
           },
@@ -3267,6 +3272,8 @@
               "REPLAY",
               "DOCUMENT_MISMATCH",
               "NOT_ENROLLED",
+              "WORKER_NOT_SYNCED",
+              "NEIGHBORHOOD_TZ_MISSING",
               "UNKNOWN"
             ]
           },
@@ -3284,7 +3291,8 @@
           "rejection" : {
             "type" : "string",
             "enum" : [
-              "INVALID_LOT"
+              "INVALID_LOT",
+              "INVALID_LOCAL_DECISION"
             ]
           }
         }
