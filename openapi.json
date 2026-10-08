@@ -1902,6 +1902,9 @@
                 "LOT_SUSPENDED",
                 "REPLAY",
                 "DOCUMENT_MISMATCH",
+                "NOT_ENROLLED",
+                "WORKER_NOT_SYNCED",
+                "NEIGHBORHOOD_TZ_MISSING",
                 "UNKNOWN"
               ]
             }
@@ -3150,6 +3153,7 @@
           "clientEventId",
           "direction",
           "gateId",
+          "localDecision",
           "token"
         ],
         "type" : "object",
@@ -3183,7 +3187,30 @@
             "format" : "date-time"
           },
           "localDecision" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [
+              "ALLOWED",
+              "DENIED"
+            ]
+          },
+          "localDenialReason" : {
+            "type" : "string",
+            "description" : "Obligatorio si y solo si localDecision es DENIED",
+            "enum" : [
+              "INVALID_SIGNATURE",
+              "NOT_YET_VALID",
+              "EXPIRED",
+              "ALREADY_USED",
+              "REVOKED",
+              "OUT_OF_SCHEDULE",
+              "LOT_SUSPENDED",
+              "REPLAY",
+              "DOCUMENT_MISMATCH",
+              "NOT_ENROLLED",
+              "WORKER_NOT_SYNCED",
+              "NEIGHBORHOOD_TZ_MISSING",
+              "UNKNOWN"
+            ]
           },
           "documentNumber" : {
             "pattern" : "^[0-9]{7,8}$",
@@ -3244,6 +3271,9 @@
               "LOT_SUSPENDED",
               "REPLAY",
               "DOCUMENT_MISMATCH",
+              "NOT_ENROLLED",
+              "WORKER_NOT_SYNCED",
+              "NEIGHBORHOOD_TZ_MISSING",
               "UNKNOWN"
             ]
           },
@@ -3261,7 +3291,8 @@
           "rejection" : {
             "type" : "string",
             "enum" : [
-              "INVALID_LOT"
+              "INVALID_LOT",
+              "INVALID_LOCAL_DECISION"
             ]
           }
         }

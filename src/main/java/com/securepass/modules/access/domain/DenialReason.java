@@ -10,5 +10,9 @@ public enum DenialReason {
     LOT_SUSPENDED,
     REPLAY,
     DOCUMENT_MISMATCH,
+    NOT_ENROLLED,
+    // Solo los produce la garita offline: el dispositivo no tenia los datos.
+    WORKER_NOT_SYNCED,
+    NEIGHBORHOOD_TZ_MISSING,
     UNKNOWN
 }

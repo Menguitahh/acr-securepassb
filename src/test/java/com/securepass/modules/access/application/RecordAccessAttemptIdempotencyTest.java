@@ -89,7 +89,7 @@ class RecordAccessAttemptIdempotencyTest {
                 Timestamp.from(now.minusSeconds(60)),
                 Timestamp.from(now.plusSeconds(3600)), jti);
 
-        when(validator.validate(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any())).thenReturn(
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(
                 new AccessDecision.Allowed(invitationId, jti, "Maria", "M4-L12", 0));
     }
 

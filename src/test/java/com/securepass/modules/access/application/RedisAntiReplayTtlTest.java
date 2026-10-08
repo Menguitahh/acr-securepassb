@@ -68,7 +68,7 @@ class RedisAntiReplayTtlTest {
                 VALUES (?, ?, ?, ?)
                 """, userId, "u-" + UUID.randomUUID() + "@t.com", "hash", "Titular");
 
-        when(validator.validate(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any())).thenReturn(
+        when(validator.validate(any(), any(), any(), any(), any())).thenReturn(
                 new AccessDecision.Allowed(invitationId, jti, "Maria", "M4-L12", 0));
     }
 
@@ -90,7 +90,7 @@ class RedisAntiReplayTtlTest {
         Instant now = Instant.now();
         seedInvitation(now.minus(Duration.ofMinutes(5)), now.plus(Duration.ofHours(6)));
 
-        AccessDecision result = useCase.consume(java.util.UUID.randomUUID(), "token", now, "evt-1", true, null);
+        AccessDecision result = useCase.consume(java.util.UUID.randomUUID(), "token", now, "evt-1", null);
 
         assertThat(result).isInstanceOf(AccessDecision.Allowed.class);
         String key = "replay:" + jti + ":1";
@@ -104,7 +104,7 @@ class RedisAntiReplayTtlTest {
         Instant now = Instant.now();
         seedInvitation(now.minus(Duration.ofHours(2)), now.minus(Duration.ofHours(1)));
 
-        AccessDecision result = useCase.consume(java.util.UUID.randomUUID(), "token", now, "evt-2", true, null);
+        AccessDecision result = useCase.consume(java.util.UUID.randomUUID(), "token", now, "evt-2", null);
 
         assertThat(result).isInstanceOf(AccessDecision.Allowed.class);
         String key = "replay:" + jti + ":1";

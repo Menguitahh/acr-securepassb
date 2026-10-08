@@ -174,7 +174,7 @@ class LotChoiceHttpTest {
     private String event(UUID clientEventId, String token, UUID lotId, Instant capturedAt) {
         return "{\"clientEventId\":\"" + clientEventId + "\",\"token\":\"" + token + "\","
                 + "\"gateId\":\"" + gate + "\",\"direction\":\"IN\",\"companions\":0,"
-                + "\"capturedAt\":\"" + capturedAt + "\""
+                + "\"capturedAt\":\"" + capturedAt + "\",\"localDecision\":\"ALLOWED\""
                 + (lotId == null ? "" : ",\"lotId\":\"" + lotId + "\"") + "}";
     }
 
@@ -430,7 +430,7 @@ class LotChoiceHttpTest {
         UUID ev = UUID.randomUUID();
         String evento = "{\"clientEventId\":\"" + ev + "\",\"token\":\"" + workerToken() + "\","
                 + "\"gateId\":\"" + gate + "\",\"direction\":\"IN\",\"companions\":0,"
-                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"documentNumber\":\"" + workerDni + "\","
+                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"localDecision\":\"ALLOWED\",\"documentNumber\":\"" + workerDni + "\","
                 + "\"lotId\":\"" + soloJuevesALaManana + "\"}";
 
         JsonNode result = sync(evento).get("results").get(0);
@@ -446,7 +446,7 @@ class LotChoiceHttpTest {
         UUID ev = UUID.randomUUID();
         String evento = "{\"clientEventId\":\"" + ev + "\",\"token\":\"" + workerToken() + "\","
                 + "\"gateId\":\"" + gate + "\",\"direction\":\"IN\",\"companions\":0,"
-                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"documentNumber\":\"" + workerDni + "\","
+                + "\"capturedAt\":\"" + CAPTURED_AT + "\",\"localDecision\":\"ALLOWED\",\"documentNumber\":\"" + workerDni + "\","
                 + "\"lotId\":\"" + UUID.randomUUID() + "\"}";
 
         JsonNode result = sync(evento).get("results").get(0);
