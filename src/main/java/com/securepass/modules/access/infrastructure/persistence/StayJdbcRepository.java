@@ -116,27 +116,46 @@ public class StayJdbcRepository implements StayRepository {
 
     @Override
     public java.util.List<com.securepass.modules.access.application.OpenStayView> listOpenByNeighborhood(UUID neighborhoodId) {
-        return jdbc.sql("""
-                SELECT s.id, s.invitation_id, s.subject_name, l.code AS lot_code,
-                       s.entered_at, s.expected_until, s.warned_at,
-                       s.exit_requested_at
-                  FROM stays s
-                  LEFT JOIN lots l ON l.id = s.lot_id
-                 WHERE s.neighborhood_id = :nid
-                   AND s.exited_at IS NULL
-                 ORDER BY s.entered_at DESC
-                """)
+        return jdbc.sql(OPEN_STAYS_SQL.formatted(""))
                 .param("nid", neighborhoodId)
-                .query((rs, i) -> new com.securepass.modules.access.application.OpenStayView(
-                        rs.getObject("id", UUID.class),
-                        rs.getObject("invitation_id", UUID.class),
-                        rs.getString("subject_name"),
-                        rs.getString("lot_code"),
-                        rs.getTimestamp("entered_at").toInstant(),
-                        rs.getTimestamp("expected_until").toInstant(),
-                        rs.getTimestamp("warned_at") != null,
-                        rs.getTimestamp("exit_requested_at") == null ? null : rs.getTimestamp("exit_requested_at").toInstant()))
+                .query(StayJdbcRepository::openStay)
                 .list();
+    }
+
+    @Override
+    public java.util.List<com.securepass.modules.access.application.OpenStayView> listOpenByLots(
+            UUID neighborhoodId, java.util.Collection<UUID> lotIds) {
+        if (lotIds.isEmpty()) return java.util.List.of();
+        return jdbc.sql(OPEN_STAYS_SQL.formatted("AND s.lot_id IN (:lots)"))
+                .param("nid", neighborhoodId)
+                .param("lots", lotIds)
+                .query(StayJdbcRepository::openStay)
+                .list();
+    }
+
+    private static final String OPEN_STAYS_SQL = """
+            SELECT s.id, s.invitation_id, s.subject_name, l.code AS lot_code,
+                   s.entered_at, s.expected_until, s.warned_at,
+                   s.exit_requested_at
+              FROM stays s
+              LEFT JOIN lots l ON l.id = s.lot_id
+             WHERE s.neighborhood_id = :nid
+               AND s.exited_at IS NULL
+               %s
+             ORDER BY s.entered_at DESC
+            """;
+
+    private static com.securepass.modules.access.application.OpenStayView openStay(java.sql.ResultSet rs, int i)
+            throws java.sql.SQLException {
+        return new com.securepass.modules.access.application.OpenStayView(
+                rs.getObject("id", UUID.class),
+                rs.getObject("invitation_id", UUID.class),
+                rs.getString("subject_name"),
+                rs.getString("lot_code"),
+                rs.getTimestamp("entered_at").toInstant(),
+                rs.getTimestamp("expected_until").toInstant(),
+                rs.getTimestamp("warned_at") != null,
+                rs.getTimestamp("exit_requested_at") == null ? null : rs.getTimestamp("exit_requested_at").toInstant());
     }
 
     @Override

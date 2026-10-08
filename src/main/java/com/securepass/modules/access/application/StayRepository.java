@@ -21,6 +21,8 @@ public interface StayRepository {
 
     java.util.List<OpenStayView> listOpenByNeighborhood(java.util.UUID neighborhoodId);
 
+    java.util.List<OpenStayView> listOpenByLots(java.util.UUID neighborhoodId, java.util.Collection<java.util.UUID> lotIds);
+
     void markResidentNotified(UUID stayId, java.time.Instant at);
 
     /**

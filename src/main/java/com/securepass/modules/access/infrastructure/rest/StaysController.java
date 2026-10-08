@@ -1,5 +1,7 @@
 package com.securepass.modules.access.infrastructure.rest;
 
+import com.securepass.modules.identity.domain.Role;
+
 import com.securepass.modules.access.application.CloseStayManuallyUseCase;
 import com.securepass.modules.access.application.ListOpenStaysUseCase;
 import com.securepass.modules.access.application.MarkStayWarnedUseCase;
@@ -40,11 +42,14 @@ public class StaysController {
     }
 
     @GetMapping("/open")
-    @PreAuthorize("hasAnyRole('GUARD','ADMIN')")
+    @PreAuthorize("hasAnyRole('GUARD','ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")
     public OpenStaysResponse open() {
         CurrentUser user = guard.require();
         if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
-        return OpenStaysResponse.from(listUseCase.list(user.neighborhoodId()), Instant.now());
+        boolean staff = user.hasRole(Role.GUARD) || user.hasRole(Role.ADMIN);
+        return OpenStaysResponse.from(
+                staff ? listUseCase.list(user.neighborhoodId()) : listUseCase.listForLots(user.neighborhoodId(), user.lots()),
+                Instant.now());
     }
 
     @PostMapping("/{id}/close")
