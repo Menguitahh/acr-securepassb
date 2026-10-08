@@ -10,6 +10,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -27,9 +32,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  * a los pases de los invitados: en la home aparecia "Residente · Evento ·
  * Usos restantes: 1". Tiene su propia pantalla; la lista no lo muestra.
  */
+@Testcontainers
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class InvitationsListHidesResidentPassHttpTest {
+
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
+    @DynamicPropertySource
+    static void props(DynamicPropertyRegistry r) {
+        r.add("spring.data.redis.host", redis::getHost);
+        r.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+    }
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
