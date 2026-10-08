@@ -124,7 +124,9 @@ public class InvitationJdbcRepository implements InvitationRepository {
 
     @Override
     public InvitationPage list(ListQuery q) {
-        StringBuilder where = new StringBuilder("WHERE neighborhood_id = :nid");
+        // El QR personal (resident_pass) tiene su endpoint, /me/passes: no es
+        // un pase de invitado y no va en esta lista.
+        StringBuilder where = new StringBuilder("WHERE neighborhood_id = :nid AND resident_pass = FALSE");
         if (!q.lotIdsAllowed().isEmpty()) where.append(" AND lot_id = ANY(:lots)");
         if (q.lotIdFilter() != null) where.append(" AND lot_id = :lotFilter");
         if (q.statusFilter() != null) where.append(" AND status = :status");
