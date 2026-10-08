@@ -44,6 +44,7 @@ public class EnrollGuestUseCase {
     private final StayLifecycle stayLifecycle;
     private final WorkerTokenRepository workerTokens;
     private final WorkerValidationQuery workerQuery;
+    private final ConsumeAccessUseCase consumer;
 
     public EnrollGuestUseCase(
             QrTokenCodec codec,
@@ -53,7 +54,8 @@ public class EnrollGuestUseCase {
             AccessLogRepository logs,
             StayLifecycle stayLifecycle,
             WorkerTokenRepository workerTokens,
-            WorkerValidationQuery workerQuery) {
+            WorkerValidationQuery workerQuery,
+            ConsumeAccessUseCase consumer) {
         this.codec = codec;
         this.signingKeys = signingKeys;
         this.invitations = invitations;
@@ -62,6 +64,7 @@ public class EnrollGuestUseCase {
         this.stayLifecycle = stayLifecycle;
         this.workerTokens = workerTokens;
         this.workerQuery = workerQuery;
+        this.consumer = consumer;
     }
 
     public EnrollmentResult enroll(Command cmd) {
@@ -134,6 +137,16 @@ public class EnrollGuestUseCase {
         GuestEnrollment enrollment = enrollments.saveIfAbsent(new GuestEnrollment(
                 UUID.randomUUID(), cmd.neighborhoodId(), inv.id(), cmd.documentNumber(),
                 Instant.now(), cmd.guardId(), cmd.gateId()));
+        // El enrolamiento es el primer ingreso: consume el pase igual que
+        // validate (vigencia, lote suspendido, usos y anti-replay con lock).
+        // Sin esto el pase de un uso quedaba ACTIVE y el mismo QR volvia a
+        // entrar. Va despues de guardar el enrolamiento porque validate lo
+        // exige (#225). El DNI ya coincidio: el enrolamiento queda aunque el
+        // ingreso se rechace.
+        AccessDecision decision = consumer.consume(
+                cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(), cmd.clientEventId().toString(), null);
+        if (decision instanceof AccessDecision.Denied denied) return denyGuest(cmd, inv, denied.reason());
+        if (!(decision instanceof AccessDecision.Allowed)) return denyGuest(cmd, inv, DenialReason.UNKNOWN);
         AccessLog log = logs.saveIdempotent(new AccessLog(
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
                 inv.id(), inv.lotId(),

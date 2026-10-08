@@ -1,5 +1,7 @@
 package com.securepass.modules.access.application;
 
+import com.securepass.modules.access.domain.AccessDecision;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securepass.modules.access.domain.AccessDecision.SubjectKind;
 import com.securepass.modules.access.domain.AccessLog;
@@ -56,6 +58,7 @@ class EnrollGuestUseCaseTest {
     private AccessLogRepository logs;
     private WorkerTokenRepository workerTokens;
     private WorkerValidationQuery workerQuery;
+    private ConsumeAccessUseCase consumer;
     private EnrollGuestUseCase useCase;
 
     private UUID neighborhoodId;
@@ -77,9 +80,10 @@ class EnrollGuestUseCaseTest {
         logs = mock(AccessLogRepository.class);
         workerTokens = mock(WorkerTokenRepository.class);
         workerQuery = mock(WorkerValidationQuery.class);
+        consumer = mock(ConsumeAccessUseCase.class);
         useCase = new EnrollGuestUseCase(
                 codec, signingKeys, invitations, enrollments, logs, mock(StayLifecycle.class),
-                workerTokens, workerQuery);
+                workerTokens, workerQuery, consumer);
         neighborhoodId = UUID.randomUUID();
         gateId = UUID.randomUUID();
         guardId = UUID.randomUUID();
@@ -93,6 +97,9 @@ class EnrollGuestUseCaseTest {
                 keyPair.publicKey(), "enc", true, NOW, null);
         when(logs.saveIdempotent(any(AccessLog.class))).thenAnswer(inv -> inv.getArgument(0));
         when(enrollments.saveIfAbsent(any(GuestEnrollment.class))).thenAnswer(inv -> inv.getArgument(0));
+        // El consumo real (vigencia, usos, anti-replay) lo cubre EnrollConsumesPassHttpTest.
+        when(consumer.consume(any(), any(), any(), any(), any())).thenAnswer(inv ->
+                new AccessDecision.Allowed(invitationId, jti, "Invitado", "L-1", 0));
     }
 
     private QrTokenPayload payloadFor(UUID invId, UUID tokenJti) {
