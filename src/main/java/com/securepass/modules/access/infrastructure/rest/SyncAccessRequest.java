@@ -1,7 +1,9 @@
 package com.securepass.modules.access.infrastructure.rest;
 
 import com.securepass.modules.access.application.SyncAccessUseCase;
+import com.securepass.modules.access.domain.DenialReason;
 import com.securepass.modules.access.domain.Direction;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -26,14 +28,20 @@ public record SyncAccessRequest(
             @NotNull Direction direction,
             @Min(0) @Max(20) int companions,
             @NotNull Instant capturedAt,
+            // String y no enum: uno invalido sale REJECTED de ese evento, no 400
+            // del batch (#217). Los valida SyncAccessUseCase.
+            @Schema(implementation = SyncAccessUseCase.LocalDecision.class, requiredMode = Schema.RequiredMode.REQUIRED)
             String localDecision,
+            @Schema(implementation = DenialReason.class,
+                    description = "Obligatorio si y solo si localDecision es DENIED")
+            String localDenialReason,
             @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber,
             UUID lotId
     ) {
         public SyncAccessUseCase.Event toEvent() {
             return new SyncAccessUseCase.Event(
                     clientEventId, token, gateId, direction, companions, capturedAt,
-                    localDecision, documentNumber, lotId);
+                    localDecision, localDenialReason, documentNumber, lotId);
         }
     }
 

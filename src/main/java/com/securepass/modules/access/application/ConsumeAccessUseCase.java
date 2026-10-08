@@ -33,14 +33,13 @@ public class ConsumeAccessUseCase {
 
     @Transactional
     public AccessDecision consume(UUID neighborhoodId, String token, Instant capturedAt, String clientEventId,
-                                  boolean checkEnrollment, UUID lotId) {
+                                  UUID lotId) {
         if (clientEventId == null || clientEventId.isBlank()) {
             throw new IllegalArgumentException("clientEventId requerido");
         }
         // #217: validate chequea lotId antes del lock: un lote invalido no consume.
         AccessDecision pre = validator.validate(
-                neighborhoodId, token, capturedAt, com.securepass.modules.access.domain.Direction.IN, checkEnrollment,
-                lotId);
+                neighborhoodId, token, capturedAt, com.securepass.modules.access.domain.Direction.IN, lotId);
         if (!(pre instanceof AccessDecision.Allowed allowed)) return pre;
 
         Invitation locked = invitations.findByIdForUpdate(allowed.invitationId()).orElse(null);

@@ -93,12 +93,17 @@ public class RecordAccessAttemptUseCase {
     }
 
     private AccessDecision decide(Command cmd) {
-        boolean checkEnrollment = !cmd.syncedOffline();
         AccessDecision decision = cmd.direction() == Direction.IN
                 ? consumeUseCase.consume(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(),
-                        cmd.clientEventId().toString(), checkEnrollment, cmd.lotId())
+                        cmd.clientEventId().toString(), cmd.lotId())
                 : validateUseCase.validate(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(), Direction.OUT,
-                        checkEnrollment, cmd.lotId());
+                        cmd.lotId());
+        // En sync el guardia ya no esta para pedir el DNI: la garita lo dejo
+        // pasar sin enrolamiento valido (p. ej. tras un DOCUMENT_MISMATCH que
+        // la cache del mobile no podia detectar). Se audita como denegado.
+        if (cmd.syncedOffline() && decision instanceof AccessDecision.NeedsEnrollment needs) {
+            return AccessDecision.Denied.of(DenialReason.NOT_ENROLLED, needs.invitationId());
+        }
         if (cmd.syncedOffline()
                 && decision instanceof AccessDecision.Denied denied
                 && denied.reason() == DenialReason.ALREADY_USED) {

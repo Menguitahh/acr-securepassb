@@ -151,6 +151,9 @@ final class AccessLogXlsxSheet {
             case LOT_SUSPENDED -> "Lote suspendido";
             case REPLAY -> "Pase usado dos veces";
             case DOCUMENT_MISMATCH -> "Documento no coincide";
+            case NOT_ENROLLED -> "Sin enrolamiento";
+            case WORKER_NOT_SYNCED -> "Trabajador no cargado en la garita";
+            case NEIGHBORHOOD_TZ_MISSING -> "Garita sin zona horaria del barrio";
             case UNKNOWN -> "Motivo desconocido";
         };
     }

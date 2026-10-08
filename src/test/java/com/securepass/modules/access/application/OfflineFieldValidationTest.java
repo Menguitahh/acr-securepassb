@@ -89,6 +89,9 @@ class OfflineFieldValidationTest {
                 UUID.randomUUID(), neighborhoodId, kid,
                 kp.publicKey(), cipher.encrypt(kp.privateKey()),
                 true, Instant.now(), null));
+        // La garita solo deja pasar offline a quien tiene en enrollments_cache.
+        jdbc.update("INSERT INTO guest_enrollments (id, neighborhood_id, document_number) VALUES (?, ?, '30123456')",
+                UUID.randomUUID(), neighborhoodId);
     }
 
     @Test
@@ -224,7 +227,7 @@ class OfflineFieldValidationTest {
 
     private SyncAccessUseCase.Event event(String token, Instant capturedAt) {
         return new SyncAccessUseCase.Event(
-                UUID.randomUUID(), token, gateId, Direction.IN, 0, capturedAt, "ALLOWED", null, null);
+                UUID.randomUUID(), token, gateId, Direction.IN, 0, capturedAt, "ALLOWED", null, null, null);
     }
 
     private String insertActiveSingle(UUID invitationId) {
