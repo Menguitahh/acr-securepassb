@@ -45,7 +45,8 @@ class SyncAccessUseCaseTest {
         recorder = mock(RecordAccessAttemptUseCase.class);
         enroller = mock(EnrollGuestUseCase.class);
         useCase = new SyncAccessUseCase(recorder, enroller, mock(AccessLogRepository.class),
-                mock(com.securepass.shared.metrics.AccessMetrics.class));
+                mock(com.securepass.shared.metrics.AccessMetrics.class),
+                mock(com.securepass.modules.neighborhood.application.MembershipGranter.class));
         neighborhoodId = UUID.randomUUID();
         guardId = UUID.randomUUID();
         gateId = UUID.randomUUID();
