@@ -1443,9 +1443,6 @@
         ],
         "operationId" : "current",
         "responses" : {
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
-          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1455,6 +1452,9 @@
                 }
               }
             }
+          },
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -1951,12 +1951,6 @@
           }
         ],
         "responses" : {
-          "400" : {
-            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
-            "content" : {
-              "application/problem+json" : { }
-            }
-          },
           "200" : {
             "description" : "OK",
             "content" : {
@@ -1965,6 +1959,12 @@
                   "$ref" : "#/components/schemas/AccessLogsResponse"
                 }
               }
+            }
+          },
+          "400" : {
+            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
+            "content" : {
+              "application/problem+json" : { }
             }
           }
         }
@@ -3168,7 +3168,14 @@
         "type" : "object",
         "properties" : {
           "result" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [
+              "ALLOWED",
+              "ALLOWED_WORKER",
+              "DENIED",
+              "NEEDS_ENROLLMENT",
+              "NEEDS_LOT_SELECTION"
+            ]
           },
           "logId" : {
             "type" : "string",
@@ -3178,7 +3185,11 @@
             "type" : "string"
           },
           "subjectKind" : {
-            "type" : "string"
+            "type" : "string",
+            "enum" : [
+              "GUEST",
+              "WORKER"
+            ]
           },
           "invitationId" : {
             "type" : "string",
@@ -3596,13 +3607,13 @@
           "active" : {
             "type" : "boolean"
           },
+          "nonEmpty" : {
+            "type" : "boolean"
+          },
           "scheduleBundled" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
-            "type" : "boolean"
-          },
-          "nonEmpty" : {
             "type" : "boolean"
           }
         }

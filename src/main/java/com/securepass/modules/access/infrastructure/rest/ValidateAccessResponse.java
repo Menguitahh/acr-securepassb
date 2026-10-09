@@ -4,15 +4,19 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.securepass.modules.access.application.RecordAccessAttemptUseCase;
 import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.invitation.domain.Invitation;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ValidateAccessResponse(
+        // #170: enum en el contrato; el cliente falla cerrado ante uno nuevo.
+        @Schema(allowableValues = {"ALLOWED", "ALLOWED_WORKER", "DENIED", "NEEDS_ENROLLMENT", "NEEDS_LOT_SELECTION"})
         String result,
         UUID logId,
         String reason,
+        @Schema(allowableValues = {"GUEST", "WORKER"})
         String subjectKind,
         UUID invitationId,
         GuestDetail guest,
