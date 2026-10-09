@@ -90,6 +90,39 @@ public class UserJdbcRepository implements UserRepository {
     }
 
     @Override
+    public boolean replacePendingEmail(UUID userId, String email) {
+        return jdbc.sql("""
+                UPDATE users
+                   SET email = :email,
+                       updated_at = NOW()
+                 WHERE id = :id
+                   AND status = 'PENDING_ACTIVATION'
+                """)
+                .param("email", email)
+                .param("id", userId)
+                .update() == 1;
+    }
+
+    @Override
+    public boolean onlyOwnedBy(UUID userId, UUID ownerId) {
+        return Boolean.TRUE.equals(jdbc.sql("""
+                SELECT NOT EXISTS (SELECT 1 FROM memberships m WHERE m.user_id = :uid)
+                   AND NOT EXISTS (
+                        SELECT 1 FROM lot_permissions p
+                         WHERE p.user_id = :uid
+                           AND NOT EXISTS (SELECT 1 FROM lot_permissions o
+                                            WHERE o.user_id = :owner
+                                              AND o.lot_id = p.lot_id
+                                              AND o.permission_type = 'OWNER'
+                                              AND o.active = TRUE))
+                """)
+                .param("uid", userId)
+                .param("owner", ownerId)
+                .query(Boolean.class)
+                .single());
+    }
+
+    @Override
     public boolean completeEmail(UUID userId, String email) {
         int rows = jdbc.sql("""
                 UPDATE users

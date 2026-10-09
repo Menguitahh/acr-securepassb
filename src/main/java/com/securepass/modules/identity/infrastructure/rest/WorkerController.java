@@ -1,5 +1,9 @@
 package com.securepass.modules.identity.infrastructure.rest;
 
+import com.securepass.modules.identity.application.ChangePendingWorkerEmailUseCase;
+
+import org.springframework.web.bind.annotation.PutMapping;
+
 import com.securepass.modules.identity.application.AddWorkerUseCase;
 import com.securepass.modules.identity.application.ListWorkersUseCase;
 import com.securepass.modules.identity.application.NeighborhoodNameQuery;
@@ -39,6 +43,7 @@ public class WorkerController {
     private final AddWorkerUseCase addUseCase;
     private final ListWorkersUseCase listUseCase;
     private final UpdateWorkerUseCase updateUseCase;
+    private final ChangePendingWorkerEmailUseCase changeEmailUseCase;
     private final UserRepository users;
     private final NeighborhoodNameQuery neighborhoods;
     private final AccessGuard accessGuard;
@@ -47,12 +52,14 @@ public class WorkerController {
             AddWorkerUseCase addUseCase,
             ListWorkersUseCase listUseCase,
             UpdateWorkerUseCase updateUseCase,
+            ChangePendingWorkerEmailUseCase changeEmailUseCase,
             UserRepository users,
             NeighborhoodNameQuery neighborhoods,
             AccessGuard accessGuard) {
         this.addUseCase = addUseCase;
         this.listUseCase = listUseCase;
         this.updateUseCase = updateUseCase;
+        this.changeEmailUseCase = changeEmailUseCase;
         this.users = users;
         this.neighborhoods = neighborhoods;
         this.accessGuard = accessGuard;
@@ -111,6 +118,20 @@ public class WorkerController {
         UpdateWorkerUseCase.Result result = updateUseCase.update(
                 actor, lotId, userId, null, null, Boolean.FALSE);
         return UpdateWorkerResponse.from(result);
+    }
+
+    // securepassb#181: corregir el email de un trabajador que no activo su
+    // cuenta (o agregarlo si se dio de alta sin email) y reenviar la activacion.
+    @PutMapping("/{userId}/email")
+    @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")
+    public ChangeWorkerEmailResponse changeEmail(
+            @PathVariable UUID lotId,
+            @PathVariable UUID userId,
+            @Valid @RequestBody ChangeWorkerEmailRequest request) {
+        CurrentUser actor = accessGuard.require();
+        return ChangeWorkerEmailResponse.from(changeEmailUseCase.change(
+                actor, lotId, userId, request.email(),
+                actorName(actor), neighborhoods.findName(actor.neighborhoodId())));
     }
 
     private String actorName(CurrentUser actor) {

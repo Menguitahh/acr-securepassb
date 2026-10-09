@@ -44,4 +44,18 @@ public interface UserRepository {
      * de email de US-56 es la unica que corrige datos existentes.
      */
     boolean completeEmail(UUID userId, String email);
+
+    /**
+     * securepassb#181: reemplaza el email de un user PENDING_ACTIVATION.
+     * false si ya no esta pendiente (activo en el interin).
+     */
+    boolean replacePendingEmail(UUID userId, String email);
+
+    /**
+     * securepassb#181: true si todos los permisos de lote del user (activos
+     * o no) son de lotes donde {@code ownerId} es OWNER activo, y el user no
+     * es miembro de ningun barrio. Es la condicion para que ese titular
+     * pueda cambiarle el email sin afectar a otro titular.
+     */
+    boolean onlyOwnedBy(UUID userId, UUID ownerId);
 }

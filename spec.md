@@ -1547,7 +1547,7 @@ Formato: `US-<n>` → issue. Prioridad: **P0** bloqueante del MVP, **P1** necesa
 
 | ID | Historia | Prioridad | Criterios de aceptación |
 |---|---|---|---|
-| US-62 | Como titular quiero habilitar a un trabajador con sus días y horarios. | P0 | Nombre, DNI, tipo de servicio, días de la semana y franja horaria; si el DNI existe se le suma el permiso sin crear otro usuario ni otro QR. Email o teléfono: sin email no hay activación ni QR y el trabajador entra por DNI (`/access/validate-document`, securepassf#119). |
+| US-62 | Como titular quiero habilitar a un trabajador con sus días y horarios. | P0 | Nombre, DNI, tipo de servicio, días de la semana y franja horaria; si el DNI existe se le suma el permiso sin crear otro usuario ni otro QR. Email o teléfono: sin email no hay activación ni QR y el trabajador entra por DNI (`/access/validate-document`, securepassf#119). Mientras la cuenta esté pendiente, el titular corrige o agrega el email con `PUT /lots/{lotId}/workers/{userId}/email` y se reenvía la activación, solo si es OWNER de todos los lotes de esa persona y ella no es miembro de ningún barrio; si no, 409 `EMAIL_NOT_EDITABLE` (#181). |
 | US-63 | Como titular quiero ver y editar los horarios de mis trabajadores. | P1 | Lista con nombre, servicio y horarios; edición sin recrear el permiso. |
 | US-64 | Como titular quiero quitarle el acceso a un trabajador. | P0 | Efecto inmediato online; tras la próxima sincronización offline; no afecta sus permisos en otros lotes. |
 | US-65 | Como trabajador quiero ver mi QR y dónde trabajo. | P0 | Pantalla única: nombre, servicio, QR grande, y la lista de casas con horarios. Nada más del barrio. |

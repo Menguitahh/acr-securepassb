@@ -10,6 +10,56 @@
     }
   ],
   "paths" : {
+    "/api/v1/lots/{lotId}/workers/{userId}/email" : {
+      "put" : {
+        "tags" : [
+          "worker-controller"
+        ],
+        "operationId" : "changeEmail",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "userId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeWorkerEmailRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChangeWorkerEmailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stays/{id}/notify-resident" : {
       "post" : {
         "tags" : [
@@ -1443,6 +1493,9 @@
         ],
         "operationId" : "current",
         "responses" : {
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
+          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1452,9 +1505,6 @@
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -1951,6 +2001,12 @@
           }
         ],
         "responses" : {
+          "400" : {
+            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
+            "content" : {
+              "application/problem+json" : { }
+            }
+          },
           "200" : {
             "description" : "OK",
             "content" : {
@@ -1959,12 +2015,6 @@
                   "$ref" : "#/components/schemas/AccessLogsResponse"
                 }
               }
-            }
-          },
-          "400" : {
-            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
-            "content" : {
-              "application/problem+json" : { }
             }
           }
         }
@@ -2036,6 +2086,31 @@
   },
   "components" : {
     "schemas" : {
+      "ChangeWorkerEmailRequest" : {
+        "required" : [
+          "email"
+        ],
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "maxLength" : 160,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "ChangeWorkerEmailResponse" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "email" : {
+            "type" : "string"
+          }
+        }
+      },
       "NotifyResidentResponse" : {
         "type" : "object",
         "properties" : {
@@ -2212,10 +2287,10 @@
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
-          "dailyOrderValid" : {
+          "contactPresent" : {
             "type" : "boolean"
           },
-          "contactPresent" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }
@@ -3607,13 +3682,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
           "scheduleBundled" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }
