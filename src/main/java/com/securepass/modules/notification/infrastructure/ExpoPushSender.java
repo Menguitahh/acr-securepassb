@@ -83,7 +83,7 @@ public class ExpoPushSender implements PushSender {
 
     @Override
     public void notifyStayWarning(UUID residentUserId, StayWarning payload) {
-        String title = "Tu invitado esta por vencer";
+        String title = "Tu invitado está por vencer";
         String body = payload.subjectName() + " lleva casi todo el tiempo permitido. Faltan " + payload.minutesRemaining() + " min.";
         Map<String, Object> data = Map.of(
                 "type", "stay-warning",
@@ -98,8 +98,8 @@ public class ExpoPushSender implements PushSender {
     @Override
     public void notifyGuestArrival(UUID residentUserId, GuestArrival payload) {
         String hora = HHMM.format(payload.enteredAt());
-        String title = "Tu invitado ingreso";
-        String body = payload.subjectName() + " ingreso a las " + hora
+        String title = "Tu invitado ingresó";
+        String body = payload.subjectName() + " ingresó a las " + hora
                 + (payload.lotCode() == null ? "" : " (lote " + payload.lotCode() + ")");
         Map<String, Object> data = Map.of(
                 "type", "guest-arrival",
@@ -116,7 +116,7 @@ public class ExpoPushSender implements PushSender {
         Map<String, Object> data;
         if (payload.kind() == GuardResidentDecision.Kind.EXTENDED) {
             title = "Pase extendido";
-            body = payload.residentName() + " extendio el pase de " + payload.subjectName()
+            body = payload.residentName() + " extendió el pase de " + payload.subjectName()
                     + " hasta las " + HHMM.format(payload.expectedUntil());
             data = Map.of(
                     "type", "resident-decision",
@@ -126,7 +126,7 @@ public class ExpoPushSender implements PushSender {
                     "expectedUntil", payload.expectedUntil().toString());
         } else {
             title = "Pedido de retiro";
-            body = payload.residentName() + " pidio que " + payload.subjectName() + " se retire";
+            body = payload.residentName() + " pidió que " + payload.subjectName() + " se retire";
             data = Map.of(
                     "type", "resident-decision",
                     "kind", "EXIT_REQUESTED",

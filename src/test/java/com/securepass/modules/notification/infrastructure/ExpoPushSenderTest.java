@@ -70,7 +70,7 @@ class ExpoPushSenderTest {
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer secret"))
                 .andExpect(jsonPath("$[0].to").value(GOOD))
-                .andExpect(jsonPath("$[0].title").value("Tu invitado ingreso"))
+                .andExpect(jsonPath("$[0].title").value("Tu invitado ingresó"))
                 .andExpect(jsonPath("$[0].data.stayId").value(STAY.toString()))
                 .andRespond(withSuccess("{\"data\":[{\"status\":\"ok\",\"id\":\"tk-1\"}]}", MediaType.APPLICATION_JSON));
 
