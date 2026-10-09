@@ -34,4 +34,12 @@ public class LoggingPushSender implements PushSender {
                 residentUserId, payload.stayId(),
                 payload.enteredAt(), payload.lotCode(), payload.syncedOffline());
     }
+
+    @Override
+    public void notifyGuardOfResidentDecision(UUID guardUserId, GuardResidentDecision payload) {
+        // Sin PII (spec 5.5): subjectName / residentName quedan fuera del log.
+        LOG.info("push.resident-decision guard={} stay={} invitation={} kind={} expectedUntil={}",
+                guardUserId, payload.stayId(), payload.invitationId(),
+                payload.kind(), payload.expectedUntil());
+    }
 }

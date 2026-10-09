@@ -6,6 +6,7 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.shared.exception.BusinessRuleViolationException;
 import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import com.securepass.shared.exception.ResourceNotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,16 +30,19 @@ public class ExtendInvitationUseCase {
     private final NeighborhoodExtensionPolicyQuery policies;
     private final FamilyMemberQuery family;
     private final StayRepository stays;
+    private final ApplicationEventPublisher events;
 
     public ExtendInvitationUseCase(
             InvitationRepository invitations,
             NeighborhoodExtensionPolicyQuery policies,
             FamilyMemberQuery family,
-            StayRepository stays) {
+            StayRepository stays,
+            ApplicationEventPublisher events) {
         this.invitations = invitations;
         this.policies = policies;
         this.family = family;
         this.stays = stays;
+        this.events = events;
     }
 
     @Transactional
@@ -86,6 +90,12 @@ public class ExtendInvitationUseCase {
 
         // BR-16: actualizar expected_until de la stay abierta, si hay.
         stays.updateExpectedUntilByInvitation(invitationId, newValidUntil);
+
+        // WBS-72: notificar a la garita del ingreso. AFTER_COMMIT: si el
+        // rollback de esta tx ocurre, el push no sale.
+        events.publishEvent(new ResidentDecisionMadeEvent(
+                inv.neighborhoodId(), invitationId,
+                ResidentDecisionMadeEvent.Kind.EXTENDED));
 
         return new Result(extended, current + 1, policy.maxExtensions());
     }

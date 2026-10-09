@@ -11,6 +11,7 @@ import com.securepass.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Duration;
@@ -35,6 +36,7 @@ class ExtendInvitationUseCaseTest {
     private NeighborhoodExtensionPolicyQuery policies;
     private FamilyMemberQuery family;
     private StayRepository stays;
+    private ApplicationEventPublisher events;
     private ExtendInvitationUseCase useCase;
 
     private UUID actorUserId;
@@ -49,7 +51,8 @@ class ExtendInvitationUseCaseTest {
         policies = mock(NeighborhoodExtensionPolicyQuery.class);
         family = mock(FamilyMemberQuery.class);
         stays = mock(StayRepository.class);
-        useCase = new ExtendInvitationUseCase(invitations, policies, family, stays);
+        events = mock(ApplicationEventPublisher.class);
+        useCase = new ExtendInvitationUseCase(invitations, policies, family, stays, events);
         actorUserId = UUID.randomUUID();
         creatorUserId = UUID.randomUUID();
         invitationId = UUID.randomUUID();

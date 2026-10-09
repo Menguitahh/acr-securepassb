@@ -109,6 +109,33 @@ public class ExpoPushSender implements PushSender {
         send(residentUserId, title, body, data, null);
     }
 
+    @Override
+    public void notifyGuardOfResidentDecision(UUID guardUserId, GuardResidentDecision payload) {
+        String title;
+        String body;
+        Map<String, Object> data;
+        if (payload.kind() == GuardResidentDecision.Kind.EXTENDED) {
+            title = "Pase extendido";
+            body = payload.residentName() + " extendio el pase de " + payload.subjectName()
+                    + " hasta las " + HHMM.format(payload.expectedUntil());
+            data = Map.of(
+                    "type", "resident-decision",
+                    "kind", "EXTENDED",
+                    "stayId", payload.stayId().toString(),
+                    "invitationId", payload.invitationId().toString(),
+                    "expectedUntil", payload.expectedUntil().toString());
+        } else {
+            title = "Pedido de retiro";
+            body = payload.residentName() + " pidio que " + payload.subjectName() + " se retire";
+            data = Map.of(
+                    "type", "resident-decision",
+                    "kind", "EXIT_REQUESTED",
+                    "stayId", payload.stayId().toString(),
+                    "invitationId", payload.invitationId().toString());
+        }
+        send(guardUserId, title, body, data, null);
+    }
+
     private void send(UUID userId, String title, String body, Map<String, Object> data, String categoryId) {
         List<Device> targets = devices.findByUserId(userId);
         if (targets.isEmpty()) {

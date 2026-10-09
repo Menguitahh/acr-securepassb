@@ -8,6 +8,7 @@ import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Duration;
@@ -31,6 +32,7 @@ class RequestGuestExitUseCaseTest {
     private InvitationRepository invitations;
     private FamilyMemberQuery family;
     private StayRepository stays;
+    private ApplicationEventPublisher events;
     private RequestGuestExitUseCase useCase;
 
     private UUID actorUserId;
@@ -44,7 +46,8 @@ class RequestGuestExitUseCaseTest {
         invitations = mock(InvitationRepository.class);
         family = mock(FamilyMemberQuery.class);
         stays = mock(StayRepository.class);
-        useCase = new RequestGuestExitUseCase(invitations, family, stays);
+        events = mock(ApplicationEventPublisher.class);
+        useCase = new RequestGuestExitUseCase(invitations, family, stays, events);
         actorUserId = UUID.randomUUID();
         creatorUserId = UUID.randomUUID();
         invitationId = UUID.randomUUID();

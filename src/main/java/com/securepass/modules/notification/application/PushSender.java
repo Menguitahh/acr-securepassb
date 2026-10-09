@@ -19,6 +19,15 @@ public interface PushSender {
     void notifyGuestArrival(UUID residentUserId, GuestArrival payload);
 
     /**
+     * WBS-72 / US-42: push informativo al guardia con turno abierto en la
+     * garita del ingreso, cuando el residente decide extender el pase o
+     * pedir que la visita se retire. La pantalla Presentes de la garita
+     * sigue siendo la fuente de verdad; este push solo avisa que algo
+     * cambio y para quien, para que el guardia mire.
+     */
+    void notifyGuardOfResidentDecision(UUID guardUserId, GuardResidentDecision payload);
+
+    /**
      * securepassf#33: {@code invitationId} viaja en el push para que las
      * acciones de la notificacion (extender / que se retire) llamen a sus
      * endpoints sin abrir otra pantalla.
@@ -50,5 +59,25 @@ public interface PushSender {
             if (subjectName == null || subjectName.isBlank()) throw new IllegalArgumentException("subjectName requerido");
             if (enteredAt == null) throw new IllegalArgumentException("enteredAt requerido");
         }
+    }
+
+    record GuardResidentDecision(
+            UUID stayId,
+            UUID invitationId,
+            Kind kind,
+            String subjectName,   // invitado
+            String residentName,  // residente que decidio
+            Instant expectedUntil // usado solo para EXTENDED en el body
+    ) {
+        public GuardResidentDecision {
+            if (stayId == null) throw new IllegalArgumentException("stayId requerido");
+            if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
+            if (kind == null) throw new IllegalArgumentException("kind requerido");
+            if (subjectName == null || subjectName.isBlank()) throw new IllegalArgumentException("subjectName requerido");
+            if (residentName == null || residentName.isBlank()) throw new IllegalArgumentException("residentName requerido");
+            if (expectedUntil == null) throw new IllegalArgumentException("expectedUntil requerido");
+        }
+
+        public enum Kind { EXTENDED, EXIT_REQUESTED }
     }
 }

@@ -4,6 +4,7 @@ import com.securepass.modules.access.application.StayRepository;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,14 +26,17 @@ public class RequestGuestExitUseCase {
     private final InvitationRepository invitations;
     private final FamilyMemberQuery family;
     private final StayRepository stays;
+    private final ApplicationEventPublisher events;
 
     public RequestGuestExitUseCase(
             InvitationRepository invitations,
             FamilyMemberQuery family,
-            StayRepository stays) {
+            StayRepository stays,
+            ApplicationEventPublisher events) {
         this.invitations = invitations;
         this.family = family;
         this.stays = stays;
+        this.events = events;
     }
 
     @Transactional
@@ -53,6 +57,11 @@ public class RequestGuestExitUseCase {
         Instant persisted = stays.requestExitByInvitation(invitationId, actorUserId, now)
                 .orElseThrow(() -> new StateConflictException(
                         "no hay estadia abierta para la invitacion " + invitationId));
+
+        // WBS-72: notificar a la garita del ingreso. AFTER_COMMIT en el listener.
+        events.publishEvent(new ResidentDecisionMadeEvent(
+                inv.neighborhoodId(), invitationId,
+                ResidentDecisionMadeEvent.Kind.EXIT_REQUESTED));
 
         return new Result(invitationId, persisted);
     }
