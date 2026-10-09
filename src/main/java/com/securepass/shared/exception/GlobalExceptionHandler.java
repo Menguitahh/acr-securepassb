@@ -2,6 +2,7 @@ package com.securepass.shared.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.securepass.shared.crypto.UnreadableCiphertextException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -157,6 +158,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .toList();
         pd.setProperty("errors", errors);
         return new ResponseEntity<>(pd, HttpStatus.BAD_REQUEST);
+    }
+
+    // #157 E: el server no puede leer su propia clave de firma (master key
+    // rotada o fila corrupta). El cliente no lo arregla; se loguea en ERROR
+    // y el codigo distingue esto de un bug.
+    @ExceptionHandler(UnreadableCiphertextException.class)
+    public ProblemDetail handleUnreadableCiphertext(UnreadableCiphertextException ex) {
+        LOG.error("secreto ilegible", ex);
+        ProblemDetail pd = problem(HttpStatus.SERVICE_UNAVAILABLE, "signing-key-unreadable",
+                "No se pudo firmar el pase. Avisá al administrador del barrio.");
+        pd.setProperty("code", "SIGNING_KEY_UNREADABLE");
+        return pd;
     }
 
     // #157 C / #207: un invariante de dominio roto por el input (record o

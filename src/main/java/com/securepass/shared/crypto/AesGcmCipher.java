@@ -41,14 +41,14 @@ public class AesGcmCipher {
     }
 
     public byte[] decrypt(String encoded) {
-        if (encoded == null || encoded.isBlank()) throw new IllegalArgumentException("ciphertext requerido");
+        if (encoded == null || encoded.isBlank()) throw new UnreadableCiphertextException("ciphertext vacio");
         byte[] combined;
         try {
             combined = Base64.getDecoder().decode(encoded);
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("ciphertext no es base64 valido", e);
+            throw new UnreadableCiphertextException("ciphertext no es base64 valido", e);
         }
-        if (combined.length <= IV_LENGTH) throw new IllegalStateException("ciphertext demasiado corto");
+        if (combined.length <= IV_LENGTH) throw new UnreadableCiphertextException("ciphertext demasiado corto");
         byte[] iv = new byte[IV_LENGTH];
         System.arraycopy(combined, 0, iv, 0, IV_LENGTH);
         byte[] ct = new byte[combined.length - IV_LENGTH];
@@ -58,7 +58,7 @@ public class AesGcmCipher {
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, iv));
             return cipher.doFinal(ct);
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("AES-GCM descifrado fallo (posible tampereo)", e);
+            throw new UnreadableCiphertextException("AES-GCM descifrado fallo (posible tampereo)", e);
         }
     }
 }

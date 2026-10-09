@@ -62,6 +62,8 @@ class AesGcmCipherTest {
     void ciphertextConDistintaMasterKeyFalla() {
         String ct = cipher.encrypt("data".getBytes());
         AesGcmCipher otro = new AesGcmCipher(new MasterKey("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="));
-        assertThatThrownBy(() -> otro.decrypt(ct)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> otro.decrypt(ct)).isInstanceOf(UnreadableCiphertextException.class);
+        // #157: vacio es dato roto del server, no input del cliente (no IllegalArgumentException -> 400).
+        assertThatThrownBy(() -> otro.decrypt("")).isInstanceOf(UnreadableCiphertextException.class);
     }
 }

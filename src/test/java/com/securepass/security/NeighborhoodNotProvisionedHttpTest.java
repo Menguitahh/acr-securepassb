@@ -2,6 +2,7 @@ package com.securepass.security;
 
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
+import com.securepass.modules.invitation.application.SigningKeyIssuer;
 import com.securepass.shared.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ class NeighborhoodNotProvisionedHttpTest {
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
     @Autowired JwtService jwt;
+    @Autowired SigningKeyIssuer signingKeys;
 
     UUID barrio;
     UUID lot;
@@ -175,5 +177,30 @@ class NeighborhoodNotProvisionedHttpTest {
         assertThat(resp.body()).contains("\"neighborhoodId\":\"" + barrio + "\"");
         assertThat(resp.body()).contains("\"missing\":\"signing key activa\"");
         assertThat(resp.body()).doesNotContain("internal-error");
+    }
+
+    // #157 E: la clave existe pero no se puede descifrar (master key rotada,
+    // fila corrupta). Antes era 500 internal-error.
+    @Test
+    void postInvitations_conSigningKeyIlegible_devuelve503_con_code() throws Exception {
+        signingKeys.issueForNeighborhood(barrio);
+        jdbc.update("UPDATE signing_keys SET private_key_enc = 'bm8tZXMtdW4tY2lmcmFkby12YWxpZG8tcGFyYS1lc3RhLWNsYXZl' WHERE neighborhood_id = ?",
+                barrio);
+        String token = jwt.issue(owner, barrio, List.of(Role.RESIDENT_OWNER), List.of(lot)).token();
+        String body = """
+                {"lotId":"%s","type":"SINGLE","guestName":"G","guestDocument":"30111222",
+                 "companions":0,"validFrom":"%s","validUntil":"%s","maxUses":1}
+                """.formatted(lot, Instant.now(), Instant.now().plusSeconds(3600));
+
+        HttpResponse<String> resp = http.send(HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/invitations"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + token)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .timeout(Duration.ofSeconds(5))
+                .build(), HttpResponse.BodyHandlers.ofString());
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(503);
+        assertThat(resp.body()).contains("\"code\":\"SIGNING_KEY_UNREADABLE\"").doesNotContain("internal-error");
     }
 }
