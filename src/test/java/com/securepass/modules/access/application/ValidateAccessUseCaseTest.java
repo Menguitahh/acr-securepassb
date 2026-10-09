@@ -379,15 +379,37 @@ class ValidateAccessUseCaseTest {
         assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
     }
 
+    // BR-07: la salida no se bloquea. Antes un pase revocado no podia salir:
+    // el residente revoca justo para que la visita se vaya.
     @Test
-    void outDeniedSiRevocada() {
+    void outAllowedAunconInvitacionRevocada() {
         Invitation inv = singleInvitation(InvitationStatus.REVOKED, 0);
         stubHappyPath(inv);
         String token = signedToken(payload(NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
 
         AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, null);
 
-        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.REVOKED, invitationId));
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
+    }
+
+    // BR-07: la visita que se paso de hora tiene que poder salir con su QR.
+    @Test
+    void outAllowedAunConPaseVencido() {
+        Invitation inv = singleInvitation(InvitationStatus.EXPIRED, 1);
+        stubHappyPath(inv);
+        String token = signedToken(payload(NOW.minus(Duration.ofHours(5)), NOW.minus(Duration.ofHours(1)), 1, InvitationType.SINGLE));
+
+        AccessDecision decision = useCase.validate(neighborhoodId, token, NOW, com.securepass.modules.access.domain.Direction.OUT, null);
+
+        assertThat(decision).isInstanceOf(AccessDecision.Allowed.class);
+    }
+
+    @Test
+    void outConFirmaInvalidaSigueDenegado() {
+        AccessDecision decision = useCase.validate(neighborhoodId, "SP1.basura", NOW,
+                com.securepass.modules.access.domain.Direction.OUT, null);
+
+        assertThat(decision).isEqualTo(AccessDecision.Denied.of(DenialReason.INVALID_SIGNATURE));
     }
 
     // Fail-closed: si un status inconsistente esquiva todas las guardas

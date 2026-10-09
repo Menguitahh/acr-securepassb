@@ -100,6 +100,16 @@ public class ValidateAccessUseCase {
         // #217: el lote del invitado sale de la invitacion. Si coincide se
         // ignora; si la contradice es error del cliente.
         if (lotId != null && !lotId.equals(inv.lotId())) throw new InvalidLotChoiceException();
+        // BR-07: la salida no se bloquea. Un QR autentico del barrio sale
+        // aunque el pase este vencido, revocado o el lote suspendido: justo la
+        // visita que se paso de hora (o a la que el residente le revoco el
+        // pase para que se vaya) es la que tiene que poder salir. No consume
+        // cupo (BR-06) y cierra la estadia si la hay.
+        if (direction == Direction.OUT) {
+            Optional<LotSnapshot> exitLot = lots.find(inv.lotId());
+            if (exitLot.isEmpty()) return AccessDecision.Denied.of(DenialReason.UNKNOWN, inv.id());
+            return new AccessDecision.Allowed(inv.id(), inv.jti(), inv.guestName(), exitLot.get().code(), inv.companions());
+        }
         if (inv.status() == InvitationStatus.REVOKED) return AccessDecision.Denied.of(DenialReason.REVOKED, inv.id());
 
         Optional<LotSnapshot> lotOpt = lots.find(inv.lotId());
@@ -186,6 +196,14 @@ public class ValidateAccessUseCase {
             return AccessDecision.Denied.of(DenialReason.REVOKED);
         }
         WorkerValidationQuery.WorkerContext ctx = ctxOpt.get();
+        // BR-07: el trabajador sale aunque su franja haya cerrado. Sin elegir
+        // lote: el egreso no pregunta a que casa fue.
+        if (direction == Direction.OUT) {
+            List<AccessDecision.LotOption> all = ctx.lots().stream()
+                    .map(l -> new AccessDecision.LotOption(l.lotId(), l.lotCode(), l.service()))
+                    .toList();
+            return new AccessDecision.AllowedWorker(p.sub(), p.jti(), ctx.workerName(), all);
+        }
         // #217 / #219: en sync, capturedAt es la hora del scan, no la del sync.
         List<AccessDecision.LotOption> inSlot = WorkerLots.inSlot(ctx, capturedAt, lotId);
         if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);

@@ -512,4 +512,33 @@ class LotChoiceHttpTest {
         assertThat(validateDocument(workerDni, null, CAPTURED_AT).statusCode()).isEqualTo(404);
         assertThat(logs()).isZero();
     }
+
+    // ---- BR-07: la salida no se bloquea ----
+
+    private HttpResponse<String> exit(String token, Instant capturedAt) throws Exception {
+        return post("validate", "{\"gateId\":\"" + gate + "\",\"token\":\"" + token + "\","
+                + "\"direction\":\"OUT\",\"companions\":0,\"capturedAt\":\"" + capturedAt + "\","
+                + "\"clientEventId\":\"" + UUID.randomUUID() + "\"}");
+    }
+
+    @Test
+    void invitadoConElPaseVencidoPuedeSalir() throws Exception {
+        Instant tarde = CAPTURED_AT.plusSeconds(3 * 3600);
+        assertThat(json.readTree(validate(guestToken, null).body()).get("result").asText()).isEqualTo("ALLOWED");
+
+        JsonNode body = json.readTree(exit(guestToken, tarde).body());
+
+        assertThat(body.get("result").asText()).isEqualTo("ALLOWED");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM stays WHERE invitation_id = ? AND exited_at IS NULL", Integer.class, invitation))
+                .isZero();
+    }
+
+    @Test
+    void trabajadorFueraDeFranjaSaleSinElegirLote() throws Exception {
+        JsonNode body = json.readTree(exit(workerToken(), DOMINGO).body());
+
+        assertThat(body.get("result").asText()).isEqualTo("ALLOWED_WORKER");
+        assertThat(body.has("logId")).isTrue();
+    }
 }

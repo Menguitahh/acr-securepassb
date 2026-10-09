@@ -527,7 +527,7 @@ CREATE INDEX idx_devices_user ON devices (user_id);
 | BR-04 | `valid_until - valid_from` ≤ 30 días para `SINGLE`/`EVENT`. Se evalúa solo sobre invitaciones `ACTIVE` (regla de creación, no de auditoría); una fila cerrada rehidratada conserva su ventana original aunque exceda el límite (relevante para RECURRING revocadas en la migración V17). El pase permanente del residente (`resident_pass=true`) queda exento: su ventana es `FAR_FUTURE` por diseño. |
 | BR-05 | `max_uses` de `EVENT` ≤ 200. Por encima, se requiere aprobación de `ADMIN`. |
 | BR-06 | El `used_count` se incrementa **solo** en `direction = 'IN'` con `result = 'ALLOWED'`. Los egresos no consumen cupo. |
-| BR-07 | Un egreso sin ingreso previo registrado se acepta y se marca `subject_type = 'MANUAL'` (no se bloquea a nadie la salida). |
+| BR-07 | Un egreso sin ingreso previo registrado se acepta y se marca `subject_type = 'MANUAL'` (no se bloquea a nadie la salida). Con un QR auténtico del barrio, el egreso se acepta aunque el pase esté vencido o revocado, el lote suspendido o el trabajador fuera de su franja; no pide elegir lote. |
 | BR-08 | Alerta de permanencia excedida: ingreso `ALLOWED` sin egreso correspondiente pasadas `stay_alert_minutes`. |
 | BR-09 | Un guardia no puede tener dos turnos abiertos simultáneos (garantizado por índice `uq_guard_open_shift`). |
 | BR-10 | El residente puede escanear su propio QR personal (permanente, `EVENT` con `resident_pass=true` y `valid_until=FAR_FUTURE`) sin consumir cupo. |

@@ -120,7 +120,8 @@ public class RecordAccessAttemptUseCase {
         // #217: online, con mas de un lote en franja y sin eleccion, la garita
         // elige antes de que se guarde nada. En sync el guardia ya no esta: se
         // guarda como vino (lot_id NULL si no mando lotId).
-        if (!cmd.syncedOffline() && decision instanceof AccessDecision.AllowedWorker w && w.lots().size() > 1) {
+        if (!cmd.syncedOffline() && cmd.direction() == Direction.IN
+                && decision instanceof AccessDecision.AllowedWorker w && w.lots().size() > 1) {
             return new AccessDecision.NeedsLotSelection(w.userId(), w.workerName(), w.lots());
         }
         return decision;
