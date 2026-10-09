@@ -148,6 +148,12 @@ class AccessLogsListHttpTest {
         assertBadRequest(get("&reason=EXPIRADO"));
     }
 
+    // #207: antes era 500 internal-error.
+    @Test
+    void resultFueraDelEnumEs400() throws Exception {
+        assertBadRequest(get("&result=FOO"));
+    }
+
     // No existe un permitido con motivo de denegacion: combinacion invalida,
     // no lista vacia.
     @Test

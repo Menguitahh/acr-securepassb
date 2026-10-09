@@ -2,6 +2,7 @@ package com.securepass.shared.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -156,6 +157,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .toList();
         pd.setProperty("errors", errors);
         return new ResponseEntity<>(pd, HttpStatus.BAD_REQUEST);
+    }
+
+    // #157 C / #207: un invariante de dominio roto por el input (record o
+    // value object que valida en el constructor) es error del cliente, no
+    // 500. Se loguea en WARN con stack: si fuera un bug propio, queda rastro.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
+        LOG.warn("request invalido: {}", ex.getMessage(), ex);
+        return problem(HttpStatus.BAD_REQUEST, "validation-error",
+                Optional.ofNullable(ex.getMessage()).orElse("Datos invalidos"));
+    }
+
+    // #157 D: UNIQUE / FK / CHECK sin traductor dedicado. Sin el detalle del
+    // driver: puede traer valores de otras filas.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        LOG.warn("violacion de integridad", ex);
+        return problem(HttpStatus.CONFLICT, "conflict",
+                "El dato choca con uno existente o referencia algo que no existe");
     }
 
     @ExceptionHandler(Exception.class)
