@@ -18,14 +18,21 @@ public interface PushSender {
      */
     void notifyGuestArrival(UUID residentUserId, GuestArrival payload);
 
+    /**
+     * securepassf#33: {@code invitationId} viaja en el push para que las
+     * acciones de la notificacion (extender / que se retire) llamen a sus
+     * endpoints sin abrir otra pantalla.
+     */
     record StayWarning(
             UUID stayId,
+            UUID invitationId,
             String subjectName,
             Instant enteredAt,
             long minutesRemaining
     ) {
         public StayWarning {
             if (stayId == null) throw new IllegalArgumentException("stayId requerido");
+            if (invitationId == null) throw new IllegalArgumentException("invitationId requerido");
             if (subjectName == null || subjectName.isBlank()) throw new IllegalArgumentException("subjectName requerido");
             if (enteredAt == null) throw new IllegalArgumentException("enteredAt requerido");
         }

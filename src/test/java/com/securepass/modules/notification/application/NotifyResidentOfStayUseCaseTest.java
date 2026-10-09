@@ -85,6 +85,7 @@ class NotifyResidentOfStayUseCaseTest {
         ArgumentCaptor<PushSender.StayWarning> payload = ArgumentCaptor.forClass(PushSender.StayWarning.class);
         verify(push).notifyStayWarning(eq(residentId), payload.capture());
         assertThat(payload.getValue().subjectName()).isEqualTo("Maria Lopez");
+        assertThat(payload.getValue().invitationId()).isEqualTo(invitationId);
         assertThat(payload.getValue().enteredAt()).isEqualTo(ENTER);
         verify(stays).markResidentNotified(eq(stayId), any(Instant.class));
     }

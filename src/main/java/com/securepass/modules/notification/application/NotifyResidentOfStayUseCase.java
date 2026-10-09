@@ -73,7 +73,7 @@ public class NotifyResidentOfStayUseCase {
 
         long minutesRemaining = Math.max(0, Duration.between(now, stay.expectedUntil()).toMinutes());
         push.notifyStayWarning(inv.createdBy(), new PushSender.StayWarning(
-                stay.id(), stay.subjectName(), stay.enteredAt(), minutesRemaining));
+                stay.id(), inv.id(), stay.subjectName(), stay.enteredAt(), minutesRemaining));
 
         stays.markResidentNotified(stayId, now);
         return new Result(stayId, now, minutesRemaining);

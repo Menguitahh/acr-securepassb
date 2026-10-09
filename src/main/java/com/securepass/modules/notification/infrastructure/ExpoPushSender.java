@@ -42,6 +42,7 @@ import java.util.UUID;
 public class ExpoPushSender implements PushSender {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExpoPushSender.class);
+    static final String STAY_WARNING_CATEGORY = "stay-warning";
     private static final int EXPO_BATCH_LIMIT = 100;
     private static final String DEVICE_NOT_REGISTERED = "DeviceNotRegistered";
     static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
@@ -87,8 +88,11 @@ public class ExpoPushSender implements PushSender {
         Map<String, Object> data = Map.of(
                 "type", "stay-warning",
                 "stayId", payload.stayId().toString(),
+                "invitationId", payload.invitationId().toString(),
                 "minutesRemaining", payload.minutesRemaining());
-        send(residentUserId, title, body, data);
+        // securepassf#33: la app registra la categoria "stay-warning" con los
+        // botones Extender y Que se retire.
+        send(residentUserId, title, body, data, STAY_WARNING_CATEGORY);
     }
 
     @Override
@@ -102,10 +106,10 @@ public class ExpoPushSender implements PushSender {
                 "stayId", payload.stayId().toString(),
                 "enteredAt", payload.enteredAt().toString(),
                 "syncedOffline", payload.syncedOffline());
-        send(residentUserId, title, body, data);
+        send(residentUserId, title, body, data, null);
     }
 
-    private void send(UUID userId, String title, String body, Map<String, Object> data) {
+    private void send(UUID userId, String title, String body, Map<String, Object> data, String categoryId) {
         List<Device> targets = devices.findByUserId(userId);
         if (targets.isEmpty()) {
             LOG.debug("push.skip user={} sin devices registrados", userId);
@@ -115,7 +119,7 @@ public class ExpoPushSender implements PushSender {
         List<String> tokens = new ArrayList<>(targets.size());
         for (Device d : targets) {
             tokens.add(d.expoPushToken());
-            messages.add(Map.of(
+            Map<String, Object> message = new java.util.HashMap<>(Map.of(
                     "to", d.expoPushToken(),
                     "title", title,
                     "body", body,
@@ -123,6 +127,8 @@ public class ExpoPushSender implements PushSender {
                     "sound", "default",
                     "priority", "high",
                     "channelId", "default"));
+            if (categoryId != null) message.put("categoryId", categoryId);
+            messages.add(message);
         }
         for (int i = 0; i < messages.size(); i += EXPO_BATCH_LIMIT) {
             int to = Math.min(i + EXPO_BATCH_LIMIT, messages.size());

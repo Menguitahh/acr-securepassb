@@ -80,6 +80,23 @@ class ExpoPushSenderTest {
         verify(devices, never()).deleteByToken(any());
     }
 
+    // securepassf#33: el aviso lleva la categoria con acciones y el
+    // invitationId que usan Extender / Que se retire.
+    @Test
+    void avisoDePermanenciaLlevaCategoriaEInvitationId() {
+        UUID invitation = UUID.randomUUID();
+        when(devices.findByUserId(USER)).thenReturn(List.of(device(GOOD)));
+        server.expect(requestTo(URL))
+                .andExpect(jsonPath("$[0].categoryId").value("stay-warning"))
+                .andExpect(jsonPath("$[0].data.type").value("stay-warning"))
+                .andExpect(jsonPath("$[0].data.invitationId").value(invitation.toString()))
+                .andRespond(withSuccess("{\"data\":[{\"status\":\"ok\",\"id\":\"tk-1\"}]}", MediaType.APPLICATION_JSON));
+
+        sender("secret").notifyStayWarning(USER, new PushSender.StayWarning(STAY, invitation, "Maria Lopez", ENTERED, 15));
+
+        server.verify();
+    }
+
     // Requisito 4 del issue: token invalido se limpia de la tabla.
     @Test
     void borraTokenSiExpoReportaDeviceNotRegistered() {
