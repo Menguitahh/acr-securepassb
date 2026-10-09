@@ -1586,49 +1586,49 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 1 | Bootstrap del backend | `securepassb` | `chore/setup-backend-skeleton` | — | Proyecto Gradle con Java 21 y Spring Boot 3.3; `docker-compose.yml` levanta Postgres 16 + Redis 7; `/actuator/health` responde 200; estructura hexagonal de §3.1 creada con paquetes vacíos. |
+| 1 | Bootstrap del backend | `securepassb` | `chore/setup-backend-skeleton` | — | **Cerrado.** Proyecto Gradle con Java 21 y Spring Boot 3.3; `docker-compose.yml` levanta Postgres 16 + Redis 7; `/actuator/health` responde 200; estructura hexagonal de §3.1 creada con paquetes vacíos. |
 | 2 | Bootstrap del frontend | `securepassf` | `chore/setup-frontend-workspace` | — | Workspaces npm con `mobile`, `web`, `packages/contracts`; app Expo abre en Expo Go; Next.js 16 arranca; `tsc --noEmit` limpio con la config estricta de §10.2. |
-| 3 | CI y protección de ramas | ambos | `chore/setup-ci` | — | Workflows corriendo en PR; `main` y `develop` protegidas; merge bloqueado si CI falla; plantilla de PR con checklist de DoD. |
+| 3 | CI y protección de ramas | ambos | `chore/setup-ci` | — | **Backend cerrado.** Workflows corriendo en PR; `main` y `develop` protegidas; merge bloqueado si CI falla; plantilla de PR con checklist de DoD. |
 | 4 | Design system base | `securepassf` | `feature/ui-design-system` | §9 | Tokens de §9.1 en `nativewind` y Tailwind 4; primitivas Button, Input, Card, EmptyState, ErrorState, Spinner; cero emojis; ningún componente manual duplicando la primitiva. |
 
 ### Fase 1 — Backend core
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 5 | Esquema de base de datos | `securepassb` | `feature/db-initial-schema` | US-05 | `V1__init.sql` completo de §4.2 aplicado por Flyway; trigger de inmutabilidad de `access_logs` verificado con test que espera excepción en UPDATE; test de Testcontainers en verde. |
-| 6 | Dominio de identidad | `securepassb` | `feature/auth-domain` | — | Entidades `User`, `Membership`, `Role`; invariantes validadas en constructor; tests unitarios sin contexto Spring. |
-| 7 | Login y JWT | `securepassb` | `feature/auth-login-jwt` | US-01 | `POST /auth/login` devuelve el payload de §7.1; BCrypt cost 12; respuesta genérica ante credenciales inválidas; test de contrato. |
-| 8 | Refresh con rotación | `securepassb` | `feature/auth-refresh-rotation` | US-02, US-04 | Refresh opaco hasheado en Redis; rotación en cada uso; reutilización invalida la familia (test explícito); logout invalida. |
-| 9 | Rate limiting | `securepassb` | `feature/auth-rate-limiting` | US-01 | Límites de §5.4 sobre Redis; 429 con `Retry-After`; test de integración que dispara el bloqueo. |
-| 10 | Autorización por rol y barrio | `securepassb` | `feature/auth-authorization` | US-03 | `@PreAuthorize` en cada endpoint; test que verifica que un usuario del barrio A recibe 403 sobre recursos del barrio B. |
-| 11 | Gestión de lotes | `securepassb` | `feature/registry-lots-crud` | US-05, US-06, US-08 | CRUD de lotes; vínculo usuario-lote; un solo `is_owner` por lote; suspensión aplica BR-03. |
-| 12 | Permisos de unidad familiar | `securepassb` | `feature/registry-family-permissions` | US-07 | `can_invite` solo modificable por owner; desactivar miembro revoca sus invitaciones activas (test). |
-| 13 | Manejo global de errores | `securepassb` | `feature/shared-error-handling` | §7.6 | `GlobalExceptionHandler` devuelve `application/problem+json`; todos los códigos de §7.6 cubiertos; sin stacktraces en respuesta. |
-| 14 | Contratos OpenAPI | ambos | `chore/api-contracts-generation` | — | springdoc expone `/v3/api-docs`; script genera tipos TS en `packages/contracts`; CI falla si los contratos están desactualizados. |
+| 5 | Esquema de base de datos | `securepassb` | `feature/db-initial-schema` | US-05 | **Cerrado.** `V1__init.sql` completo de §4.2 aplicado por Flyway; trigger de inmutabilidad de `access_logs` verificado con test que espera excepción en UPDATE; test de Testcontainers en verde. |
+| 6 | Dominio de identidad | `securepassb` | `feature/auth-domain` | — | **Cerrado.** Entidades `User`, `Membership`, `Role`; invariantes validadas en constructor; tests unitarios sin contexto Spring. |
+| 7 | Login y JWT | `securepassb` | `feature/auth-login-jwt` | US-01 | **Cerrado.** `POST /auth/login` devuelve el payload de §7.1; BCrypt cost 12; respuesta genérica ante credenciales inválidas; test de contrato. |
+| 8 | Refresh con rotación | `securepassb` | `feature/auth-refresh-rotation` | US-02, US-04 | **Cerrado.** Refresh opaco hasheado en Redis; rotación en cada uso; reutilización invalida la familia (test explícito); logout invalida. |
+| 9 | Rate limiting | `securepassb` | `feature/auth-rate-limiting` | US-01 | **Cerrado.** Límites de §5.4 sobre Redis; 429 con `Retry-After`; test de integración que dispara el bloqueo. |
+| 10 | Autorización por rol y barrio | `securepassb` | `feature/auth-authorization` | US-03 | **Cerrado.** `@PreAuthorize` en cada endpoint; test que verifica que un usuario del barrio A recibe 403 sobre recursos del barrio B. |
+| 11 | Gestión de lotes | `securepassb` | `feature/registry-lots-crud` | US-05, US-06, US-08 | **Cerrado.** CRUD de lotes; vínculo usuario-lote; un solo `is_owner` por lote; suspensión aplica BR-03. |
+| 12 | Permisos de unidad familiar | `securepassb` | `feature/registry-family-permissions` | US-07 | **Cerrado.** `can_invite` solo modificable por owner; desactivar miembro revoca sus invitaciones activas (test). |
+| 13 | Manejo global de errores | `securepassb` | `feature/shared-error-handling` | §7.6 | **Cerrado.** `GlobalExceptionHandler` devuelve `application/problem+json`; todos los códigos de §7.6 cubiertos; sin stacktraces en respuesta. |
+| 14 | Contratos OpenAPI | ambos | `chore/api-contracts-generation` | — | **Backend cerrado.** springdoc expone `/v3/api-docs`; script genera tipos TS en `packages/contracts`; CI falla si los contratos están desactualizados. |
 
 ### Fase 2 — Motor de invitaciones y QR
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 15 | Criptografía Ed25519 | `securepassb` | `feature/invitation-crypto-ed25519` | §5.1 | Generación de par de claves por barrio; privada cifrada AES-GCM con master key de entorno; `GET /access/keys` devuelve solo públicas activas; rotación soportada vía `kid`. |
-| 16 | Emisión de token QR | `securepassb` | `feature/invitation-token-issuing` | US-10 | Formato `SP1.<payload>.<sig>` de §5.1; payload < 300 bytes verificado por test; sin PII en el payload; test de round-trip firma/verificación. |
-| 17 | Dominio de invitación | `securepassb` | `feature/invitation-domain` | §6 | Máquina de estados con transiciones prohibidas testeadas; BR-04, BR-05, BR-06, BR-10 cubiertas por tests unitarios. |
-| 18 | API de invitaciones | `securepassb` | `feature/invitation-api` | US-10, US-12, US-13, US-15 | Endpoints de §7.2; BR-01 y BR-02 aplicadas; los tres tipos validados; 422 con detalle ante violación de regla. |
-| 19 | Revocación | `securepassb` | `feature/invitation-revoke` | US-14 | Revocación por creador, owner o admin; transición a `REVOKED` irreversible; `jti` publicado en la lista de revocados que consumen las garitas. |
-| 20 | Expiración programada | `securepassb` | `feature/invitation-expiry-job` | §6 | Job cada 15 min materializa `EXPIRED`; la validación nunca depende solo del job (test con job detenido). |
-| 21 | QR personal de residente | `securepassb` | `feature/invitation-resident-pass` | US-16 | Token permanente por membresía; no incrementa `used_count`; se invalida al desactivar la membresía. |
+| 15 | Criptografía Ed25519 | `securepassb` | `feature/invitation-crypto-ed25519` | §5.1 | **Cerrado.** Generación de par de claves por barrio; privada cifrada AES-GCM con master key de entorno; `GET /access/keys` devuelve solo públicas activas; rotación soportada vía `kid`. |
+| 16 | Emisión de token QR | `securepassb` | `feature/invitation-token-issuing` | US-10 | **Cerrado.** Formato `SP1.<payload>.<sig>` de §5.1; payload < 300 bytes verificado por test; sin PII en el payload; test de round-trip firma/verificación. |
+| 17 | Dominio de invitación | `securepassb` | `feature/invitation-domain` | §6 | **Cerrado.** Máquina de estados con transiciones prohibidas testeadas; BR-04, BR-05, BR-06, BR-10 cubiertas por tests unitarios. |
+| 18 | API de invitaciones | `securepassb` | `feature/invitation-api` | US-10, US-12, US-13, US-15 | **Cerrado.** Endpoints de §7.2; BR-01 y BR-02 aplicadas; los tres tipos validados; 422 con detalle ante violación de regla. |
+| 19 | Revocación | `securepassb` | `feature/invitation-revoke` | US-14 | **Cerrado.** Revocación por creador, owner o admin; transición a `REVOKED` irreversible; `jti` publicado en la lista de revocados que consumen las garitas. |
+| 20 | Expiración programada | `securepassb` | `feature/invitation-expiry-job` | §6 | **Cerrado.** Job cada 15 min materializa `EXPIRED`; la validación nunca depende solo del job (test con job detenido). |
+| 21 | QR personal de residente | `securepassb` | `feature/invitation-resident-pass` | US-16 | **Cerrado.** Token permanente por membresía; no incrementa `used_count`; se invalida al desactivar la membresía. |
 
 ### Fase 3 — Validación de accesos
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 22 | Caso de uso de validación | `securepassb` | `feature/access-validation-usecase` | US-17, US-20 | `AccessDecision` sellado de §6; los 8 `denial_reason` producidos por su condición; early returns según §10.1. |
-| 23 | Anti-replay con Redis | `securepassb` | `feature/access-anti-replay` | §5.2 | `SETNX` por `jti:useSeq`; mismo `clientEventId` es idempotente, distinto es `REPLAY`; `SELECT FOR UPDATE` sobre `invitations`; test concurrente con 2 hilos escaneando el mismo QR verifica un solo consumo. |
-| 24 | Endpoint de validación | `securepassb` | `feature/access-validate-endpoint` | US-17 | `POST /access/validate` con payloads de §7.3; DENIED devuelve 200 con motivo, no 4xx; p95 < 200 ms medido en test de carga básico. |
-| 25 | Sync de eventos offline | `securepassb` | `feature/access-offline-sync` | US-19 | `POST /access/sync` idempotente por `clientEventId`; batch de 50; conflictos resueltos first-captured-wins; duplicados persistidos como `REPLAY`; desvío de reloj > 5 min marcado. |
-| 26 | Ingreso manual | `securepassb` | `feature/access-manual-entry` | US-21 | `POST /access/manual` con nombre, documento y lote; queda como `subject_type = 'MANUAL'`; requiere turno abierto. |
-| 27 | Turnos de guardia | `securepassb` | `feature/shift-management` | US-23 | Abrir/cerrar turno; BR-09 garantizada por índice y test de 409; accesos del período asociados al turno. |
-| 28 | Bitácora consultable | `securepassb` | `feature/access-logs-query` | US-26, US-30 | `GET /access-logs` con filtros y paginación; residente ve solo su lote (test de aislamiento); consulta de 90 días con índices, sin seq scan. |
+| 22 | Caso de uso de validación | `securepassb` | `feature/access-validation-usecase` | US-17, US-20 | **Cerrado.** `AccessDecision` sellado de §6; los 8 `denial_reason` producidos por su condición; early returns según §10.1. |
+| 23 | Anti-replay con Redis | `securepassb` | `feature/access-anti-replay` | §5.2 | **Cerrado.** `SETNX` por `jti:useSeq`; mismo `clientEventId` es idempotente, distinto es `REPLAY`; `SELECT FOR UPDATE` sobre `invitations`; test concurrente con 2 hilos escaneando el mismo QR verifica un solo consumo. |
+| 24 | Endpoint de validación | `securepassb` | `feature/access-validate-endpoint` | US-17 | **Cerrado.** `POST /access/validate` con payloads de §7.3; DENIED devuelve 200 con motivo, no 4xx; p95 < 200 ms medido en test de carga básico. |
+| 25 | Sync de eventos offline | `securepassb` | `feature/access-offline-sync` | US-19 | **Cerrado.** `POST /access/sync` idempotente por `clientEventId`; batch de 50; conflictos resueltos first-captured-wins; duplicados persistidos como `REPLAY`; desvío de reloj > 5 min marcado. |
+| 26 | Ingreso manual | `securepassb` | `feature/access-manual-entry` | US-21 | **Cerrado.** `POST /access/manual` con nombre, documento y lote; queda como `subject_type = 'MANUAL'`; requiere turno abierto. |
+| 27 | Turnos de guardia | `securepassb` | `feature/shift-management` | US-23 | **Cerrado.** Abrir/cerrar turno; BR-09 garantizada por índice y test de 409; accesos del período asociados al turno. |
+| 28 | Bitácora consultable | `securepassb` | `feature/access-logs-query` | US-26, US-30 | **Cerrado.** `GET /access-logs` con filtros y paginación; residente ve solo su lote (test de aislamiento); consulta de 90 días con índices, sin seq scan. |
 
 ### Fase 4 — App del guardia
 
@@ -1653,7 +1653,7 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 | 40 | Crear invitación | `securepassf` | `feature/invitation-create-flow` | US-10, US-12, US-13 | Formulario por tipo; validación client-side coherente con BR-04 y BR-05; QR visible al confirmar. |
 | 41 | Compartir pase | `securepassf` | `feature/invitation-share` | US-11 | Share sheet nativo; imagen del QR + texto con barrio, lote y ventana; deep link `securepass://i/{id}`. |
 | 42 | Gestión de pases | `securepassf` | `feature/invitation-manage` | US-14, US-15 | Revocar con confirmación; contador de usos restantes; el QR no se renderiza si el estado no es `ACTIVE`. |
-| 43 | Push de ingreso | ambos | `feature/notification-guest-arrival` | US-25 | Registro de `expo_push_token` en `devices`; push < 5 s online; para eventos offline, push al sincronizar con la hora real; token inválido se limpia de la tabla. |
+| 43 | Push de ingreso | ambos | `feature/notification-guest-arrival` | US-25 | **Backend cerrado.** Registro de `expo_push_token` en `devices`; push < 5 s online; para eventos offline, push al sincronizar con la hora real; token inválido se limpia de la tabla. |
 | 44 | Historial familiar | `securepassf` | `feature/access-history-view` | US-26 | Lista paginada con scroll infinito; filtros por tipo; solo el lote propio. |
 | 45 | Unidad familiar | `securepassf` | `feature/family-members-management` | US-07 | Alta de miembros y toggle de `can_invite` visible solo para el titular. |
 
@@ -1684,9 +1684,9 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 59 | DNI obligatorio en invitación | `securepassb` | `feature/invitation-required-document` | US-34 | Migración V4 con backfill; validación de formato; 422 sin DNI; el payload del QR sigue sin PII (test). |
-| 60 | Dominio y API de enrolamiento | `securepassb` | `feature/access-enrollment` | US-35, US-36 | `POST /access/enroll`; `DOCUMENT_MISMATCH` persiste el intento; enrolamiento único por invitación; BR-12 y BR-13 con tests. |
-| 61 | Enrolamiento en validación | `securepassb` | `feature/access-enrollment-gate` | US-35, US-36 | La validación devuelve `NEEDS_ENROLLMENT` si la invitación no está enrolada; los ingresos siguientes pasan directo. |
+| 59 | DNI obligatorio en invitación | `securepassb` | `feature/invitation-required-document` | US-34 | **Cerrado.** Migración V4 con backfill; validación de formato; 422 sin DNI; el payload del QR sigue sin PII (test). |
+| 60 | Dominio y API de enrolamiento | `securepassb` | `feature/access-enrollment` | US-35, US-36 | **Cerrado.** `POST /access/enroll`; `DOCUMENT_MISMATCH` persiste el intento; enrolamiento único por invitación; BR-12 y BR-13 con tests. |
+| 61 | Enrolamiento en validación | `securepassb` | `feature/access-enrollment-gate` | US-35, US-36 | **Cerrado.** La validación devuelve `NEEDS_ENROLLMENT` si la invitación no está enrolada; los ingresos siguientes pasan directo. |
 | 62 | Enrolamiento offline | `securepassf` | `feature/scanner-offline-enrollment` | US-36 | `enrollments_cache` en SQLite; estado `needs_enrollment` en `validateOffline` con tests; encolado en outbox. |
 | 63 | Escaneo de DNI en garita | `securepassf` | `feature/scanner-document-pdf417` | US-22, US-35 | PDF417 con `expo-camera`; parser del DNI argentino en `lib.ts` con tests; fallback a carga manual a los 5 s; pantalla de mismatch clara. |
 | 64 | DNI en el alta de invitación | `securepassf` | `feature/invitation-guest-document` | US-34 | Campo obligatorio con validación en cliente; mensaje explicando para qué se usa. |
@@ -1695,13 +1695,13 @@ Cada issue lleva: rama exacta, repositorio, historias que cubre y criterios de a
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 65 | Dominio de estadías | `securepassb` | `feature/stay-domain` | US-37 | Migración V4; ingreso abre `stay`, egreso la cierra; BR-14 con tests; índice único de estadía abierta verificado. |
-| 66 | API de presentes | `securepassb` | `feature/stay-open-list` | US-38 | `GET /stays/open` con nombre, lote, hora y minutos restantes; sin seq scan; aislamiento por barrio testeado. |
-| 67 | Cierre manual | `securepassb` | `feature/stay-manual-close` | US-39 | `POST /stays/{id}/close`; queda marcado `closed_manually` con el guardia; append-only respetado. |
+| 65 | Dominio de estadías | `securepassb` | `feature/stay-domain` | US-37 | **Cerrado.** Migración V4; ingreso abre `stay`, egreso la cierra; BR-14 con tests; índice único de estadía abierta verificado. |
+| 66 | API de presentes | `securepassb` | `feature/stay-open-list` | US-38 | **Cerrado.** `GET /stays/open` con nombre, lote, hora y minutos restantes; sin seq scan; aislamiento por barrio testeado. |
+| 67 | Cierre manual | `securepassb` | `feature/stay-manual-close` | US-39 | **Cerrado.** `POST /stays/{id}/close`; queda marcado `closed_manually` con el guardia; append-only respetado. |
 | 68 | Lista de presentes en garita | `securepassf` | `feature/guard-present-list` | US-38, US-39 | Lista con orden por ingreso; fila resaltada al acercarse el vencimiento; cierre manual con confirmación; funciona offline. |
 | 69 | Aviso de permanencia | `securepassf` | `feature/guard-stay-warning` | US-40 | Notificación local a `expected_until - stay_warning_minutes`; una sola vez por estadía; no depende de red. |
-| 70 | Aviso al residente | ambos | `feature/notification-stay-warning` | US-41 | `POST /stays/{id}/notify-resident`; push con nombre, hora y minutos restantes; envío registrado. |
-| 71 | Extensión de invitación | `securepassb` | `feature/invitation-extend` | US-42, US-43 | `POST /invitations/{id}/extend`; BR-16 y BR-17 con tests; tope por barrio; actualiza `expected_until` de la estadía abierta. |
+| 70 | Aviso al residente | ambos | `feature/notification-stay-warning` | US-41 | **Backend cerrado.** `POST /stays/{id}/notify-resident`; push con nombre, hora y minutos restantes; envío registrado. |
+| 71 | Extensión de invitación | `securepassb` | `feature/invitation-extend` | US-42, US-43 | **Cerrado.** `POST /invitations/{id}/extend`; BR-16 y BR-17 con tests; tope por barrio; actualiza `expected_until` de la estadía abierta. |
 | 72 | Push accionable en residente | `securepassf` | `feature/resident-stay-response` | US-42 | Dos acciones en la notificación; la decisión llega a la garita en < 5 s; motivo visible al alcanzar el tope. |
 
 **Orden de ejecución:** 59, 60, 61 (backend) → 62, 63, 64 (frontend) → 65, 66, 67 (backend) → 68, 69 (frontend) → 70, 71, 72 (ambos).
@@ -1720,29 +1720,29 @@ estructural, va antes de construir encima; F (Fase 15) puede adelantarse.
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 100 | Infraestructura de email | `securepassb` | `feature/notification-email-sender` | US-50 | Puerto `EmailSender` + adapter Resend detrás de flag + `LoggingEmailSender` para dev; plantillas en recursos; envío asíncrono con timeout, fuera de la ruta del request. |
-| 101 | Tokens de activación | `securepassb` | `feature/auth-activation-tokens` | US-51 | Migración: tabla `activation_tokens` (hash del token, user_id, propósito, expira, consumido); 256 bits de entropía; un solo uso garantizado por índice. |
-| 102 | Endpoints de activación | `securepassb` | `feature/auth-activation-endpoints` | US-52, US-54 | `GET /activation/{token}` valida y devuelve datos del usuario; `POST /activation/{token}` define contraseña y activa; 410 si vencido o consumido; página web estática de respaldo en `GET /activar/{token}` para requests no-app. |
-| 103 | Recuperación de contraseña | `securepassb` | `feature/auth-password-reset` | US-53 | `POST /auth/forgot-password` y `POST /auth/reset-password`; respuesta idéntica exista o no el email; rate limit 3 por hora por email. |
-| 104 | Página web de activación | `securepassb` | `feature/auth-activation-web` | US-52 | Página web server-rendered en `GET /activar/{token}` (no pantalla de app móvil); template único que despacha por `purpose` del GET; formulario de contraseña con confirmación; 410 muestra "contactá a la administración"; `Referrer-Policy: no-referrer` y redirección post-éxito con `replace` para no dejar el token en el historial. |
-| 105 | Página web de recuperación | `securepassb` | `feature/auth-activation-web` | US-53 | Mismo template que WBS-104; despacho por `purpose=PASSWORD_RESET` del GET; 410 linkea a `/forgot-password`; POST a `/api/v1/auth/reset-password`. |
+| 100 | Infraestructura de email | `securepassb` | `feature/notification-email-sender` | US-50 | **Cerrado.** Puerto `EmailSender` + adapter Resend detrás de flag + `LoggingEmailSender` para dev; plantillas en recursos; envío asíncrono con timeout, fuera de la ruta del request. |
+| 101 | Tokens de activación | `securepassb` | `feature/auth-activation-tokens` | US-51 | **Cerrado.** Migración: tabla `activation_tokens` (hash del token, user_id, propósito, expira, consumido); 256 bits de entropía; un solo uso garantizado por índice. |
+| 102 | Endpoints de activación | `securepassb` | `feature/auth-activation-endpoints` | US-52, US-54 | **Cerrado.** `GET /activation/{token}` valida y devuelve datos del usuario; `POST /activation/{token}` define contraseña y activa; 410 si vencido o consumido; página web estática de respaldo en `GET /activar/{token}` para requests no-app. |
+| 103 | Recuperación de contraseña | `securepassb` | `feature/auth-password-reset` | US-53 | **Cerrado.** `POST /auth/forgot-password` y `POST /auth/reset-password`; respuesta idéntica exista o no el email; rate limit 3 por hora por email. |
+| 104 | Página web de activación | `securepassb` | `feature/auth-activation-web` | US-52 | **Cerrado.** Página web server-rendered en `GET /activar/{token}` (no pantalla de app móvil); template único que despacha por `purpose` del GET; formulario de contraseña con confirmación; 410 muestra "contactá a la administración"; `Referrer-Policy: no-referrer` y redirección post-éxito con `replace` para no dejar el token en el historial. |
+| 105 | Página web de recuperación | `securepassb` | `feature/auth-activation-web` | US-53 | **Cerrado.** Mismo template que WBS-104; despacho por `purpose=PASSWORD_RESET` del GET; 410 linkea a `/forgot-password`; POST a `/api/v1/auth/reset-password`. |
 
 ### Fase 11 — Permisos por lote (Épica B v2)
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 106 | Migración de familia a permisos por lote + escritura dual | `securepassb` | `refactor/identity-lot-permissions` | US-55 | Tabla nueva `lot_permissions` (user, lot, tipo `OWNER/MEMBER/WORKER`, atributos JSONB) que reemplaza a `family_members` para la ocupación del lote. `memberships` queda para `ADMIN`/`GUARD` (gestión del barrio, sin lote). Migración copia `family_members` a `lot_permissions` sin pérdida. **Escritura dual habilitada en el mismo PR**: toda escritura sobre `family_members` (INSERT y UPDATE — no hay DELETE) replica en `lot_permissions` en la misma transacción. Fuente de verdad sigue siendo `family_members` (reads no cambian). Motivo: sin dual write, cada alta posterior a la migración dejaba a `lot_permissions` desincronizada; el drift silencioso invisible es peor que el trabajo extra de mantener las dos tablas. **WBS-108 debe invertir la fuente de verdad** (reads y writes pasan a `lot_permissions`) **y borrar el dual write** de los repositorios en el mismo PR. El drop de `family_members` viene en un PR posterior a WBS-108, cuando ningún caller la use. |
-| 107 | Alta con dedupe por DNI (admin) | `securepassb` | `feature/identity-document-dedupe` | US-56 | UNIQUE global sobre `document_number` (ya presente en V9 desde WBS-128). `POST /admin/users` devuelve el `users` existente en vez de 409 cuando el DNI ya existe (200 con `reused: true`); suma el permiso al lote correspondiente; idempotente si el permiso ya estaba (`changed: false`). Regla de email de US-56: si el user existente tiene email, ese gana; si no lo tiene, se completa. `SUSPENDED` y `DELETED` devuelven 409 explicito con `existingUserId` (no se reactivan silenciosamente). Response shape unificado `{userId, role, status, reused, changed, email, fullName}`. **Reemision de activacion condicional**: en el reuso de `PENDING_ACTIVATION` se reemite el token solo cuando hay cambio real (permiso nuevo o email completado), no en el reuso puramente idempotente. Motivo: un doble click del admin sobre "Alta" no debe traducirse en N emails al residente. Para reenviar activacion de forma explicita esta `POST /admin/users/{id}/resend-activation`, con su propio rate limit. **El endpoint "family" (agregar por DNI a la unidad familiar) queda para WBS-110**, no entra en 107. WORKER es Fase 13 (WBS-114). |
-| 108 | Autorización por permiso | `securepassb` | `refactor/auth-permission-checks` | US-55 | `@PreAuthorize` evalúa permisos sobre el lote del recurso, no rol global; el test de IDOR sigue verde; sin regresiones. |
+| 106 | Migración de familia a permisos por lote + escritura dual | `securepassb` | `refactor/identity-lot-permissions` | US-55 | **Cerrado.** Tabla nueva `lot_permissions` (user, lot, tipo `OWNER/MEMBER/WORKER`, atributos JSONB) que reemplaza a `family_members` para la ocupación del lote. `memberships` queda para `ADMIN`/`GUARD` (gestión del barrio, sin lote). Migración copia `family_members` a `lot_permissions` sin pérdida. **Escritura dual habilitada en el mismo PR**: toda escritura sobre `family_members` (INSERT y UPDATE — no hay DELETE) replica en `lot_permissions` en la misma transacción. Fuente de verdad sigue siendo `family_members` (reads no cambian). Motivo: sin dual write, cada alta posterior a la migración dejaba a `lot_permissions` desincronizada; el drift silencioso invisible es peor que el trabajo extra de mantener las dos tablas. **WBS-108 debe invertir la fuente de verdad** (reads y writes pasan a `lot_permissions`) **y borrar el dual write** de los repositorios en el mismo PR. El drop de `family_members` viene en un PR posterior a WBS-108, cuando ningún caller la use. |
+| 107 | Alta con dedupe por DNI (admin) | `securepassb` | `feature/identity-document-dedupe` | US-56 | **Cerrado.** UNIQUE global sobre `document_number` (ya presente en V9 desde WBS-128). `POST /admin/users` devuelve el `users` existente en vez de 409 cuando el DNI ya existe (200 con `reused: true`); suma el permiso al lote correspondiente; idempotente si el permiso ya estaba (`changed: false`). Regla de email de US-56: si el user existente tiene email, ese gana; si no lo tiene, se completa. `SUSPENDED` y `DELETED` devuelven 409 explicito con `existingUserId` (no se reactivan silenciosamente). Response shape unificado `{userId, role, status, reused, changed, email, fullName}`. **Reemision de activacion condicional**: en el reuso de `PENDING_ACTIVATION` se reemite el token solo cuando hay cambio real (permiso nuevo o email completado), no en el reuso puramente idempotente. Motivo: un doble click del admin sobre "Alta" no debe traducirse en N emails al residente. Para reenviar activacion de forma explicita esta `POST /admin/users/{id}/resend-activation`, con su propio rate limit. **El endpoint "family" (agregar por DNI a la unidad familiar) queda para WBS-110**, no entra en 107. WORKER es Fase 13 (WBS-114). |
+| 108 | Autorización por permiso | `securepassb` | `refactor/auth-permission-checks` | US-55 | **Cerrado.** `@PreAuthorize` evalúa permisos sobre el lote del recurso, no rol global; el test de IDOR sigue verde; sin regresiones. |
 | 109 | Adaptación del cliente | `securepassf` | `refactor/auth-permission-model` | US-55 | El estado de sesión guarda la lista de permisos; el ruteo por rol pasa a ser por permiso; una persona con dos permisos elige contexto al entrar. |
 
 ### Fase 12 — Familia (Épica C v2)
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 110 | Alta de familiar con cuenta | `securepassb` | `feature/family-member-invite` | US-57 | Crea usuario si el DNI es nuevo, reusa si existe; dispara activación; solo el titular; valida edad ≥ 16 para pedir email. |
-| 111 | Padrón de menores | `securepassb` | `feature/family-minor-registry` | US-58 | Tabla de personas del lote sin usuario; edad obligatoria; no genera credenciales. |
-| 112 | Baja de familiar | `securepassb` | `feature/family-member-revoke` | US-59 | Revoca el permiso, no el usuario; cascada sobre invitaciones activas de ese lote. |
+| 110 | Alta de familiar con cuenta | `securepassb` | `feature/family-member-invite` | US-57 | **Cerrado.** Crea usuario si el DNI es nuevo, reusa si existe; dispara activación; solo el titular; valida edad ≥ 16 para pedir email. |
+| 111 | Padrón de menores | `securepassb` | `feature/family-minor-registry` | US-58 | **Cerrado.** Tabla de personas del lote sin usuario; edad obligatoria; no genera credenciales. |
+| 112 | Baja de familiar | `securepassb` | `feature/family-member-revoke` | US-59 | **Cerrado.** Revoca el permiso, no el usuario; cascada sobre invitaciones activas de ese lote. |
 | 113 | Pantalla de familia | `securepassf` | `feature/family-management-screen` | US-57, US-58, US-59, US-60 | Alta con validación de edad que cambia el formulario; lista con parentesco; modo lectura para familiares; baja con confirmación. |
 
 ### Fase 13 — Trabajadores (Épica D v2)
@@ -1785,7 +1785,7 @@ Reemplaza el flujo v1 de US-03 ("alta con contraseña temporal") por "alta con e
 
 | # | Issue | Repo | Rama | Cubre | Criterios de aceptación |
 |---|---|---|---|---|---|
-| 128 | Alta de usuario por admin | `securepassb` | `feature/admin-user-onboarding` | US-03 (v2), US-50..US-52 (integración) | `POST /admin/users` ADMIN-only. Body `{email, fullName, dni, role, lotId?}`. `role ∈ {RESIDENT_OWNER, GUARD}`; RESIDENT_OWNER exige lotId, GUARD lo prohíbe. `neighborhoodId` del JWT, nunca del body. Todo en una transacción (savepoint sobre el INSERT): user PENDING_ACTIVATION con password NULL + membership + family_member (si owner) + `issuer.issue(ACTIVATION)`. 409 con `code` distinguible: `EMAIL_TAKEN`, `PENDING_ACTIVATION_EXISTS` (con `existingUserId`), `DNI_TAKEN` (con `existingUserId`). 404 si el lote no pertenece al barrio del admin. `POST /admin/users/{id}/resend-activation` ADMIN-only, 3/hora por usuario objetivo, 409 si no es PENDING. |
+| 128 | Alta de usuario por admin | `securepassb` | `feature/admin-user-onboarding` | US-03 (v2), US-50..US-52 (integración) | **Cerrado.** `POST /admin/users` ADMIN-only. Body `{email, fullName, dni, role, lotId?}`. `role ∈ {RESIDENT_OWNER, GUARD}`; RESIDENT_OWNER exige lotId, GUARD lo prohíbe. `neighborhoodId` del JWT, nunca del body. Todo en una transacción (savepoint sobre el INSERT): user PENDING_ACTIVATION con password NULL + membership + family_member (si owner) + `issuer.issue(ACTIVATION)`. 409 con `code` distinguible: `EMAIL_TAKEN`, `PENDING_ACTIVATION_EXISTS` (con `existingUserId`), `DNI_TAKEN` (con `existingUserId`). 404 si el lote no pertenece al barrio del admin. `POST /admin/users/{id}/resend-activation` ADMIN-only, 3/hora por usuario objetivo, 409 si no es PENDING. |
 
 ---
 
