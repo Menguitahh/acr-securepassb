@@ -3251,6 +3251,11 @@
           "lotId" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "guardId" : {
+            "type" : "string",
+            "description" : "Guardia que capturo el evento (#182). Si es GUARD de este barrio, el log queda a su nombre; si no, al de la sesion que sincroniza.",
+            "format" : "uuid"
           }
         }
       },
@@ -3515,13 +3520,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }

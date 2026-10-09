@@ -36,12 +36,15 @@ public record SyncAccessRequest(
                     description = "Obligatorio si y solo si localDecision es DENIED")
             String localDenialReason,
             @Pattern(regexp = "^[0-9]{7,8}$", message = "documentNumber invalido") String documentNumber,
-            UUID lotId
+            UUID lotId,
+            @Schema(description = "Guardia que capturo el evento (#182). Si es GUARD de este barrio, "
+                    + "el log queda a su nombre; si no, al de la sesion que sincroniza.")
+            UUID guardId
     ) {
         public SyncAccessUseCase.Event toEvent() {
             return new SyncAccessUseCase.Event(
                     clientEventId, token, gateId, direction, companions, capturedAt,
-                    localDecision, localDenialReason, documentNumber, lotId);
+                    localDecision, localDenialReason, documentNumber, lotId, guardId);
         }
     }
 

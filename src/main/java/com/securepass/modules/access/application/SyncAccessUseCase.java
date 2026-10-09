@@ -1,5 +1,8 @@
 package com.securepass.modules.access.application;
 
+import com.securepass.modules.identity.domain.Role;
+import com.securepass.modules.neighborhood.application.MembershipGranter;
+
 import com.securepass.modules.access.domain.AccessDecision;
 import com.securepass.modules.access.domain.AccessLog;
 import com.securepass.modules.access.domain.DenialReason;
@@ -29,13 +32,15 @@ public class SyncAccessUseCase {
     private final EnrollGuestUseCase enroller;
     private final AccessLogRepository logs;
     private final AccessMetrics metrics;
+    private final MembershipGranter memberships;
 
     public SyncAccessUseCase(RecordAccessAttemptUseCase recorder, EnrollGuestUseCase enroller,
-                             AccessLogRepository logs, AccessMetrics metrics) {
+                             AccessLogRepository logs, AccessMetrics metrics, MembershipGranter memberships) {
         this.recorder = recorder;
         this.enroller = enroller;
         this.logs = logs;
         this.metrics = metrics;
+        this.memberships = memberships;
     }
 
     public Report sync(UUID neighborhoodId, UUID guardId, List<Event> events) {
@@ -51,9 +56,24 @@ public class SyncAccessUseCase {
 
         List<EventResult> results = new ArrayList<>(ordered.size());
         for (Event ev : ordered) {
-            results.add(process(neighborhoodId, guardId, ev));
+            results.add(process(neighborhoodId, authorOf(neighborhoodId, guardId, ev), ev));
         }
         return new Report(results);
+    }
+
+    /**
+     * #182: el evento se atribuye a quien lo capturo, no a quien sincroniza
+     * despues del cambio de turno. Solo si es GUARD de este barrio (activo o
+     * no: un guardia dado de baja despues sigue siendo el autor). Si no, un
+     * cliente podria cargarle ingresos a cualquiera: se usa la sesion.
+     */
+    private UUID authorOf(UUID neighborhoodId, UUID sessionGuard, Event ev) {
+        UUID claimed = ev.guardId();
+        if (claimed == null || claimed.equals(sessionGuard)) return sessionGuard;
+        if (memberships.exists(claimed, neighborhoodId, Role.GUARD)) return claimed;
+        LOG.warn("sync: guardId {} del evento {} no es guardia del barrio; se atribuye a {}",
+                claimed, ev.clientEventId(), sessionGuard);
+        return sessionGuard;
     }
 
     private EventResult process(UUID neighborhoodId, UUID guardId, Event ev) {
@@ -177,8 +197,17 @@ public class SyncAccessUseCase {
             String localDenialReason,
             String documentNumber,
             // #217: lote que eligio el guardia offline, o null.
-            UUID lotId
+            UUID lotId,
+            // #182: guardia que capturo el evento, o null (clientes viejos).
+            UUID guardId
     ) {
+        public Event(UUID clientEventId, String token, UUID gateId, Direction direction, int companions,
+                     Instant capturedAt, String localDecision, String localDenialReason,
+                     String documentNumber, UUID lotId) {
+            this(clientEventId, token, gateId, direction, companions, capturedAt,
+                    localDecision, localDenialReason, documentNumber, lotId, null);
+        }
+
         public Event {
             if (clientEventId == null) throw new IllegalArgumentException("clientEventId requerido");
             if (token == null || token.isBlank()) throw new IllegalArgumentException("token requerido");
