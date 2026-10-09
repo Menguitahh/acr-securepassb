@@ -55,9 +55,15 @@ public class ExtendInvitationUseCase {
         }
         assertActorCanExtend(actorUserId, inv);
 
-        if (inv.status() != InvitationStatus.ACTIVE) {
+        // US-42: se extiende con el invitado adentro. Un pase de un uso ya esta
+        // USED desde el ingreso (o EXPIRED si paso valid_until con el invitado
+        // todavia en el barrio): con estadia abierta se extiende igual.
+        // Revocado nunca.
+        boolean inside = stays.findOpenByInvitationId(invitationId).isPresent();
+        if (inv.status() == InvitationStatus.REVOKED
+                || (inv.status() != InvitationStatus.ACTIVE && !inside)) {
             throw new BusinessRuleViolationException("BR-16",
-                    "solo ACTIVE se puede extender, estado: " + inv.status());
+                    "El pase no se puede extender: esta " + inv.status() + " y el invitado no esta adentro.");
         }
 
         // Mismo code NEIGHBORHOOD_NOT_PROVISIONED que signing key: cliente no puede
