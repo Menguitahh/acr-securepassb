@@ -1,6 +1,7 @@
 package com.securepass.modules.invitation.application;
 
 import com.securepass.modules.access.application.StayRepository;
+import com.securepass.modules.access.domain.Stay;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.InvitationType;
@@ -168,5 +169,43 @@ class ExtendInvitationUseCaseTest {
 
         assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
                 .isInstanceOf(BusinessRuleViolationException.class);
+    }
+
+    // US-42: el residente extiende con el invitado adentro. Un pase SINGLE ya
+    // esta USED desde el ingreso; con estadia abierta se extiende igual.
+    @Test
+    void usedConEstadiaAbiertaSeExtiende() {
+        Invitation inv = invitation(actorUserId, InvitationStatus.USED);
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(inv));
+        when(stays.findOpenByInvitationId(invitationId)).thenReturn(Optional.of(mock(Stay.class)));
+        when(policies.find(neighborhoodId)).thenReturn(Optional.of(new NeighborhoodExtensionPolicy(2, 120)));
+        when(invitations.findExtensionCount(invitationId)).thenReturn(0);
+        Instant expectedNew = inv.validUntil().plus(Duration.ofMinutes(120));
+        when(invitations.applyExtension(invitationId, expectedNew, 1)).thenReturn(extended(expectedNew));
+
+        assertThat(useCase.extend(neighborhoodId, actorUserId, invitationId).extensionCount()).isEqualTo(1);
+        verify(stays).updateExpectedUntilByInvitation(invitationId, expectedNew);
+    }
+
+    // Sin nadie adentro, un pase usado no tiene que extenderse.
+    @Test
+    void usedSinEstadiaAbiertaSeRechaza() {
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation(actorUserId, InvitationStatus.USED)));
+        when(stays.findOpenByInvitationId(invitationId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
+                .isInstanceOf(BusinessRuleViolationException.class);
+        verify(invitations, never()).applyExtension(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    // Revocado nunca, aunque el invitado siga adentro.
+    @Test
+    void revokedConEstadiaAbiertaSeRechaza() {
+        when(invitations.findById(invitationId)).thenReturn(Optional.of(invitation(actorUserId, InvitationStatus.REVOKED)));
+        when(stays.findOpenByInvitationId(invitationId)).thenReturn(Optional.of(mock(Stay.class)));
+
+        assertThatThrownBy(() -> useCase.extend(neighborhoodId, actorUserId, invitationId))
+                .isInstanceOf(BusinessRuleViolationException.class);
+        verify(invitations, never()).applyExtension(any(), any(), org.mockito.ArgumentMatchers.anyInt());
     }
 }
