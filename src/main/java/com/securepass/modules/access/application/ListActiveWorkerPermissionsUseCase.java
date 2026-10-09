@@ -42,8 +42,10 @@ public class ListActiveWorkerPermissionsUseCase {
         if (actor.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
         return new Snapshot(
                 query.listActive(actor.neighborhoodId(), since, MAX_LIMIT),
-                query.enrolledWorkerIds(actor.neighborhoodId()));
+                query.enrolledWorkerIds(actor.neighborhoodId()),
+                query.enrolledInvitationIds(actor.neighborhoodId()));
     }
 
-    public record Snapshot(List<ActiveWorkerPermissionRow> permissions, List<UUID> enrolledUserIds) {}
+    public record Snapshot(List<ActiveWorkerPermissionRow> permissions, List<UUID> enrolledUserIds,
+                           List<UUID> enrolledInvitationIds) {}
 }

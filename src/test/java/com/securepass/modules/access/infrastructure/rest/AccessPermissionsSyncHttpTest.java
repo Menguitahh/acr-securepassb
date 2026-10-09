@@ -182,4 +182,35 @@ class AccessPermissionsSyncHttpTest {
         assertThat(body.get("permissions")).isEmpty();
         assertThat(ids(body.get("enrolledUserIds"))).containsExactly(enrolado.toString());
     }
+
+    // securepassf#179: el scanner reemplaza su cache de invitados enrolados
+    // con esta lista, como hace con los trabajadores.
+    @Test
+    void listaLasInvitacionesActivasCuyoDniYaEstaEnrolado() throws Exception {
+        String dniEnrolado = dni();
+        UUID previa = invitation(barrio, lot, "USED", dniEnrolado);
+        enroll(barrio, dniEnrolado, previa);
+        UUID activaEnrolada = invitation(barrio, lot, "ACTIVE", dniEnrolado);
+        UUID activaSinEnrolar = invitation(barrio, lot, "ACTIVE", dni());
+        String dniAjeno = dni();
+        UUID deOtroBarrio = invitation(otroBarrio, otroLot, "ACTIVE", dniAjeno);
+        enroll(otroBarrio, dniAjeno, deOtroBarrio);
+
+        List<String> enrolled = ids(sync("").get("enrolledInvitationIds"));
+        assertThat(enrolled).containsExactly(activaEnrolada.toString());
+        assertThat(enrolled).doesNotContain(previa.toString(), activaSinEnrolar.toString(), deOtroBarrio.toString());
+    }
+
+    private UUID invitation(UUID nid, UUID lotId, String status, String dni) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO invitations (
+                    id, neighborhood_id, lot_id, created_by, type, status,
+                    guest_name, guest_document, companions,
+                    valid_from, valid_until, max_uses, used_count, token_kid, jti
+                ) VALUES (?, ?, ?, ?, 'SINGLE', ?, 'U', ?, 0, now() - interval '1 hour',
+                          now() + interval '1 day', 1, 0, 'kid-1', ?)
+                """, id, nid, lotId, owner, status, dni, UUID.randomUUID());
+        return id;
+    }
 }
