@@ -16,6 +16,7 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.crypto.Ed25519Verifier;
 import com.securepass.shared.exception.InvalidLotChoiceException;
+import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.schedule.ScheduleWindow;
 import org.springframework.stereotype.Service;
 
@@ -129,6 +130,25 @@ public class ValidateAccessUseCase {
         }
 
         return new AccessDecision.Allowed(inv.id(), inv.jti(), inv.guestName(), lot.code(), inv.companions());
+    }
+
+    /**
+     * securepassf#119: trabajador sin QR, por el DNI que escanea el guardia.
+     * Misma franja y eleccion de lote que el QR. No pide enrolamiento: el
+     * guardia tiene el DNI fisico en la mano. Un DNI sin permiso WORKER en el
+     * barrio no es un intento de acceso a un pase: 404, y la garita sigue con
+     * el ingreso manual.
+     */
+    public AccessDecision validateWorkerDocument(UUID neighborhoodId, String documentNumber, Instant capturedAt,
+                                                 UUID lotId) {
+        UUID userId = workerQuery.findWorkerByDocument(documentNumber, neighborhoodId)
+                .orElseThrow(() -> new ResourceNotFoundException("trabajador con DNI", documentNumber));
+        WorkerValidationQuery.WorkerContext ctx = workerQuery.loadContext(userId, neighborhoodId)
+                .filter(c -> !c.lots().isEmpty())
+                .orElseThrow(() -> new ResourceNotFoundException("trabajador con DNI", documentNumber));
+        List<AccessDecision.LotOption> inSlot = WorkerLots.inSlot(ctx, capturedAt, lotId);
+        if (inSlot.isEmpty()) return AccessDecision.Denied.of(DenialReason.OUT_OF_SCHEDULE);
+        return new AccessDecision.AllowedWorker(userId, null, ctx.workerName(), inSlot);
     }
 
     /**

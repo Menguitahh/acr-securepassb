@@ -54,7 +54,9 @@ public class AddWorkerUseCase {
         if (lotId == null) throw new IllegalArgumentException("lotId requerido");
         if (cmd == null) throw new IllegalArgumentException("cmd requerido");
 
-        String email = cmd.email().trim().toLowerCase(Locale.ROOT);
+        // securepassf#119: sin email no hay activacion; el trabajador entra por DNI.
+        String email = blankToNull(cmd.email()) == null ? null : cmd.email().trim().toLowerCase(Locale.ROOT);
+        String phone = blankToNull(cmd.phone()) == null ? null : cmd.phone().trim();
         String dni = cmd.dni().trim();
 
         return tx.execute(status -> {
@@ -62,7 +64,7 @@ public class AddWorkerUseCase {
             if (byDoc.isPresent()) {
                 return reuseFlow(byDoc.get(), email, cmd, lotId, actorFullName, neighborhoodName);
             }
-            return createFlow(email, dni, cmd, lotId, actorFullName, neighborhoodName, status);
+            return createFlow(email, phone, dni, cmd, lotId, actorFullName, neighborhoodName, status);
         });
     }
 
@@ -80,7 +82,7 @@ public class AddWorkerUseCase {
 
         String finalEmail = existing.email();
         boolean emailCompleted = false;
-        if (finalEmail == null || finalEmail.isBlank()) {
+        if ((finalEmail == null || finalEmail.isBlank()) && email != null) {
             emailCompleted = users.completeEmail(existing.id(), email);
             finalEmail = emailCompleted ? email :
                     users.findById(existing.id()).map(User::email).orElse(email);
@@ -105,18 +107,19 @@ public class AddWorkerUseCase {
         }
 
         boolean changed = permissionChanged || emailCompleted;
-        if (existing.status() == UserStatus.PENDING_ACTIVATION && changed) {
+        if (existing.status() == UserStatus.PENDING_ACTIVATION && changed
+                && finalEmail != null && !finalEmail.isBlank()) {
             activation.issue(existing.id(), TokenPurpose.ACTIVATION, actorFullName, neighborhoodName);
         }
         return new Result(existing.id(), existing.fullName(), finalEmail,
                 cmd.service(), cmd.schedule(), true, true, changed, outcome, existing.status());
     }
 
-    private Result createFlow(String email, String dni, Command cmd, UUID lotId,
+    private Result createFlow(String email, String phone, String dni, Command cmd, UUID lotId,
                               String actorFullName, String neighborhoodName,
                               org.springframework.transaction.TransactionStatus status) {
         UUID newUserId = UUID.randomUUID();
-        User user = new User(newUserId, email, null, null, cmd.fullName().trim(),
+        User user = new User(newUserId, email, phone, null, cmd.fullName().trim(),
                 dni, null, UserStatus.PENDING_ACTIVATION);
 
         Object savepoint = status.createSavepoint();
@@ -129,7 +132,7 @@ public class AddWorkerUseCase {
         }
 
         workers.save(newUserId, lotId, cmd.service(), cmd.schedule());
-        activation.issue(newUserId, TokenPurpose.ACTIVATION, actorFullName, neighborhoodName);
+        if (email != null) activation.issue(newUserId, TokenPurpose.ACTIVATION, actorFullName, neighborhoodName);
         return new Result(newUserId, cmd.fullName().trim(), email,
                 cmd.service(), cmd.schedule(), false, true, true,
                 Outcome.CREATED_USER_AND_PERMISSION, UserStatus.PENDING_ACTIVATION);
@@ -137,7 +140,7 @@ public class AddWorkerUseCase {
 
     private UserOnboardingConflictException translateConflict(
             DataIntegrityViolationException dive, String email, String dni) {
-        Optional<User> byEmail = users.findByEmail(email);
+        Optional<User> byEmail = email == null ? Optional.empty() : users.findByEmail(email);
         if (byEmail.isPresent()) {
             return new UserOnboardingConflictException(
                     "EMAIL_TAKEN", byEmail.get().id(),
@@ -153,15 +156,21 @@ public class AddWorkerUseCase {
     }
 
     public record Command(
-            String fullName, String dni, String email,
+            String fullName, String dni, String email, String phone,
             String service, ScheduleWindow schedule) {
         public Command {
             if (fullName == null || fullName.isBlank()) throw new IllegalArgumentException("fullName requerido");
             if (dni == null || dni.isBlank()) throw new IllegalArgumentException("dni requerido");
-            if (email == null || email.isBlank()) throw new IllegalArgumentException("email requerido");
+            if (blankToNull(email) == null && blankToNull(phone) == null) {
+                throw new IllegalArgumentException("email o phone requerido");
+            }
             if (service == null || service.isBlank()) throw new IllegalArgumentException("service requerido");
             if (schedule == null) throw new IllegalArgumentException("schedule requerido");
         }
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s;
     }
 
     /**

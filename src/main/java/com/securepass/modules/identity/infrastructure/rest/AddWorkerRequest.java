@@ -29,12 +29,20 @@ import java.util.List;
 public record AddWorkerRequest(
         @NotBlank @Size(max = 140) String fullName,
         @NotBlank @Size(max = 20) String dni,
-        @NotBlank @Email @Size(max = 160) String email,
+        // securepassf#119: email o telefono. Sin email no hay cuenta ni QR: el
+        // trabajador entra mostrando el DNI en la garita (/access/validate-document).
+        @Email @Size(max = 160) String email,
+        @Size(max = 30) String phone,
         @NotBlank @Size(max = 80) String service,
         @NotEmpty List<@NotNull @Min(1) @Max(7) Integer> weekdays,
         @NotBlank @Pattern(regexp = "^([01]\\d|2[0-3]):[0-5]\\d$", message = "HH:mm") String dailyFrom,
         @NotBlank @Pattern(regexp = "^([01]\\d|2[0-3]):[0-5]\\d$", message = "HH:mm") String dailyUntil
 ) {
+
+    @AssertTrue(message = "email o phone requerido")
+    public boolean isContactPresent() {
+        return (email != null && !email.isBlank()) || (phone != null && !phone.isBlank());
+    }
 
     @AssertTrue(message = "dailyUntil debe ser posterior a dailyFrom")
     public boolean isDailyOrderValid() {
@@ -49,6 +57,6 @@ public record AddWorkerRequest(
     public AddWorkerUseCase.Command toCommand() {
         ScheduleWindow schedule = new ScheduleWindow(
                 weekdays, LocalTime.parse(dailyFrom), LocalTime.parse(dailyUntil));
-        return new AddWorkerUseCase.Command(fullName, dni, email, service, schedule);
+        return new AddWorkerUseCase.Command(fullName, dni, email, phone, service, schedule);
     }
 }

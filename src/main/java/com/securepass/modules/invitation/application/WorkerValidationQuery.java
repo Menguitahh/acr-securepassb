@@ -21,6 +21,12 @@ public interface WorkerValidationQuery {
 
     Optional<WorkerContext> loadContext(UUID userId, UUID neighborhoodId);
 
+    /**
+     * securepassf#119: usuario con el DNI dado y algun permiso WORKER activo
+     * en un lote del barrio. Vacio si no hay.
+     */
+    Optional<UUID> findWorkerByDocument(String documentNumber, UUID neighborhoodId);
+
     record WorkerContext(
             String workerName,
             String workerDocument,

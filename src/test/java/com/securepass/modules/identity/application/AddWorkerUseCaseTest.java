@@ -60,7 +60,7 @@ class AddWorkerUseCaseTest {
 
     private AddWorkerUseCase.Command cmd() {
         return new AddWorkerUseCase.Command(
-                "Juan Jardinero", "30111222", "juan@dev.local",
+                "Juan Jardinero", "30111222", "juan@dev.local", null,
                 "Jardineria",
                 new ScheduleWindow(List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0)));
     }
@@ -83,6 +83,32 @@ class AddWorkerUseCaseTest {
 
         verify(workers).save(eq(userCap.getValue().id()), eq(lotId), eq("Jardineria"), any(ScheduleWindow.class));
         verify(activation).issue(userCap.getValue().id(), TokenPurpose.ACTIVATION, ACTOR, NEIGHBORHOOD);
+    }
+
+    // securepassf#119: sin email no hay activacion; entra por DNI en garita.
+    @Test
+    void altaSoloConTelefonoNoDisparaActivacion() {
+        when(users.findByDocument("30111222")).thenReturn(Optional.empty());
+        AddWorkerUseCase.Command sinEmail = new AddWorkerUseCase.Command(
+                "Juan Jardinero", "30111222", " ", "2615550000", "Jardineria",
+                new ScheduleWindow(List.of(2, 4), LocalTime.of(8, 0), LocalTime.of(12, 0)));
+
+        AddWorkerUseCase.Result r = useCase.add(actor, lotId, sinEmail, ACTOR, NEIGHBORHOOD);
+
+        assertThat(r.outcome()).isEqualTo(AddWorkerUseCase.Outcome.CREATED_USER_AND_PERMISSION);
+        ArgumentCaptor<User> userCap = ArgumentCaptor.forClass(User.class);
+        verify(users).create(userCap.capture());
+        assertThat(userCap.getValue().email()).isNull();
+        assertThat(userCap.getValue().phone()).isEqualTo("2615550000");
+        verify(activation, never()).issue(any(), any(), anyString(), anyString());
+    }
+
+    @Test
+    void sinEmailNiTelefonoNoSeConstruye() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new AddWorkerUseCase.Command(
+                "Juan", "30111222", null, "", "Jardineria",
+                new ScheduleWindow(List.of(2), LocalTime.of(8, 0), LocalTime.of(12, 0))))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

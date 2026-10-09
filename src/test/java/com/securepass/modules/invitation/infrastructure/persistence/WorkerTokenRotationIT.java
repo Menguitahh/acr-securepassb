@@ -83,7 +83,7 @@ class WorkerTokenRotationIT {
 
     private AddWorkerUseCase.Command cmd(List<Integer> weekdays, LocalTime from, LocalTime until) {
         return new AddWorkerUseCase.Command(
-                "Juan Jardinero", dni, "juan-" + dni + "@dev.local",
+                "Juan Jardinero", dni, "juan-" + dni + "@dev.local", null,
                 "Jardineria", new ScheduleWindow(weekdays, from, until));
     }
 

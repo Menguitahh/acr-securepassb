@@ -93,6 +93,14 @@ public class RecordAccessAttemptUseCase {
     }
 
     private AccessDecision decide(Command cmd) {
+        if (cmd.documentNumber() != null) {
+            AccessDecision byDoc = validateUseCase.validateWorkerDocument(
+                    cmd.neighborhoodId(), cmd.documentNumber(), cmd.capturedAt(), cmd.lotId());
+            if (byDoc instanceof AccessDecision.AllowedWorker w && w.lots().size() > 1) {
+                return new AccessDecision.NeedsLotSelection(w.userId(), w.workerName(), w.lots());
+            }
+            return byDoc;
+        }
         AccessDecision decision = cmd.direction() == Direction.IN
                 ? consumeUseCase.consume(cmd.neighborhoodId(), cmd.token(), cmd.capturedAt(),
                         cmd.clientEventId().toString(), cmd.lotId())
@@ -201,13 +209,23 @@ public class RecordAccessAttemptUseCase {
             UUID clientEventId,
             boolean syncedOffline,
             // #217: lote que eligio la garita, o null. Lo valida ValidateAccessUseCase.
-            UUID lotId
+            UUID lotId,
+            // securepassf#119: trabajador sin QR. Con documentNumber no hay token.
+            String documentNumber
     ) {
+        public Command(UUID neighborhoodId, UUID gateId, UUID guardId, String token, Direction direction,
+                       int companions, Instant capturedAt, UUID clientEventId, boolean syncedOffline, UUID lotId) {
+            this(neighborhoodId, gateId, guardId, token, direction, companions, capturedAt, clientEventId,
+                    syncedOffline, lotId, null);
+        }
+
         public Command {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
             if (gateId == null) throw new IllegalArgumentException("gateId requerido");
             if (guardId == null) throw new IllegalArgumentException("guardId requerido");
-            if (token == null || token.isBlank()) throw new IllegalArgumentException("token requerido");
+            if ((token == null || token.isBlank()) == (documentNumber == null)) {
+                throw new IllegalArgumentException("token o documentNumber requerido");
+            }
             if (direction == null) throw new IllegalArgumentException("direction requerido");
             if (companions < 0) throw new IllegalArgumentException("companions >= 0");
             if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");

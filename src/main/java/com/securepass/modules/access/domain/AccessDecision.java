@@ -31,7 +31,7 @@ public sealed interface AccessDecision {
             implements AccessDecision {
         public AllowedWorker {
             if (userId == null) throw new IllegalArgumentException("userId requerido");
-            if (jti == null) throw new IllegalArgumentException("jti requerido");
+            // jti null: entro por DNI sin QR (securepassf#119).
             if (workerName == null || workerName.isBlank()) throw new IllegalArgumentException("workerName requerido");
             if (lots == null || lots.isEmpty()) throw new IllegalArgumentException("lots requerido");
             lots = List.copyOf(lots);

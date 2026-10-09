@@ -117,6 +117,24 @@ class AddWorkerHttpTest {
         return body("\"Jardineria\"", "[2,4]", "\"08:00\"", "\"12:00\"");
     }
 
+    // securepassf#119: email o telefono; sin ninguno, 400.
+    @Test
+    void sinEmailNiTelefonoDevuelve400() throws Exception {
+        HttpResponse<String> resp = post(lot, validBody().replace("\"email\":\"j@dev.local\",", ""));
+        assertThat(resp.statusCode()).isEqualTo(400);
+        assertThat(resp.body()).contains("validation-error").doesNotContain("internal-error");
+    }
+
+    @Test
+    void soloConTelefonoCreaElTrabajador() throws Exception {
+        String dni = String.valueOf(20_000_000 + java.util.concurrent.ThreadLocalRandom.current().nextInt(9_000_000));
+        HttpResponse<String> resp = post(lot,
+                validBody().replace("30111222", dni).replace("\"email\":\"j@dev.local\",", "\"phone\":\"2615550000\","));
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(201);
+        assertThat(jdbc.queryForObject("SELECT phone FROM users WHERE document_number = ?", String.class, dni))
+                .isEqualTo("2615550000");
+    }
+
     @Test
     void weekdaysVacioDevuelve400() throws Exception {
         HttpResponse<String> resp = post(lot, body("\"Jardineria\"", "[]", "\"08:00\"", "\"12:00\""));

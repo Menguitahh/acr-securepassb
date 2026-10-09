@@ -68,6 +68,26 @@ public class WorkerValidationJdbcQuery implements WorkerValidationQuery {
         return Optional.of(new WorkerContext(user.fullName(), user.document(), ZoneId.of(tz), lots));
     }
 
+    @Override
+    public Optional<UUID> findWorkerByDocument(String documentNumber, UUID neighborhoodId) {
+        return jdbc.sql("""
+                SELECT u.id
+                  FROM users u
+                 WHERE u.document_number = :doc
+                   AND u.status IN ('ACTIVE', 'PENDING_ACTIVATION')
+                   AND EXISTS (SELECT 1 FROM lot_permissions p
+                                 JOIN lots l ON l.id = p.lot_id
+                                WHERE p.user_id = u.id
+                                  AND l.neighborhood_id = :nid
+                                  AND p.permission_type = 'WORKER'
+                                  AND p.active = TRUE)
+                """)
+                .param("doc", documentNumber)
+                .param("nid", neighborhoodId)
+                .query(UUID.class)
+                .optional();
+    }
+
     private ActiveWorkerLot mapLot(ResultSet rs) throws SQLException {
         Array wdArr = rs.getArray("weekdays");
         List<Integer> weekdays = toIntList(wdArr);

@@ -73,7 +73,7 @@ class WorkerLifecycleIT {
     private AddWorkerUseCase.Command cmd(String service, List<Integer> weekdays,
                                          LocalTime from, LocalTime until) {
         return new AddWorkerUseCase.Command(
-                "Juan Jardinero", dni, "juan-" + dni + "@dev.local",
+                "Juan Jardinero", dni, "juan-" + dni + "@dev.local", null,
                 service, new ScheduleWindow(weekdays, from, until));
     }
 

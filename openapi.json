@@ -1058,6 +1058,36 @@
         }
       }
     },
+    "/api/v1/access/validate-document" : {
+      "post" : {
+        "tags" : [
+          "access-validate-controller"
+        ],
+        "operationId" : "validateDocument",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ValidateDocumentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ValidateAccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/access/sync" : {
       "post" : {
         "tags" : [
@@ -1413,6 +1443,9 @@
         ],
         "operationId" : "current",
         "responses" : {
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
+          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1422,9 +1455,6 @@
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -1921,6 +1951,12 @@
           }
         ],
         "responses" : {
+          "400" : {
+            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
+            "content" : {
+              "application/problem+json" : { }
+            }
+          },
           "200" : {
             "description" : "OK",
             "content" : {
@@ -1929,12 +1965,6 @@
                   "$ref" : "#/components/schemas/AccessLogsResponse"
                 }
               }
-            }
-          },
-          "400" : {
-            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
-            "content" : {
-              "application/problem+json" : { }
             }
           }
         }
@@ -2136,7 +2166,6 @@
           "dailyFrom",
           "dailyUntil",
           "dni",
-          "email",
           "fullName",
           "service",
           "weekdays"
@@ -2155,6 +2184,11 @@
           },
           "email" : {
             "maxLength" : 160,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "phone" : {
+            "maxLength" : 30,
             "minLength" : 0,
             "type" : "string"
           },
@@ -2179,6 +2213,9 @@
             "type" : "string"
           },
           "dailyOrderValid" : {
+            "type" : "boolean"
+          },
+          "contactPresent" : {
             "type" : "boolean"
           }
         }
@@ -3179,6 +3216,45 @@
           }
         }
       },
+      "ValidateDocumentRequest" : {
+        "required" : [
+          "capturedAt",
+          "clientEventId",
+          "direction",
+          "documentNumber",
+          "gateId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "documentNumber" : {
+            "pattern" : "^[0-9]{7,8}$",
+            "type" : "string"
+          },
+          "gateId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "direction" : {
+            "type" : "string",
+            "enum" : [
+              "IN",
+              "OUT"
+            ]
+          },
+          "capturedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "clientEventId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lotId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
       "Event" : {
         "required" : [
           "capturedAt",
@@ -3520,13 +3596,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
-            "type" : "boolean"
-          },
           "scheduleBundled" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
+            "type" : "boolean"
+          },
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }

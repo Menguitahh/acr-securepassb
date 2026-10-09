@@ -455,4 +455,61 @@ class LotChoiceHttpTest {
         assertThat(result.get("rejection").asText()).isEqualTo("INVALID_LOT");
         assertThat(enrolamientos()).isZero();
     }
+
+    // ---- securepassf#119: trabajador sin QR, por DNI ----
+
+    private HttpResponse<String> validateDocument(String dni, UUID lotId, Instant capturedAt) throws Exception {
+        return post("validate-document", "{\"documentNumber\":\"" + dni + "\",\"gateId\":\"" + gate + "\","
+                + "\"direction\":\"IN\",\"capturedAt\":\"" + capturedAt + "\","
+                + "\"clientEventId\":\"" + UUID.randomUUID() + "\""
+                + (lotId == null ? "" : ",\"lotId\":\"" + lotId + "\"") + "}");
+    }
+
+    @Test
+    void porDniConVariosLotesPideElegirYNoGuarda() throws Exception {
+        HttpResponse<String> resp = validateDocument(workerDni, null, CAPTURED_AT);
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).isEqualTo("NEEDS_LOT_SELECTION");
+        assertThat(lotIds(body.get("worker").get("lots")))
+                .containsExactlyInAnyOrder(todoElDia.toString(), soloJuevesALaManana.toString());
+        assertThat(logs()).isZero();
+    }
+
+    // No pide enrolamiento: el guardia escaneo el DNI fisico.
+    @Test
+    void porDniConLoteElegidoEntraSinEnrolamientoYSeGuarda() throws Exception {
+        desenrolar();
+
+        HttpResponse<String> resp = validateDocument(workerDni, soloJuevesALaManana, CAPTURED_AT);
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).isEqualTo("ALLOWED_WORKER");
+        assertThat(body.get("worker").get("name").asText()).isEqualTo("Trabajador");
+        UUID logId = UUID.fromString(body.get("logId").asText());
+        assertThat(jdbc.queryForObject("SELECT lot_id FROM access_logs WHERE id = ?", UUID.class, logId))
+                .isEqualTo(soloJuevesALaManana);
+        assertThat(jdbc.queryForObject("SELECT subject_type FROM access_logs WHERE id = ?", String.class, logId))
+                .isEqualTo("SERVICE");
+    }
+
+    @Test
+    void porDniFueraDeFranjaSeDeniegaYSeAudita() throws Exception {
+        HttpResponse<String> resp = validateDocument(workerDni, null, DOMINGO);
+
+        JsonNode body = json.readTree(resp.body());
+        assertThat(body.get("result").asText()).as(resp.body()).isEqualTo("DENIED");
+        assertThat(body.get("reason").asText()).isEqualTo("OUT_OF_SCHEDULE");
+        assertThat(logs()).isEqualTo(1);
+    }
+
+    @Test
+    void porDniSinPermisoDeTrabajadorEs404YNoGuarda() throws Exception {
+        assertThat(validateDocument("11222333", null, CAPTURED_AT).statusCode()).isEqualTo(404);
+        jdbc.update("UPDATE lot_permissions SET active = FALSE WHERE user_id = ?", worker);
+        assertThat(validateDocument(workerDni, null, CAPTURED_AT).statusCode()).isEqualTo(404);
+        assertThat(logs()).isZero();
+    }
 }

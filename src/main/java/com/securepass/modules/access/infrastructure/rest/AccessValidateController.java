@@ -32,4 +32,13 @@ public class AccessValidateController {
                 request.toCommand(user.neighborhoodId(), user.userId()));
         return ValidateAccessResponse.from(result);
     }
+
+    // securepassf#119: trabajador sin smartphone; el guardia escanea su DNI.
+    @PostMapping("/validate-document")
+    @PreAuthorize("hasRole('GUARD')")
+    public ValidateAccessResponse validateDocument(@Valid @RequestBody ValidateDocumentRequest request) {
+        CurrentUser user = guard.require();
+        if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
+        return ValidateAccessResponse.from(useCase.record(request.toCommand(user.neighborhoodId(), user.userId())));
+    }
 }
