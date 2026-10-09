@@ -1413,6 +1413,9 @@
         ],
         "operationId" : "current",
         "responses" : {
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
+          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1422,9 +1425,6 @@
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -2839,6 +2839,15 @@
         }
       },
       "OnboardUserResponse" : {
+        "required" : [
+          "changed",
+          "email",
+          "fullName",
+          "reused",
+          "role",
+          "status",
+          "userId"
+        ],
         "type" : "object",
         "properties" : {
           "userId" : {
@@ -2889,6 +2898,16 @@
         }
       },
       "LotResponse" : {
+        "required" : [
+          "code",
+          "createdAt",
+          "id",
+          "neighborhoodId",
+          "number",
+          "status",
+          "street",
+          "updatedAt"
+        ],
         "type" : "object",
         "properties" : {
           "id" : {
@@ -2903,10 +2922,12 @@
             "type" : "string"
           },
           "street" : {
-            "type" : "string"
+            "type" : "string",
+            "nullable" : true
           },
           "number" : {
-            "type" : "string"
+            "type" : "string",
+            "nullable" : true
           },
           "status" : {
             "type" : "string",
@@ -2950,6 +2971,16 @@
         }
       },
       "LotMemberResponse" : {
+        "required" : [
+          "active",
+          "canInvite",
+          "createdAt",
+          "id",
+          "isOwner",
+          "lotId",
+          "relation",
+          "userId"
+        ],
         "type" : "object",
         "properties" : {
           "id" : {
@@ -2965,7 +2996,8 @@
             "format" : "uuid"
           },
           "relation" : {
-            "type" : "string"
+            "type" : "string",
+            "nullable" : true
           },
           "isOwner" : {
             "type" : "boolean"
@@ -3483,10 +3515,10 @@
           "active" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "nonEmpty" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
           "scheduleBundled" : {
@@ -3877,6 +3909,11 @@
         }
       },
       "Bucket" : {
+        "required" : [
+          "in",
+          "out",
+          "start"
+        ],
         "type" : "object",
         "properties" : {
           "start" : {
@@ -3894,6 +3931,12 @@
         }
       },
       "TrafficResponse" : {
+        "required" : [
+          "bucket",
+          "buckets",
+          "from",
+          "to"
+        ],
         "type" : "object",
         "properties" : {
           "from" : {
@@ -3916,6 +3959,14 @@
         }
       },
       "OverviewResponse" : {
+        "required" : [
+          "allowedIn",
+          "allowedOut",
+          "currentOccupancy",
+          "date",
+          "denialsByReason",
+          "denied"
+        ],
         "type" : "object",
         "properties" : {
           "date" : {
@@ -3948,6 +3999,15 @@
         }
       },
       "Overstay" : {
+        "required" : [
+          "enteredAt",
+          "expectedUntil",
+          "lotCode",
+          "minutesElapsed",
+          "stayId",
+          "subjectDocument",
+          "subjectName"
+        ],
         "type" : "object",
         "properties" : {
           "stayId" : {
@@ -3958,7 +4018,8 @@
             "type" : "string"
           },
           "subjectDocument" : {
-            "type" : "string"
+            "type" : "string",
+            "nullable" : true
           },
           "lotCode" : {
             "type" : "string"
@@ -3978,6 +4039,9 @@
         }
       },
       "OverstaysResponse" : {
+        "required" : [
+          "items"
+        ],
         "type" : "object",
         "properties" : {
           "items" : {
