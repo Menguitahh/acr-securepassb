@@ -14,4 +14,11 @@ public interface ActiveWorkerPermissionsQuery {
      * enrolamiento en el barrio por su DNI, el mismo criterio que validate online.
      */
     List<UUID> enrolledWorkerIds(UUID neighborhoodId);
+
+    /**
+     * securepassf#179: invitaciones ACTIVE del barrio (sin el QR personal)
+     * cuyo DNI ya esta enrolado en el barrio. El scanner reemplaza con esto su
+     * cache de invitados enrolados para validar sin red.
+     */
+    List<UUID> enrolledInvitationIds(UUID neighborhoodId);
 }
