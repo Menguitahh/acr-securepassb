@@ -125,7 +125,7 @@ class RevokeInvitationUseCaseTest {
 
         CurrentUser actor = new CurrentUser(creatorId, UUID.randomUUID(), List.of(Role.ADMIN), List.of());
         assertThatThrownBy(() -> useCase.revoke(actor, inv.id()))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(ResourceNotFoundException.class); // #123
     }
 
     @Test

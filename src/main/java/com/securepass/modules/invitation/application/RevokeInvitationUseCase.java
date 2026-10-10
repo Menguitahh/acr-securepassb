@@ -32,7 +32,8 @@ public class RevokeInvitationUseCase {
         // Unico guardian cross-barrio para ADMIN: el @PreAuthorize deja pasar
         // hasRole('ADMIN') sin evaluar lot_permissions. No borrar.
         if (!invitation.neighborhoodId().equals(actor.neighborhoodId())) {
-            throw new AccessDeniedException("recurso de otro barrio");
+            // #123: no confirmar que existe en otro barrio.
+            throw new ResourceNotFoundException("invitacion", invitationId);
         }
 
         if (!canRevoke(actor, invitation)) {

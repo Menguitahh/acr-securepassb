@@ -31,7 +31,8 @@ public class GetInvitationUseCase {
         // hasRole('ADMIN') sin evaluar lot_permissions, y un ADMIN del barrio A
         // no tiene ninguna entrada que lo pare de leer una invitacion del B. No borrar.
         if (!invitation.neighborhoodId().equals(actor.neighborhoodId())) {
-            throw new AccessDeniedException("recurso de otro barrio");
+            // #123: no confirmar que existe en otro barrio.
+            throw new ResourceNotFoundException("invitacion", invitationId);
         }
 
         if (actor.hasRole(Role.ADMIN)) return invitation;

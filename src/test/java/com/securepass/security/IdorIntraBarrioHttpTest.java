@@ -213,6 +213,39 @@ class IdorIntraBarrioHttpTest {
         report("GET /access-logs?lotId=lotB", resp);
     }
 
+    // ---------- #123: 404 uniforme en endpoints por id de invitacion ----------
+    @Test
+    void invitacionAjenaEInexistenteDanElMismo404() throws Exception {
+        UUID inexistente = UUID.randomUUID();
+        for (UUID id : List.of(invitationB, inexistente)) {
+            org.assertj.core.api.Assertions.assertThat(
+                    get("/api/v1/invitations/" + id, tokenResidentA()).statusCode()).isEqualTo(404);
+            for (String action : List.of("revoke", "extend", "request-exit")) {
+                org.assertj.core.api.Assertions.assertThat(
+                        post("/api/v1/invitations/" + id + "/" + action, tokenResidentA(), "").statusCode())
+                        .as(action + " " + id).isEqualTo(404);
+            }
+        }
+    }
+
+    @Test
+    void miembroDelLoteQueVeLaInvitacionRecibe403AlRevocar() throws Exception {
+        String member = jwt.issue(memberOfLotB, barrio, List.of(Role.RESIDENT_MEMBER), List.of(lotB)).token();
+        org.assertj.core.api.Assertions.assertThat(
+                post("/api/v1/invitations/" + invitationB + "/revoke", member, "").statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void adminDeOtroBarrioRecibe404() throws Exception {
+        UUID otro = UUID.randomUUID();
+        jdbc.update("INSERT INTO neighborhoods (id, name, slug) VALUES (?, 'Y', ?)", otro, "n-" + otro);
+        String admin = jwt.issue(UUID.randomUUID(), otro, List.of(Role.ADMIN), List.of()).token();
+        org.assertj.core.api.Assertions.assertThat(
+                get("/api/v1/invitations/" + invitationB, admin).statusCode()).isEqualTo(404);
+        org.assertj.core.api.Assertions.assertThat(
+                post("/api/v1/invitations/" + invitationB + "/revoke", admin, "").statusCode()).isEqualTo(404);
+    }
+
     // ---------- helpers ----------
 
     private HttpResponse<String> post(String path, String token, String body) throws Exception {

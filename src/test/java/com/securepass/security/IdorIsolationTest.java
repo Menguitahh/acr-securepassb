@@ -222,15 +222,15 @@ class IdorIsolationTest {
     }
 
     @Test
-    void getInvitationCrossBarrio_403() {
+    void getInvitationCrossBarrio_404() {
         assertThatThrownBy(() -> getInvitation.get(adminA(), invitationB))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(ResourceNotFoundException.class); // #123
     }
 
     @Test
-    void revokeInvitationCrossBarrio_403() {
+    void revokeInvitationCrossBarrio_404() {
         assertThatThrownBy(() -> revokeInvitation.revoke(adminA(), invitationB))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(ResourceNotFoundException.class); // #123
     }
 
     @Test
