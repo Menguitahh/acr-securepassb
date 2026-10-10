@@ -17,10 +17,30 @@ public class ListAccessLogsUseCase {
     private static final Duration DEFAULT_WINDOW = Duration.ofDays(90);
     private static final int DEFAULT_SIZE = 25;
 
-    private final AccessLogQuery logs;
+    private static final int SHIFT_PAGE_SIZE = 50;
 
-    public ListAccessLogsUseCase(AccessLogQuery logs) {
+    private final AccessLogQuery logs;
+    private final OpenShiftQuery shifts;
+
+    public ListAccessLogsUseCase(AccessLogQuery logs, OpenShiftQuery shifts) {
         this.logs = logs;
+        this.shifts = shifts;
+    }
+
+    /**
+     * US-72: ingresos y egresos del turno abierto del guardia, del mas
+     * reciente al mas viejo. Sin turno abierto, pagina vacia: no hay
+     * registro que mostrar.
+     */
+    public AccessLogQuery.Page listForCurrentShift(CurrentUser actor, int page) {
+        if (actor == null) throw new IllegalArgumentException("actor requerido");
+        if (actor.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
+        int p = Math.max(0, page);
+        return shifts.currentShiftId(actor.userId())
+                .map(shiftId -> logs.list(new AccessLogQuery.Filter(
+                        actor.neighborhoodId(), List.of(), null, null, null, null, null,
+                        p, SHIFT_PAGE_SIZE, shiftId)))
+                .orElseGet(() -> new AccessLogQuery.Page(List.of(), p, SHIFT_PAGE_SIZE, 0));
     }
 
     public AccessLogQuery.Page list(
@@ -62,6 +82,7 @@ public class ListAccessLogsUseCase {
                 allowedOnly,
                 reason,
                 Math.max(0, page),
-                DEFAULT_SIZE));
+                DEFAULT_SIZE,
+                null));
     }
 }

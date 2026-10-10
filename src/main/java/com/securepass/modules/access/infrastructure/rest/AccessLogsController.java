@@ -30,6 +30,13 @@ public class AccessLogsController {
         this.guard = guard;
     }
 
+    // US-72: registro del turno abierto del guardia.
+    @GetMapping("/shift")
+    @PreAuthorize("hasRole('GUARD')")
+    public AccessLogsResponse shift(@RequestParam(defaultValue = "0") int page) {
+        return AccessLogsResponse.from(useCase.listForCurrentShift(guard.require(), page));
+    }
+
     // reason como enum: un valor fuera de DenialReason es 400 (TypeMismatch) y
     // no una lista vacia que parezca "sin denegados" (#204).
     @GetMapping

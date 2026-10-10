@@ -1493,9 +1493,6 @@
         ],
         "operationId" : "current",
         "responses" : {
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
-          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1505,6 +1502,9 @@
                 }
               }
             }
+          },
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -2001,12 +2001,44 @@
           }
         ],
         "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccessLogsResponse"
+                }
+              }
+            }
+          },
           "400" : {
             "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
             "content" : {
               "application/problem+json" : { }
             }
-          },
+          }
+        }
+      }
+    },
+    "/api/v1/access-logs/shift" : {
+      "get" : {
+        "tags" : [
+          "access-logs-controller"
+        ],
+        "operationId" : "shift",
+        "parameters" : [
+          {
+            "name" : "page",
+            "in" : "query",
+            "required" : false,
+            "schema" : {
+              "type" : "integer",
+              "format" : "int32",
+              "default" : 0
+            }
+          }
+        ],
+        "responses" : {
           "200" : {
             "description" : "OK",
             "content" : {
@@ -2287,10 +2319,10 @@
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
-          "contactPresent" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "contactPresent" : {
             "type" : "boolean"
           }
         }
@@ -3682,13 +3714,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "nonEmpty" : {
             "type" : "boolean"
           },
           "scheduleBundled" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }

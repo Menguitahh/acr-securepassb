@@ -32,7 +32,9 @@ public interface AccessLogQuery {
             Boolean allowedOnly,
             DenialReason reason,
             int page,
-            int size
+            int size,
+            // US-72: solo los accesos de ese turno (registro del guardia).
+            UUID shiftId
     ) {
         public Filter {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

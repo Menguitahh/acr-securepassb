@@ -27,4 +27,17 @@ public class OpenShiftJdbcQuery implements OpenShiftQuery {
                 .optional()
                 .isPresent();
     }
+
+    @Override
+    public java.util.Optional<UUID> currentShiftId(UUID guardId) {
+        return jdbc.sql("""
+                SELECT id FROM guard_shifts
+                 WHERE guard_id = :guard AND ended_at IS NULL
+                 ORDER BY started_at DESC
+                 LIMIT 1
+                """)
+                .param("guard", guardId)
+                .query(UUID.class)
+                .optional();
+    }
 }

@@ -46,6 +46,7 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
                     .append(" AND (al.result = 'ALLOWED' OR al.denial_reason = 'DOCUMENT_MISMATCH')");
         }
         if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
+        if (f.shiftId() != null) where.append(" AND al.shift_id = :shift");
         if (f.from() != null) where.append(" AND al.captured_at >= :from");
         if (f.to() != null) where.append(" AND al.captured_at < :to");
         if (f.allowedOnly() != null) {
@@ -78,6 +79,10 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
         if (f.lotIdFilter() != null) {
             itemsQ.param("lotFilter", f.lotIdFilter());
             countQ.param("lotFilter", f.lotIdFilter());
+        }
+        if (f.shiftId() != null) {
+            itemsQ.param("shift", f.shiftId());
+            countQ.param("shift", f.shiftId());
         }
         if (f.from() != null) {
             itemsQ.param("from", Timestamp.from(f.from()));

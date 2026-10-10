@@ -29,7 +29,7 @@ class ListAccessLogsUseCaseTest {
     @BeforeEach
     void setUp() {
         query = mock(AccessLogQuery.class);
-        useCase = new ListAccessLogsUseCase(query);
+        useCase = new ListAccessLogsUseCase(query, mock(OpenShiftQuery.class));
         neighborhoodId = UUID.randomUUID();
         lot1 = UUID.randomUUID();
         lot2 = UUID.randomUUID();

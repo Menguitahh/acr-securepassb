@@ -980,6 +980,7 @@ Endpoints de residente para permanencia (US-42):
 | POST | `/shifts/open` | GUARD |
 | POST | `/shifts/close` | GUARD |
 | GET | `/shifts/current` | GUARD |
+| GET | `/access-logs/shift?page=` | GUARD | US-72: ingresos y egresos del turno abierto del guardia, del más reciente al más viejo, de a 50; los denegados con su motivo. Misma forma que `/access-logs`. Sin turno abierto, página vacía. |
 | GET | `/shifts?gateId=&from=&to=&page=` | ADMIN |
 
 `GET /shifts` pagina de a 25, más reciente primero, con la misma forma que `/access-logs`: `{items, page, size, total}` (#203). El rango filtra por `started_at`.
