@@ -305,7 +305,7 @@ class IdorIntraBarrioHttpTest {
                 """, userId, lotId);
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active)
-                VALUES (?, ?, 'RESIDENT_OWNER', TRUE)
+                VALUES (?, ?, 'ROLE_RESIDENT_OWNER', TRUE)
                 ON CONFLICT (user_id, neighborhood_id, role) DO UPDATE SET active = TRUE
                 """, userId, barrio);
     }

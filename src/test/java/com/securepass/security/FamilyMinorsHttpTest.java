@@ -87,8 +87,8 @@ class FamilyMinorsHttpTest {
         seedUser(adminB, "adminB");
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES
-                    (?, ?, 'RESIDENT_OWNER', TRUE),
-                    (?, ?, 'ADMIN', TRUE)
+                    (?, ?, 'ROLE_RESIDENT_OWNER', TRUE),
+                    (?, ?, 'ROLE_ADMIN', TRUE)
                 """, ownerA, barrioA, adminB, barrioB);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
@@ -185,7 +185,7 @@ class FamilyMinorsHttpTest {
     }
 
     // c) IDOR cross-barrio: ADMIN del barrio B pasa el gate del GET (por
-    // hasRole('ADMIN')), pero el use case tiene que detenerlo con 403
+    // hasRole('ROLE_ADMIN')), pero el use case tiene que detenerlo con 403
     // ("recurso de otro barrio"). Mismo criterio que ListFamilyMembersUseCase
     // (#135) — no cambiar sin cambiar tambien /members.
     @Test

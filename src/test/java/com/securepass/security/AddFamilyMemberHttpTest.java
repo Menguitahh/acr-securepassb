@@ -89,11 +89,11 @@ class AddFamilyMemberHttpTest {
                 """, otherOwner, "o-" + otherOwner + "@t.com");
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active)
-                VALUES (?, ?, 'RESIDENT_OWNER', TRUE)
+                VALUES (?, ?, 'ROLE_RESIDENT_OWNER', TRUE)
                 """, owner, barrio);
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active)
-                VALUES (?, ?, 'RESIDENT_OWNER', TRUE)
+                VALUES (?, ?, 'ROLE_RESIDENT_OWNER', TRUE)
                 """, otherOwner, barrio);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)

@@ -41,7 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         JwtTokenProvider.Claims claims = parsed.get();
         CurrentUser user = new CurrentUser(claims.sub(), claims.neighborhoodId(), claims.roles(), claims.lots());
         List<SimpleGrantedAuthority> authorities = claims.roles().stream()
-                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
+                .map(r -> new SimpleGrantedAuthority(r.authority()))
                 .toList();
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(user, null, authorities);

@@ -95,9 +95,9 @@ class FamilyMemberRevokeSyncHttpTest {
         seedUser(guard, "guard");
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES
-                    (?, ?, 'RESIDENT_OWNER', TRUE),
-                    (?, ?, 'RESIDENT_MEMBER', TRUE),
-                    (?, ?, 'GUARD', TRUE)
+                    (?, ?, 'ROLE_RESIDENT_OWNER', TRUE),
+                    (?, ?, 'ROLE_RESIDENT_MEMBER', TRUE),
+                    (?, ?, 'ROLE_GUARD', TRUE)
                 """, owner, barrio, member, barrio, guard, barrio);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active) VALUES

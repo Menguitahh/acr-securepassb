@@ -81,7 +81,7 @@ class NeighborhoodProvisionerTest {
                 "SELECT password_hash FROM users WHERE id=?", String.class,
                 outcome.result().adminUserId())).isNull();
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM memberships WHERE user_id=? AND neighborhood_id=? AND role='ADMIN' AND active=TRUE",
+                "SELECT count(*) FROM memberships WHERE user_id=? AND neighborhood_id=? AND role='ROLE_ADMIN' AND active=TRUE",
                 Integer.class, outcome.result().adminUserId(), nid)).isEqualTo(1);
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM activation_tokens WHERE user_id=? AND consumed_at IS NULL",

@@ -54,7 +54,7 @@ class ShiftCurrentHttpTest {
                 """, guardId, "g-" + guardId + "@t.com");
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active)
-                VALUES (?, ?, 'GUARD', TRUE)
+                VALUES (?, ?, 'ROLE_GUARD', TRUE)
                 """, guardId, barrio);
     }
 

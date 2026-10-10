@@ -127,7 +127,7 @@ public class UserJdbcRepository implements UserRepository {
             UUID neighborhoodId) {
         return jdbc.sql("""
                 SELECT u.id, u.full_name, u.email, u.created_at,
-                       COALESCE((SELECT array_agg(DISTINCT m.role::text) FROM memberships m
+                       COALESCE((SELECT array_agg(DISTINCT substr(m.role, 6)) FROM memberships m
                                   WHERE m.user_id = u.id AND m.neighborhood_id = :nid AND m.active = TRUE),
                                 '{}') AS roles,
                        COALESCE((SELECT array_agg(DISTINCT l.code) FROM lot_permissions p
@@ -225,7 +225,7 @@ public class UserJdbcRepository implements UserRepository {
                 SELECT u.id, u.full_name, u.document_number, u.email, u.status,
                        u.suspended_by_neighborhood, sn.name AS suspended_by_name,
                        u.suspended_reason, u.suspended_at,
-                       COALESCE((SELECT array_agg(DISTINCT m.role::text) FROM memberships m
+                       COALESCE((SELECT array_agg(DISTINCT substr(m.role, 6)) FROM memberships m
                                   WHERE m.user_id = u.id AND m.neighborhood_id = :nid AND m.active = TRUE),
                                 '{}') AS roles,
                        COALESCE((SELECT array_agg(DISTINCT l.code) FROM lot_permissions p
@@ -319,7 +319,7 @@ public class UserJdbcRepository implements UserRepository {
                 SELECT u.email
                   FROM memberships m
                   JOIN users u ON u.id = m.user_id
-                 WHERE m.neighborhood_id = :nid AND m.role = 'ADMIN' AND m.active = TRUE
+                 WHERE m.neighborhood_id = :nid AND m.role = 'ROLE_ADMIN' AND m.active = TRUE
                    AND u.status = 'ACTIVE' AND u.email IS NOT NULL
                  ORDER BY u.email
                 """)
