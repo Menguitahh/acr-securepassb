@@ -67,7 +67,12 @@ class DemoSeedRunnerTest {
         assertThat(count("SELECT count(*) FROM access_logs WHERE captured_at > now() AND neighborhood_id = " + pinos))
                 .isZero();
         assertThat(count("SELECT count(*) FROM stays WHERE exited_at IS NULL AND neighborhood_id = " + pinos))
-                .isGreaterThanOrEqualTo(2);
+                .as("adentro ahora: Marcos Vera y Carla Nunez").isEqualTo(2);
+        assertThat(count("""
+                SELECT count(*) FROM stays s JOIN neighborhoods n ON n.id = s.neighborhood_id
+                 WHERE n.slug = 'los-pinos' AND s.exited_at IS NULL
+                   AND s.entered_at + n.stay_alert_minutes * interval '1 minute' < now()
+                """)).as("una permanencia excedida para la vista Permanencia").isEqualTo(1);
         assertThat(count("SELECT count(*) FROM guard_shifts WHERE ended_at IS NULL AND neighborhood_id = " + pinos))
                 .as("el guardia abre su turno en vivo").isZero();
         assertThat(count("SELECT count(*) FROM invitations WHERE status = 'ACTIVE' AND resident_pass = FALSE"

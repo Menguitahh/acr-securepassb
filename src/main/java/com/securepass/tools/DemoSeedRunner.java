@@ -246,12 +246,11 @@ public class DemoSeedRunner implements CommandLineRunner {
                 int companions = r.nextInt(4) == 0 ? 1 + r.nextInt(3) : 0;
                 Instant in = at(day, 10 + r.nextInt(9), r.nextInt(60));
                 Instant out = in.plus(Duration.ofMinutes(45 + r.nextInt(180)));
-                if (!within(in, shiftStart, shiftEnd)) continue;
+                // Entra y sale dentro del turno: las unicas visitas adentro son las de hoy, abajo.
+                if (!within(in, shiftStart, shiftEnd) || !within(out, shiftStart, shiftEnd)) continue;
                 UUID entry = log(nid, gate, shift, guard, lots.get(lot), "IN", "GUEST", g[0], g[1], companions, null, in);
-                UUID exit = within(out, shiftStart, shiftEnd)
-                        ? log(nid, gate, shift, guard, lots.get(lot), "OUT", "GUEST", g[0], g[1], companions, null, out)
-                        : null;
-                stay(nid, lots.get(lot), g[0], g[1], companions, entry, exit, in, exit == null ? null : out, in.plus(Duration.ofHours(4)));
+                UUID exit = log(nid, gate, shift, guard, lots.get(lot), "OUT", "GUEST", g[0], g[1], companions, null, out);
+                stay(nid, lots.get(lot), g[0], g[1], companions, entry, exit, in, out, in.plus(Duration.ofHours(4)));
             }
 
             // Denegados: un pase vencido o revocado cada tanto, y el lote en mora.
@@ -266,17 +265,20 @@ public class DemoSeedRunner implements CommandLineRunner {
                 log(nid, gate, shift, guard, lots.get("B-06"), "IN", "GUEST", "Hernán Acosta", "36555444", 0, "LOT_SUSPENDED", suspended);
         }
 
-        // Hoy: una visita adentro en horario y otra que se paso (Permanencia).
+        // Hoy: una visita adentro en horario y otra que ya paso el tiempo de alerta.
         Instant shiftToday = jdbc.sql("""
                 SELECT started_at FROM guard_shifts WHERE neighborhood_id = :n ORDER BY started_at DESC LIMIT 1
                 """).param("n", nid).query(Timestamp.class).single().toInstant();
         UUID lastShift = jdbc.sql("SELECT id FROM guard_shifts WHERE neighborhood_id = :n ORDER BY started_at DESC LIMIT 1")
                 .param("n", nid).query(UUID.class).single();
         Instant recent = later(shiftToday, now.minus(Duration.ofMinutes(50)));
-        Instant longAgo = later(shiftToday, now.minus(Duration.ofHours(6)));
+        // Permanencia: pasa el tiempo de alerta del barrio (stay_alert_minutes, 8 h por defecto).
+        Instant longAgo = now.minus(Duration.ofHours(9));
+        UUID longAgoShift = longAgo.isBefore(shiftToday) ? null : lastShift;
         UUID e1 = log(nid, gate, lastShift, guard, lots.get("A-01"), "IN", "GUEST", "Marcos Vera", "34999111", 1, null, recent);
         stay(nid, lots.get("A-01"), "Marcos Vera", "34999111", 1, e1, null, recent, null, recent.plus(Duration.ofHours(4)));
-        UUID e2 = log(nid, gate, lastShift, guard, lots.get("A-03"), "IN", "GUEST", "Carla Núñez", "35888222", 0, null, longAgo);
+        UUID e2 = log(nid, gate, longAgoShift, longAgoShift == null ? null : guard, lots.get("A-03"), "IN", "GUEST",
+                "Carla Núñez", "35888222", 0, null, longAgo);
         stay(nid, lots.get("A-03"), "Carla Núñez", "35888222", 0, e2, null, longAgo, null, longAgo.plus(Duration.ofHours(3)));
     }
 
