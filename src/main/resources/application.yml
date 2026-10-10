@@ -1,6 +1,12 @@
 spring:
   application:
     name: securepassb
+  # securepassb#257: JPA convive con JdbcClient. Flyway crea el esquema;
+  # Hibernate solo valida que las @Entity coincidan con las tablas.
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/securepass}
     username: ${DB_USER:securepass}
