@@ -81,6 +81,40 @@ Sin la property, la app arranca vacia (util para probar el flujo de
 
 Escucha en `http://localhost:8080`. OpenAPI en `openapi.json`.
 
+## Demo para presentar
+
+`DemoSeedRunner` arma un ejemplo completo para mostrar el sistema. Usa las mismas barreras: perfil `dev` + `SECUREPASS_DEMO_SEED=true`. Es idempotente: si el barrio "Los Pinos" ya existe, no hace nada.
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "dev"
+$env:SECUREPASS_DEMO_SEED = "true"
+.\gradlew.bat bootRun
+```
+
+Que crea:
+
+- **Duenio de la plataforma**: ve los dos barrios desde `/plataforma` en el web.
+- **Los Pinos** (Mendoza), con todas sus cuentas:
+  - 12 lotes; B-06 suspendido por mora;
+  - titulares, una familiar, un jardinero (lunes a viernes de 8 a 17) y el guardia;
+  - una semana de movimiento: turnos, ingresos y egresos, denegados (pase vencido, revocado, lote en mora, trabajador fuera de horario);
+  - dos visitas adentro hoy, una ya pasada de su horario;
+  - 3 invitaciones vigentes para la demo en vivo (Sofia Perez y Diego Torres en A-03, Pablo Rios en B-02).
+- **Altos del Sol**: 8 lotes y su admin pendiente de activacion. Solo para verlo desde la plataforma; no tiene cuentas para usar.
+
+El guardia no tiene turno abierto: lo abre en vivo desde la app.
+
+| Rol | Email | Password |
+|---|---|---|
+| Duenio de la plataforma | plataforma@securepass.example | Plataforma2026 |
+| Admin de Los Pinos (web) | admin@lospinos.example | LosPinos2026 |
+| Guardia (app) | guardia@lospinos.example | LosPinos2026 |
+| Titular A-03 (app) | titular@lospinos.example | LosPinos2026 |
+| Familiar A-03 (app) | familiar@lospinos.example | LosPinos2026 |
+| Trabajador A-03 (app) | trabajador@lospinos.example | LosPinos2026 |
+
+Los mails de activacion de estas cuentas solo van al log (`SECUREPASS_EMAIL_PROVIDER` en `logging`). Los dominios `.example` estan reservados y no llegan a nadie.
+
 ## Credenciales e IDs de dev
 
 Todos los IDs estan fijos en `DevSeedRunner` + `src/main/resources/dev/dev-overlay.sql`.
