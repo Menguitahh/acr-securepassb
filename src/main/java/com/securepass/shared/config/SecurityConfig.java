@@ -75,7 +75,8 @@ public class SecurityConfig {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(allowedOrigins);
         cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Device-Id"));
+        // X-Neighborhood-Id: el duenio de la plataforma ve un barrio (#258).
+        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Device-Id", "X-Neighborhood-Id"));
         cfg.setExposedHeaders(List.of("Retry-After", "Content-Disposition"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
