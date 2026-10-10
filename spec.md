@@ -999,11 +999,17 @@ Endpoints de residente para permanencia (US-42):
 | POST | `/admin/users` | Alta de usuario (v2, WBS-128). Body `{email, fullName, dni, role, lotId?}` con `role ∈ {RESIDENT_OWNER, GUARD}`. 201 con `{userId, role, status: PENDING_ACTIVATION}`. Dispara email de activación. |
 | POST | `/admin/users/{id}/resend-activation` | Reenvía el email de activación (v2, WBS-128). 3/hora por usuario. 409 si el usuario no está en `PENDING_ACTIVATION`. 404 si la cuenta no es del barrio del admin (US-54). |
 | GET | `/admin/users/pending` | US-54: cuentas del barrio sin activar (membresía o permiso de lote), con roles y lotes, más reciente primero, hasta 200. |
+| GET | `/admin/users?q=` | securepassb#121: personas del barrio (membresía, permiso de lote, o suspendidas por este barrio) por nombre o prefijo de DNI, 2 a 80 caracteres, hasta 20. Cada una con `status`, roles, lotes y `suspension` (`neighborhoodName`, `reason`, `suspendedAt`, `ownNeighborhood`) o null. |
+| POST | `/admin/users/{id}/suspend` | securepassb#121: `{reason}` de 3 a 280 caracteres. La suspensión es global (`users.status = SUSPENDED`: no entra a ningún barrio) y guarda barrio, motivo y fecha. Revoca el QR del trabajador y el pase de residente (salen en `/access/revoked`); las invitaciones que la persona emitió para sus visitas siguen. 204. 404 si no es del barrio; 400 sobre la propia cuenta; 409 si ya está suspendida o dada de baja. |
+| POST | `/admin/users/{id}/lift-suspension` | securepassb#121: solo el barrio que la puso (o cualquier barrio de la persona si es anterior a #121). Vuelve a `ACTIVE`, o a `PENDING_ACTIVATION` si nunca eligió contraseña. 204; 409 si no está suspendida o la puso otro barrio. El QR y el pase se vuelven a emitir solos cuando la persona abre la app. |
+| POST | `/admin/users/{id}/suspension-review` | securepassb#121: el admin de otro barrio pide revisar la suspensión (el id sale del 409 `USER_SUSPENDED`). `{message?}` hasta 500. Manda un email a cada admin activo del barrio que la puso, con nombre y email de quien pide. 202. Uno por persona y barrio cada 24 h (429). 409 si la suspensión es del propio barrio o no registra barrio. |
 | POST | `/lots/{lotId}/members/{userId}/resend-activation` | US-54, OWNER del lote: reenvía la activación a un familiar o trabajador del lote. Mismo límite que el admin. 404 si no es del lote; 409 si ya activó o no tiene email. |
 | GET | `/admin/reports/access-logs.csv` | Export para importar a otro sistema: CSV RFC 4180, UTF-8 con BOM, `captured_at` ISO 8601 con offset. |
 | GET | `/admin/reports/access-logs.xlsx` | Export para leer e imprimir en Excel (#195): encabezados y valores en castellano, `Capturado el` como fecha de Excel en hora del barrio, filas denegadas destacadas. Mismos parámetros, rango máximo, límite de concurrencia y auditoría que el CSV. 422 si el filtro supera el límite de filas del XLSX. |
 
 **Códigos de conflicto en `POST /admin/users`** (HTTP 409, campo `code` en el body para que el frontend ramifique):
+
+En `USER_SUSPENDED` el body trae además `suspension: {neighborhoodName, reason, suspendedAt, ownNeighborhood}` (securepassb#121), con los tres primeros null si la suspensión es anterior a #121. Las altas que hace el titular (familiar, trabajador) no lo traen: el motivo lo ve solo el admin.
 
 | `code` | Cuándo | `existingUserId` |
 |---|---|---|

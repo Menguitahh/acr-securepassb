@@ -213,6 +213,131 @@ public class UserJdbcRepository implements UserRepository {
         return rows == 1;
     }
 
+    // securepassb#121: misma pertenencia que belongsToNeighborhood, mas las
+    // personas que este barrio suspendio.
+    @Override
+    public java.util.List<com.securepass.modules.identity.application.PersonSummary> searchInNeighborhood(
+            UUID neighborhoodId, String query) {
+        String q = query == null ? "" : query.trim();
+        if (q.length() < 2) return java.util.List.of();
+        String like = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return jdbc.sql("""
+                SELECT u.id, u.full_name, u.document_number, u.email, u.status,
+                       u.suspended_by_neighborhood, sn.name AS suspended_by_name,
+                       u.suspended_reason, u.suspended_at,
+                       COALESCE((SELECT array_agg(DISTINCT m.role::text) FROM memberships m
+                                  WHERE m.user_id = u.id AND m.neighborhood_id = :nid AND m.active = TRUE),
+                                '{}') AS roles,
+                       COALESCE((SELECT array_agg(DISTINCT l.code) FROM lot_permissions p
+                                   JOIN lots l ON l.id = p.lot_id
+                                  WHERE p.user_id = u.id AND l.neighborhood_id = :nid AND p.active = TRUE),
+                                '{}') AS lot_codes
+                  FROM users u
+                  LEFT JOIN neighborhoods sn ON sn.id = u.suspended_by_neighborhood
+                 WHERE u.status <> 'DELETED'
+                   AND (u.full_name ILIKE '%' || :like || '%' OR u.document_number LIKE :like || '%')
+                   AND (EXISTS (SELECT 1 FROM memberships m
+                                 WHERE m.user_id = u.id AND m.neighborhood_id = :nid AND m.active = TRUE)
+                        OR EXISTS (SELECT 1 FROM lot_permissions p JOIN lots l ON l.id = p.lot_id
+                                    WHERE p.user_id = u.id AND l.neighborhood_id = :nid AND p.active = TRUE)
+                        OR u.suspended_by_neighborhood = :nid)
+                 ORDER BY u.full_name ASC
+                 LIMIT 20
+                """)
+                .param("nid", neighborhoodId)
+                .param("like", like)
+                .query((rs, i) -> new com.securepass.modules.identity.application.PersonSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("full_name"),
+                        rs.getString("document_number"),
+                        rs.getString("email"),
+                        UserStatus.valueOf(rs.getString("status")),
+                        java.util.List.of((String[]) rs.getArray("roles").getArray()),
+                        java.util.List.of((String[]) rs.getArray("lot_codes").getArray()),
+                        "SUSPENDED".equals(rs.getString("status")) ? mapSuspension(rs) : null))
+                .list();
+    }
+
+    @Override
+    public boolean suspend(UUID userId, UUID neighborhoodId, String reason) {
+        return jdbc.sql("""
+                UPDATE users
+                   SET status = 'SUSPENDED',
+                       suspended_by_neighborhood = :nid,
+                       suspended_reason = :reason,
+                       suspended_at = now(),
+                       updated_at = now()
+                 WHERE id = :id AND status IN ('ACTIVE', 'PENDING_ACTIVATION')
+                """)
+                .param("id", userId)
+                .param("nid", neighborhoodId)
+                .param("reason", reason)
+                .update() == 1;
+    }
+
+    @Override
+    public boolean liftSuspension(UUID userId, UUID neighborhoodId) {
+        return jdbc.sql("""
+                UPDATE users
+                   SET status = CASE WHEN password_hash IS NULL THEN 'PENDING_ACTIVATION' ELSE 'ACTIVE' END,
+                       suspended_by_neighborhood = NULL,
+                       suspended_reason = NULL,
+                       suspended_at = NULL,
+                       updated_at = now()
+                 WHERE id = :id
+                   AND status = 'SUSPENDED'
+                   AND (suspended_by_neighborhood = :nid
+                        OR (suspended_by_neighborhood IS NULL
+                            AND (EXISTS (SELECT 1 FROM memberships m
+                                          WHERE m.user_id = users.id AND m.neighborhood_id = :nid AND m.active = TRUE)
+                                 OR EXISTS (SELECT 1 FROM lot_permissions p JOIN lots l ON l.id = p.lot_id
+                                             WHERE p.user_id = users.id AND l.neighborhood_id = :nid
+                                               AND p.active = TRUE))))
+                """)
+                .param("id", userId)
+                .param("nid", neighborhoodId)
+                .update() == 1;
+    }
+
+    @Override
+    public Optional<com.securepass.modules.identity.application.Suspension> findSuspension(UUID userId) {
+        return jdbc.sql("""
+                SELECT u.suspended_by_neighborhood, sn.name AS suspended_by_name,
+                       u.suspended_reason, u.suspended_at
+                  FROM users u
+                  LEFT JOIN neighborhoods sn ON sn.id = u.suspended_by_neighborhood
+                 WHERE u.id = :id AND u.status = 'SUSPENDED'
+                """)
+                .param("id", userId)
+                .query((rs, i) -> mapSuspension(rs))
+                .optional();
+    }
+
+    @Override
+    public java.util.List<String> activeAdminEmails(UUID neighborhoodId) {
+        return jdbc.sql("""
+                SELECT u.email
+                  FROM memberships m
+                  JOIN users u ON u.id = m.user_id
+                 WHERE m.neighborhood_id = :nid AND m.role = 'ADMIN' AND m.active = TRUE
+                   AND u.status = 'ACTIVE' AND u.email IS NOT NULL
+                 ORDER BY u.email
+                """)
+                .param("nid", neighborhoodId)
+                .query(String.class)
+                .list();
+    }
+
+    private static com.securepass.modules.identity.application.Suspension mapSuspension(java.sql.ResultSet rs)
+            throws java.sql.SQLException {
+        java.sql.Timestamp at = rs.getTimestamp("suspended_at");
+        return new com.securepass.modules.identity.application.Suspension(
+                rs.getObject("suspended_by_neighborhood", UUID.class),
+                rs.getString("suspended_by_name"),
+                rs.getString("suspended_reason"),
+                at == null ? null : at.toInstant());
+    }
+
     private User mapUser(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         Date bd = rs.getDate("birth_date");
         LocalDate birthDate = bd == null ? null : bd.toLocalDate();

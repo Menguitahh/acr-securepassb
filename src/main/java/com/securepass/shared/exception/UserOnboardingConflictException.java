@@ -24,13 +24,29 @@ public class UserOnboardingConflictException extends RuntimeException {
 
     private final String code;
     private final UUID existingUserId;
+    private final SuspensionDetail suspension;
 
     public UserOnboardingConflictException(String code, UUID existingUserId, String detail) {
+        this(code, existingUserId, detail, null);
+    }
+
+    public UserOnboardingConflictException(String code, UUID existingUserId, String detail,
+                                           SuspensionDetail suspension) {
         super(detail);
         if (code == null || code.isBlank()) throw new IllegalArgumentException("code requerido");
         this.code = code;
         this.existingUserId = existingUserId;
+        this.suspension = suspension;
     }
+
+    /** securepassb#121: en USER_SUSPENDED del alta del admin, que barrio la puso y por que. */
+    public SuspensionDetail suspension() {
+        return suspension;
+    }
+
+    /** Campos null en una suspension anterior a #121. ownNeighborhood: la puso el barrio del admin. */
+    public record SuspensionDetail(String neighborhoodName, String reason, java.time.Instant suspendedAt,
+                                   boolean ownNeighborhood) {}
 
     public String code() {
         return code;

@@ -76,9 +76,7 @@ public class OnboardUserUseCase {
     private Result reuseFlow(User existing, String email, Command cmd, UUID neighborhoodId,
                              String actorFullName, String neighborhoodName) {
         switch (existing.status()) {
-            case SUSPENDED -> throw new UserOnboardingConflictException(
-                    "USER_SUSPENDED", existing.id(),
-                    "El usuario esta suspendido; coordinar con quien lo suspendio antes de darle acceso");
+            case SUSPENDED -> throw suspendedConflict(existing.id(), neighborhoodId);
             case DELETED -> throw new UserOnboardingConflictException(
                     "USER_DELETED", existing.id(),
                     "El usuario esta dado de baja");
@@ -182,6 +180,18 @@ public class OnboardUserUseCase {
                     "Race en el alta: reintentar");
         }
         throw dive;
+    }
+
+    // securepassb#121: el admin ve que barrio la suspendio y por que, para
+    // pedir la revision o, si fue su barrio, levantarla.
+    private UserOnboardingConflictException suspendedConflict(UUID userId, UUID neighborhoodId) {
+        var detail = users.findSuspension(userId)
+                .map(s -> new UserOnboardingConflictException.SuspensionDetail(
+                        s.neighborhoodName(), s.reason(), s.suspendedAt(),
+                        neighborhoodId.equals(s.neighborhoodId())))
+                .orElse(null);
+        return new UserOnboardingConflictException("USER_SUSPENDED", userId,
+                "El usuario esta suspendido; coordinar con quien lo suspendio antes de darle acceso", detail);
     }
 
     public record Command(String email, String fullName, String dni, Role role, UUID lotId) {

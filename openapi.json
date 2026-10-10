@@ -861,6 +861,39 @@
       }
     },
     "/api/v1/admin/users" : {
+      "get" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "search_1",
+        "parameters" : [
+          {
+            "name" : "q",
+            "in" : "query",
+            "required" : true,
+            "schema" : {
+              "maxLength" : 80,
+              "minLength" : 2,
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PersonResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post" : {
         "tags" : [
           "admin-users-controller"
@@ -890,12 +923,104 @@
         }
       }
     },
+    "/api/v1/admin/users/{id}/suspension-review" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "requestSuspensionReview",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SuspensionReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/suspend" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "suspend",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SuspendRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
     "/api/v1/admin/users/{id}/resend-activation" : {
       "post" : {
         "tags" : [
           "admin-users-controller"
         ],
         "operationId" : "resendActivation",
+        "parameters" : [
+          {
+            "name" : "id",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/lift-suspension" : {
+      "post" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "liftSuspension",
         "parameters" : [
           {
             "name" : "id",
@@ -2398,10 +2523,10 @@
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
-          "contactPresent" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "contactPresent" : {
             "type" : "boolean"
           }
         }
@@ -3093,6 +3218,29 @@
             "type" : "string"
           },
           "fullName" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SuspensionReviewRequest" : {
+        "type" : "object",
+        "properties" : {
+          "message" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }
+      },
+      "SuspendRequest" : {
+        "required" : [
+          "reason"
+        ],
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "maxLength" : 280,
+            "minLength" : 3,
             "type" : "string"
           }
         }
@@ -4207,6 +4355,81 @@
               "SUSPENDED",
               "DELETED"
             ]
+          }
+        }
+      },
+      "PersonResponse" : {
+        "required" : [
+          "documentNumber",
+          "email",
+          "fullName",
+          "lotCodes",
+          "roles",
+          "status",
+          "suspension",
+          "userId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "documentNumber" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "email" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "lotCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "suspension" : {
+            "$ref" : "#/components/schemas/SuspensionResponse"
+          }
+        }
+      },
+      "SuspensionResponse" : {
+        "required" : [
+          "neighborhoodName",
+          "ownNeighborhood",
+          "reason",
+          "suspendedAt"
+        ],
+        "type" : "object",
+        "properties" : {
+          "neighborhoodName" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "reason" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "suspendedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "nullable" : true
+          },
+          "ownNeighborhood" : {
+            "type" : "boolean"
           }
         }
       },

@@ -45,4 +45,23 @@ public class ActiveInvitationJdbcRevoker implements ActiveInvitationRevoker {
                 .param("by", revokedBy)
                 .update();
     }
+
+    @Override
+    public int revokeResidentPasses(UUID userId, UUID revokedBy) {
+        // Solo el pase propio: las invitaciones que la persona emitio para sus
+        // visitas siguen, el lote no esta suspendido.
+        return jdbc.sql("""
+                UPDATE invitations
+                   SET status = 'REVOKED',
+                       revoked_at = now(),
+                       revoked_by = :by,
+                       updated_at = now()
+                 WHERE created_by = :user
+                   AND resident_pass = TRUE
+                   AND status = 'ACTIVE'
+                """)
+                .param("user", userId)
+                .param("by", revokedBy)
+                .update();
+    }
 }

@@ -1,0 +1,9 @@
+Hola,
+
+${requesterName}, admin de ${requesterNeighborhood}, quiere dar de alta a ${personName}, que tu barrio suspendió en Securepass. Te pide que revises la suspensión.
+
+${message}
+Si la suspensión ya no corresponde, levantala desde Padrón, en "Personas". Si sigue vigente, respondele a ${requesterEmail} para coordinar.
+
+--
+Securepass

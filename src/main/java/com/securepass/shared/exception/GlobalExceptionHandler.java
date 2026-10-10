@@ -65,6 +65,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail pd = problem(HttpStatus.CONFLICT, "user-onboarding-conflict", ex.getMessage());
         pd.setProperty("code", ex.code());
         if (ex.existingUserId() != null) pd.setProperty("existingUserId", ex.existingUserId().toString());
+        if (ex.suspension() != null) pd.setProperty("suspension", ex.suspension());
         return pd;
     }
 

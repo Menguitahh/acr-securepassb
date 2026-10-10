@@ -3,6 +3,7 @@ package com.securepass.modules.identity.infrastructure.rest;
 import com.securepass.modules.identity.application.NeighborhoodNameQuery;
 import com.securepass.modules.identity.application.OnboardUserUseCase;
 import com.securepass.modules.identity.application.ResendActivationUseCase;
+import com.securepass.modules.identity.application.SuspendUserUseCase;
 import com.securepass.modules.identity.application.UserRepository;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
@@ -45,6 +46,11 @@ public class AdminUsersController {
     private final NeighborhoodNameQuery neighborhoods;
     private final AccessGuard guard;
     private final RateLimiter limiter;
+    private final SuspendUserUseCase suspension;
+
+    // securepassb#121: un pedido de revision por persona y barrio cada 24 h.
+    static final int REVIEW_LIMIT = 1;
+    static final Duration REVIEW_WINDOW = Duration.ofHours(24);
 
     public AdminUsersController(
             OnboardUserUseCase onboard,
@@ -52,14 +58,57 @@ public class AdminUsersController {
             UserRepository users,
             NeighborhoodNameQuery neighborhoods,
             AccessGuard guard,
-            RateLimiter limiter) {
+            RateLimiter limiter,
+            SuspendUserUseCase suspension) {
         this.onboard = onboard;
         this.resend = resend;
         this.users = users;
         this.neighborhoods = neighborhoods;
         this.guard = guard;
         this.limiter = limiter;
+        this.suspension = suspension;
     }
+
+    // securepassb#121: buscar a una persona del barrio para suspenderla.
+    @org.springframework.web.bind.annotation.GetMapping
+    public java.util.List<PersonResponse> search(
+            @org.springframework.web.bind.annotation.RequestParam("q")
+            @jakarta.validation.constraints.Size(min = 2, max = 80) String q) {
+        CurrentUser admin = guard.require();
+        return users.searchInNeighborhood(admin.neighborhoodId(), q).stream()
+                .map(p -> PersonResponse.from(p, admin.neighborhoodId())).toList();
+    }
+
+    @PostMapping("/{id}/suspend")
+    public ResponseEntity<Void> suspend(@PathVariable UUID id, @Valid @RequestBody SuspendRequest req) {
+        suspension.suspend(guard.require(), id, req.reason());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/lift-suspension")
+    public ResponseEntity<Void> liftSuspension(@PathVariable UUID id) {
+        suspension.lift(guard.require(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // securepassb#121: el admin de otro barrio pide revisar la suspension; el
+    // id sale del 409 USER_SUSPENDED del alta.
+    @PostMapping("/{id}/suspension-review")
+    public ResponseEntity<Void> requestSuspensionReview(@PathVariable UUID id,
+                                                        @Valid @RequestBody SuspensionReviewRequest req) {
+        CurrentUser admin = guard.require();
+        Optional<Duration> retry = limiter.tryAcquire(
+                "suspension-review:" + admin.neighborhoodId() + ":" + id, REVIEW_LIMIT, REVIEW_WINDOW);
+        if (retry.isPresent()) throw new RateLimitExceededException(ceilSeconds(retry.get()));
+        User me = users.findById(admin.userId()).orElseThrow();
+        suspension.requestReview(admin, me.fullName(), me.email(),
+                neighborhoods.findName(admin.neighborhoodId()), id, req.message());
+        return ResponseEntity.accepted().build();
+    }
+
+    public record SuspendRequest(@NotBlank @jakarta.validation.constraints.Size(min = 3, max = 280) String reason) {}
+
+    public record SuspensionReviewRequest(@jakarta.validation.constraints.Size(max = 500) String message) {}
 
     @PostMapping
     public ResponseEntity<OnboardUserResponse> create(@Valid @RequestBody CreateUserRequest req) {

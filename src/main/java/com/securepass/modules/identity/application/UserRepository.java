@@ -67,4 +67,23 @@ public interface UserRepository {
 
     /** US-54: el user tiene un permiso activo MEMBER o WORKER en ese lote. */
     boolean belongsToLotAsMemberOrWorker(UUID userId, UUID lotId);
+
+    /** securepassb#121: personas del barrio por nombre o DNI, hasta 20. */
+    java.util.List<PersonSummary> searchInNeighborhood(UUID neighborhoodId, String query);
+
+    /** securepassb#121: ACTIVE o PENDING_ACTIVATION pasa a SUSPENDED con barrio y motivo. false si no aplicaba. */
+    boolean suspend(UUID userId, UUID neighborhoodId, String reason);
+
+    /**
+     * securepassb#121: levanta la suspension si la puso este barrio (o si es
+     * anterior a #121 y la persona es del barrio). Vuelve a ACTIVE, o a
+     * PENDING_ACTIVATION si nunca eligio contrasena.
+     */
+    boolean liftSuspension(UUID userId, UUID neighborhoodId);
+
+    /** securepassb#121: datos de la suspension; vacio si la cuenta no esta suspendida. */
+    Optional<Suspension> findSuspension(UUID userId);
+
+    /** securepassb#121: emails de los admins activos del barrio, para pedir la revision. */
+    java.util.List<String> activeAdminEmails(UUID neighborhoodId);
 }
