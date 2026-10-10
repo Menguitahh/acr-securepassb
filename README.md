@@ -113,6 +113,19 @@ El guardia no tiene turno abierto: lo abre en vivo desde la app.
 | Familiar A-03 (app) | familiar@lospinos.example | LosPinos2026 |
 | Trabajador A-03 (app) | trabajador@lospinos.example | LosPinos2026 |
 
+**Antes de presentar, reiniciar la demo.** La semana de movimiento y las invitaciones se arman relativas al momento en que corre el seed: si se presenta otro dia, "hoy" queda vacio y las invitaciones vencidas. `access_logs` no se puede borrar (auditoria), asi que el reinicio recrea la base de dev entera. **Borra todo lo que haya en la base local**; Barrio Dev se vuelve a sembrar solo.
+
+```powershell
+docker compose down -v
+docker compose up -d
+$env:SPRING_PROFILES_ACTIVE = "dev"
+$env:SECUREPASS_DEV_SEED = "true"
+$env:SECUREPASS_DEMO_SEED = "true"
+.\gradlew.bat bootRun
+```
+
+Esperar en el log la linea `Demo sembrada` antes de loguearse: el server responde unos segundos antes de que termine el seed.
+
 Los mails de activacion de estas cuentas solo van al log (`SECUREPASS_EMAIL_PROVIDER` en `logging`). Los dominios `.example` estan reservados y no llegan a nadie.
 
 ## Credenciales e IDs de dev
