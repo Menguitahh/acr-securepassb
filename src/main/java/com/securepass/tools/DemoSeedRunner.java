@@ -235,7 +235,9 @@ public class DemoSeedRunner implements CommandLineRunner {
                 if (within(out, shiftStart, shiftEnd)) log(nid, gate, shift, guard, lots.get("A-03"), "OUT", "SERVICE", "Ramón Díaz", "25444666", 0, null, out);
             } else {
                 Instant tried = at(day, 9, 10);
-                if (within(tried, shiftStart, shiftEnd)) log(nid, gate, shift, guard, lots.get("A-03"), "IN", "SERVICE", "Ramón Díaz", "25444666", 0, "OUT_OF_SCHEDULE", tried);
+                // Igual que RecordAccessAttemptUseCase: un denegado de trabajador
+                // queda como GUEST sin nombre, documento ni lote (#210).
+                if (within(tried, shiftStart, shiftEnd)) log(nid, gate, shift, guard, null, "IN", "GUEST", null, null, 0, "OUT_OF_SCHEDULE", tried);
             }
 
             // Visitas: 4 a 7 por dia, con su estadia.
