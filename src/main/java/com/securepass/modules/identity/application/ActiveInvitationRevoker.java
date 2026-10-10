@@ -10,4 +10,7 @@ public interface ActiveInvitationRevoker {
      * reportar "N pases revocados" al usuario.
      */
     int revokeActiveByLotAndUser(UUID lotId, UUID userId, UUID revokedBy);
+
+    /** securepassb#121: revoca los pases de residente de la persona en todos sus lotes. */
+    int revokeResidentPasses(UUID userId, UUID revokedBy);
 }
