@@ -645,6 +645,7 @@ El incremento de `used_count` y el `INSERT` en `access_logs` ocurren en una tran
 
 - [ ] Todo endpoint valida `neighborhoodId` del JWT contra el recurso solicitado (prevención de IDOR entre barrios).
 - [ ] `@PreAuthorize` explícito en cada método de controller. Sin defaults permisivos.
+- [ ] Endpoints por id de invitación (`/invitations/{id}` y sus acciones): quien no ve la invitación (no existe, es de otro lote o de otro barrio) recibe **404**, igual en todos los casos, para no confirmar que existe. 403 solo si la ve pero su permiso no alcanza (un familiar que quiere revocar). securepassb#123.
 - [ ] Sin secretos en el repo: `application.yml` lee de variables de entorno.
 - [ ] Clave privada Ed25519 cifrada en DB con `SECUREPASS_MASTER_KEY` (AES-GCM).
 - [ ] CORS restringido al dominio del admin web.

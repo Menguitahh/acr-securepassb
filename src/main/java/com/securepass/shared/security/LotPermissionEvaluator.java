@@ -1,5 +1,6 @@
 package com.securepass.shared.security;
 
+import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.schedule.ScheduleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,10 +57,15 @@ public class LotPermissionEvaluator {
      * Overload para endpoints por id de invitacion (extend/revoke/exit/detail):
      * resuelve el lotId de la invitacion y delega. Un SELECT extra por request
      * en el gate (el use case vuelve a cargar la invitacion), aceptable para
-     * mantener el SpEL en una linea. Fail-closed si la invitacion no existe.
+     * mantener el SpEL en una linea.
+     *
+     * #123 anti-enumeracion: quien no ve la invitacion (no existe, o no tiene
+     * permiso MEMBER sobre su lote) recibe 404, igual en los dos casos. Quien
+     * la ve pero no alcanza el minimo (un MEMBER que quiere revocar) recibe
+     * 403: ya sabe que existe. Un fallo de la DB sigue siendo fail-closed.
      */
     public boolean hasAtLeastForInvitation(UUID invitationId, LotPermissionType minimum) {
-        if (invitationId == null) return false;
+        if (invitationId == null) throw new ResourceNotFoundException("invitacion", invitationId);
         UUID lotId;
         try {
             lotId = jdbc.sql("SELECT lot_id FROM invitations WHERE id = :id")
@@ -68,7 +74,9 @@ public class LotPermissionEvaluator {
             log.warn("lookup invitations.lot_id fallo invitation={}: {}", invitationId, e.getMessage());
             return false;
         }
-        if (lotId == null) return false;
+        if (lotId == null || !hasAtLeast(lotId, LotPermissionType.MEMBER)) {
+            throw new ResourceNotFoundException("invitacion", invitationId);
+        }
         return hasAtLeast(lotId, minimum);
     }
 

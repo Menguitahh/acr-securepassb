@@ -101,7 +101,7 @@ class GetInvitationUseCaseTest {
                 List.of(Role.ADMIN), List.of());
 
         assertThatThrownBy(() -> useCase.get(actor, inv.id()))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(ResourceNotFoundException.class); // #123
     }
 
     @Test
