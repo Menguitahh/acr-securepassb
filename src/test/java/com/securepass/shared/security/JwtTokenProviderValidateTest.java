@@ -10,11 +10,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class JwtServiceParseTest {
+class JwtTokenProviderValidateTest {
 
     private static final String SECRET = "test-secret-that-is-long-enough-to-pass-hmac-32-byte-check";
 
-    private final JwtService jwt = new JwtService(SECRET, 900, new ObjectMapper());
+    private final JwtTokenProvider jwt = new JwtTokenProvider(SECRET, 900, new ObjectMapper());
 
     @Test
     void roundTripDevuelveClaims() {
@@ -23,10 +23,10 @@ class JwtServiceParseTest {
         UUID lot = UUID.randomUUID();
         var issued = jwt.issue(user, nid, List.of(Role.GUARD, Role.ADMIN), List.of(lot));
 
-        Optional<JwtService.Claims> parsed = jwt.parse(issued.token());
+        Optional<JwtTokenProvider.Claims> parsed = jwt.validateToken(issued.token());
 
         assertThat(parsed).isPresent();
-        JwtService.Claims claims = parsed.get();
+        JwtTokenProvider.Claims claims = parsed.get();
         assertThat(claims.sub()).isEqualTo(user);
         assertThat(claims.neighborhoodId()).isEqualTo(nid);
         assertThat(claims.roles()).containsExactly(Role.GUARD, Role.ADMIN);
@@ -38,23 +38,23 @@ class JwtServiceParseTest {
         var issued = jwt.issue(UUID.randomUUID(), null, List.of(), List.of());
         String tampered = issued.token().substring(0, issued.token().length() - 4) + "AAAA";
 
-        assertThat(jwt.parse(tampered)).isEmpty();
+        assertThat(jwt.validateToken(tampered)).isEmpty();
     }
 
     @Test
     void tokenExpiradoNoValida() {
-        JwtService shortLived = new JwtService(SECRET, 900, new ObjectMapper());
+        JwtTokenProvider shortLived = new JwtTokenProvider(SECRET, 900, new ObjectMapper());
         var issued = shortLived.issue(UUID.randomUUID(), null, List.of(), List.of());
-        JwtService otherKey = new JwtService("otro-secreto-de-al-menos-32-bytes-para-que-inicialice", 900, new ObjectMapper());
+        JwtTokenProvider otherKey = new JwtTokenProvider("otro-secreto-de-al-menos-32-bytes-para-que-inicialice", 900, new ObjectMapper());
 
-        assertThat(otherKey.parse(issued.token())).isEmpty();
+        assertThat(otherKey.validateToken(issued.token())).isEmpty();
     }
 
     @Test
     void tokenMalFormadoNoValida() {
-        assertThat(jwt.parse("no-es-un-jwt")).isEmpty();
-        assertThat(jwt.parse("a.b")).isEmpty();
-        assertThat(jwt.parse(null)).isEmpty();
-        assertThat(jwt.parse("")).isEmpty();
+        assertThat(jwt.validateToken("no-es-un-jwt")).isEmpty();
+        assertThat(jwt.validateToken("a.b")).isEmpty();
+        assertThat(jwt.validateToken(null)).isEmpty();
+        assertThat(jwt.validateToken("")).isEmpty();
     }
 }

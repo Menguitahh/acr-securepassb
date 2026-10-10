@@ -5,7 +5,7 @@ import com.securepass.modules.access.application.ExportAccessLogsUseCase;
 import com.securepass.modules.access.application.ExportFormat;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.security.CurrentUser;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +42,7 @@ class AccessLogsExportHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
     @Autowired ExportAccessLogsUseCase exports;
     @Value("${securepass.cors.allowed-origins:https://admin.securepass.app}") String allowedOrigins;
     String allowedOrigin;

@@ -9,7 +9,7 @@ import com.securepass.modules.access.domain.Direction;
 import com.securepass.modules.access.domain.SubjectType;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.security.CurrentUser;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.xssf.usermodel.XSSFCell;
@@ -68,7 +68,7 @@ class AccessLogsXlsxExportHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
     @Autowired ExportAccessLogsUseCase exports;
     @SpyBean AccessLogQuery logs;
 

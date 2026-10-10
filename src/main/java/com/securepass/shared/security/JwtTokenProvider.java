@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class JwtService {
+public class JwtTokenProvider {
 
     private static final int MIN_SECRET_BYTES = 32;
 
@@ -30,7 +30,7 @@ public class JwtService {
     private final long ttlSeconds;
     private final ObjectMapper mapper;
 
-    public JwtService(
+    public JwtTokenProvider(
             @Value("${securepass.jwt.secret}") String secret,
             @Value("${securepass.jwt.ttl-seconds:900}") long ttlSeconds,
             ObjectMapper mapper) {
@@ -66,7 +66,7 @@ public class JwtService {
         }
     }
 
-    public Optional<Claims> parse(String token) {
+    public Optional<Claims> validateToken(String token) {
         if (token == null || token.isBlank()) return Optional.empty();
         String[] parts = token.split("\\.");
         if (parts.length != 3) return Optional.empty();

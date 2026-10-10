@@ -1,6 +1,8 @@
 package com.securepass.modules.identity.infrastructure.persistence;
 
 import com.securepass.modules.identity.application.NeighborhoodNameQuery;
+import com.securepass.shared.config.CacheConfig;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +18,7 @@ public class IdentityNeighborhoodNameJdbcAdapter implements NeighborhoodNameQuer
     }
 
     @Override
+    @Cacheable(CacheConfig.NEIGHBORHOOD_NAMES)
     public String findName(UUID neighborhoodId) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         return jdbc.sql("SELECT name FROM neighborhoods WHERE id = :id")

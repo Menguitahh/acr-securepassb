@@ -7,7 +7,7 @@ import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.invitation.application.QrTokenIssuer;
 import com.securepass.modules.invitation.application.SigningKeyIssuer;
 import com.securepass.modules.invitation.domain.InvitationType;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,7 +62,7 @@ class SyncLocalDecisionHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
     @Autowired ObjectMapper json;
     @Autowired SigningKeyIssuer signingKeys;
     @Autowired QrTokenIssuer qrTokenIssuer;

@@ -2,7 +2,7 @@ package com.securepass.modules.identity.application;
 
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import com.securepass.shared.security.RefreshTokenGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ public class LoginUseCase {
 
     private final UserRepository users;
     private final PasswordEncoder encoder;
-    private final JwtService jwt;
+    private final JwtTokenProvider jwt;
     private final RefreshTokenGenerator refresh;
     private final UserProfileQuery profiles;
     private final RefreshTokenStore refreshStore;
@@ -24,7 +24,7 @@ public class LoginUseCase {
     public LoginUseCase(
             UserRepository users,
             PasswordEncoder encoder,
-            JwtService jwt,
+            JwtTokenProvider jwt,
             RefreshTokenGenerator refresh,
             UserProfileQuery profiles,
             RefreshTokenStore refreshStore) {
@@ -50,7 +50,7 @@ public class LoginUseCase {
 
         UserProfileSummary summary = profiles.summarize(user.id());
         List<UUID> lotIds = summary.residentLotIds();
-        JwtService.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
+        JwtTokenProvider.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
         String refreshToken = refresh.generate();
         UUID familyId = UUID.randomUUID();
         refreshStore.save(refreshToken, familyId, user.id());

@@ -2,7 +2,7 @@ package com.securepass.smoke;
 
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -49,7 +49,7 @@ class MarkStayWarnedHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
 
     @Test
     void markWarnedIsIdempotentAndReflectedInOpenStays() throws Exception {

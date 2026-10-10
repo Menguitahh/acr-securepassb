@@ -19,9 +19,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtService jwt;
+    private final JwtTokenProvider jwt;
 
-    public JwtAuthenticationFilter(JwtService jwt) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwt) {
         this.jwt = jwt;
     }
 
@@ -33,12 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        Optional<JwtService.Claims> parsed = jwt.parse(header.substring(BEARER_PREFIX.length()));
+        Optional<JwtTokenProvider.Claims> parsed = jwt.validateToken(header.substring(BEARER_PREFIX.length()));
         if (parsed.isEmpty()) {
             chain.doFilter(request, response);
             return;
         }
-        JwtService.Claims claims = parsed.get();
+        JwtTokenProvider.Claims claims = parsed.get();
         CurrentUser user = new CurrentUser(claims.sub(), claims.neighborhoodId(), claims.roles(), claims.lots());
         List<SimpleGrantedAuthority> authorities = claims.roles().stream()
                 .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
