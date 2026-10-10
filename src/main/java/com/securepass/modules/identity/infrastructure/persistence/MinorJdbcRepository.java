@@ -2,6 +2,7 @@ package com.securepass.modules.identity.infrastructure.persistence;
 
 import com.securepass.modules.identity.application.MinorRepository;
 import com.securepass.modules.identity.domain.Minor;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class MinorJdbcRepository implements MinorRepository {
 
@@ -18,10 +20,6 @@ public class MinorJdbcRepository implements MinorRepository {
             "relation, notes, created_by, created_at";
 
     private final JdbcClient jdbc;
-
-    public MinorJdbcRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public Optional<UUID> findLotNeighborhood(UUID lotId) {

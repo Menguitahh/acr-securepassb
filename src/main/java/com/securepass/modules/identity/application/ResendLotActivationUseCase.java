@@ -5,6 +5,7 @@ import com.securepass.modules.identity.domain.User;
 import com.securepass.modules.identity.domain.UserStatus;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -15,15 +16,12 @@ import java.util.UUID;
  * es #181), asi que no hay riesgo de quedarse con la cuenta de otro. El gate
  * de OWNER del lote lo aplica el controller.
  */
+@AllArgsConstructor
 @Service
 public class ResendLotActivationUseCase {
 
     private final UserRepository users;
     private final IssueActivationTokenUseCase issuer;
-    public ResendLotActivationUseCase(UserRepository users, IssueActivationTokenUseCase issuer) {
-        this.users = users;
-        this.issuer = issuer;
-    }
 
     public void resend(UUID lotId, UUID userId, String actorFullName, String neighborhoodName) {
         boolean inLot = users.belongsToLotAsMemberOrWorker(userId, lotId);

@@ -5,6 +5,7 @@ import com.securepass.modules.invitation.application.WorkerTokenRepository;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.UUID;
  * ningun barrio), pero guarda que barrio la puso y por que. Solo ese barrio
  * la levanta; los demas ven el motivo en el alta y pueden pedir la revision.
  */
+@AllArgsConstructor
 @Service
 public class SuspendUserUseCase {
 
@@ -28,14 +30,6 @@ public class SuspendUserUseCase {
     private final WorkerTokenRepository workerTokens;
     private final ActiveInvitationRevoker invitations;
     private final ApplicationEventPublisher events;
-
-    public SuspendUserUseCase(UserRepository users, WorkerTokenRepository workerTokens,
-                              ActiveInvitationRevoker invitations, ApplicationEventPublisher events) {
-        this.users = users;
-        this.workerTokens = workerTokens;
-        this.invitations = invitations;
-        this.events = events;
-    }
 
     @Transactional
     public void suspend(CurrentUser admin, UUID userId, String reason) {

@@ -7,6 +7,7 @@ import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.shared.exception.RateLimitExceededException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import java.util.UUID;
  * invitacion. Persiste `stays.resident_notified_at` para dejar el envio
  * registrado; el push real depende del adapter de `PushSender`.
  */
+@AllArgsConstructor
 @Service
 public class NotifyResidentOfStayUseCase {
 
@@ -31,15 +33,6 @@ public class NotifyResidentOfStayUseCase {
     private final StayRepository stays;
     private final InvitationRepository invitations;
     private final PushSender push;
-
-    public NotifyResidentOfStayUseCase(
-            StayRepository stays,
-            InvitationRepository invitations,
-            PushSender push) {
-        this.stays = stays;
-        this.invitations = invitations;
-        this.push = push;
-    }
 
     @Transactional
     public Result notify(UUID neighborhoodId, UUID stayId) {

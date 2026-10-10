@@ -4,6 +4,7 @@ import com.securepass.modules.access.application.AdminMetricsQuery;
 import com.securepass.shared.exception.BusinessRuleViolationException;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,7 @@ import java.util.List;
  * admin del barrio A que quiera espiar el B no tiene forma de expresarlo
  * en la API. Cubierto por test.
  */
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/admin/metrics")
 @PreAuthorize("hasRole('ADMIN')")
@@ -37,11 +39,6 @@ public class AdminMetricsController {
 
     private final AdminMetricsQuery query;
     private final AccessGuard guard;
-
-    public AdminMetricsController(AdminMetricsQuery query, AccessGuard guard) {
-        this.query = query;
-        this.guard = guard;
-    }
 
     @GetMapping("/overview")
     public OverviewResponse overview(

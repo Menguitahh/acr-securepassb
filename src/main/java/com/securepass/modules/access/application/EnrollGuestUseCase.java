@@ -20,6 +20,7 @@ import com.securepass.shared.crypto.Ed25519Verifier;
 import com.securepass.shared.exception.InvalidLotChoiceException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class EnrollGuestUseCase {
 
@@ -45,27 +47,6 @@ public class EnrollGuestUseCase {
     private final WorkerTokenRepository workerTokens;
     private final WorkerValidationQuery workerQuery;
     private final ConsumeAccessUseCase consumer;
-
-    public EnrollGuestUseCase(
-            QrTokenCodec codec,
-            SigningKeyRepository signingKeys,
-            InvitationRepository invitations,
-            GuestEnrollmentRepository enrollments,
-            AccessLogRepository logs,
-            StayLifecycle stayLifecycle,
-            WorkerTokenRepository workerTokens,
-            WorkerValidationQuery workerQuery,
-            ConsumeAccessUseCase consumer) {
-        this.codec = codec;
-        this.signingKeys = signingKeys;
-        this.invitations = invitations;
-        this.enrollments = enrollments;
-        this.logs = logs;
-        this.stayLifecycle = stayLifecycle;
-        this.workerTokens = workerTokens;
-        this.workerQuery = workerQuery;
-        this.consumer = consumer;
-    }
 
     public EnrollmentResult enroll(Command cmd) {
         if (cmd == null) throw new IllegalArgumentException("cmd requerido");

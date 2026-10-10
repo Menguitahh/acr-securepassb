@@ -3,6 +3,7 @@ package com.securepass.modules.neighborhood.infrastructure.persistence;
 import com.securepass.modules.neighborhood.application.LotRepository;
 import com.securepass.modules.neighborhood.domain.Lot;
 import com.securepass.modules.neighborhood.domain.LotStatus;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -11,14 +12,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class LotJdbcRepository implements LotRepository {
 
     private final JdbcClient jdbc;
-
-    public LotJdbcRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public Optional<Lot> findById(UUID id) {

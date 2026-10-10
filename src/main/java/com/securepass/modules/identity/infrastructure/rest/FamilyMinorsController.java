@@ -11,6 +11,7 @@ import com.securepass.modules.identity.domain.User;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +27,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/family/lots/{lotId}/minors")
 public class FamilyMinorsController {
@@ -37,23 +39,6 @@ public class FamilyMinorsController {
     private final UserRepository users;
     private final NeighborhoodNameQuery neighborhoods;
     private final AccessGuard guard;
-
-    public FamilyMinorsController(
-            RegisterMinorUseCase register,
-            ListMinorsUseCase list,
-            DeleteMinorUseCase delete,
-            GraduateMinorUseCase graduate,
-            UserRepository users,
-            NeighborhoodNameQuery neighborhoods,
-            AccessGuard guard) {
-        this.register = register;
-        this.list = list;
-        this.delete = delete;
-        this.graduate = graduate;
-        this.users = users;
-        this.neighborhoods = neighborhoods;
-        this.guard = guard;
-    }
 
     @PostMapping
     @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")

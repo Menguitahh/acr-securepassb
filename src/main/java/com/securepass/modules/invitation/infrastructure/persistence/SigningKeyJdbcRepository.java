@@ -5,6 +5,7 @@ import com.securepass.modules.invitation.application.SigningKeyQuery;
 import com.securepass.modules.invitation.application.SigningKeyRepository;
 import com.securepass.modules.invitation.domain.SigningKey;
 import com.securepass.shared.config.CacheConfig;
+import lombok.AllArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -19,14 +20,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class SigningKeyJdbcRepository implements SigningKeyRepository, SigningKeyQuery {
 
     private final JdbcClient jdbc;
-
-    public SigningKeyJdbcRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public void save(SigningKey key) {

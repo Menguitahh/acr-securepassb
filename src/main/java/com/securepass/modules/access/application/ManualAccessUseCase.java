@@ -5,6 +5,7 @@ import com.securepass.modules.access.domain.Direction;
 import com.securepass.modules.access.domain.SubjectType;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,18 +18,13 @@ import java.util.UUID;
  * como `subject_type = MANUAL` y sin `invitation_id`. Idempotente por
  * `clientEventId`.
  */
+@AllArgsConstructor
 @Service
 public class ManualAccessUseCase {
 
     private final OpenShiftQuery shifts;
     private final LotStatusQuery lots;
     private final AccessLogRepository logs;
-
-    public ManualAccessUseCase(OpenShiftQuery shifts, LotStatusQuery lots, AccessLogRepository logs) {
-        this.shifts = shifts;
-        this.lots = lots;
-        this.logs = logs;
-    }
 
     @Transactional
     public AccessLog record(Command cmd) {

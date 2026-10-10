@@ -6,6 +6,7 @@ import com.securepass.shared.exception.BusinessRuleViolationException;
 import com.securepass.shared.exception.TokenGoneException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,17 +28,13 @@ import java.time.Instant;
  * devuelve 410 GONE, sin distinguir: no queremos filtrar informacion
  * sobre tokens ajenos.
  */
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/activation")
 public class ActivationController {
 
     private final LookupActivationUseCase lookup;
     private final ActivateAccountUseCase activate;
-
-    public ActivationController(LookupActivationUseCase lookup, ActivateAccountUseCase activate) {
-        this.lookup = lookup;
-        this.activate = activate;
-    }
 
     @GetMapping("/{token}")
     @PreAuthorize("permitAll()")

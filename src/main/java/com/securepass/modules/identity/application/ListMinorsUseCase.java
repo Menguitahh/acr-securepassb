@@ -3,6 +3,7 @@ package com.securepass.modules.identity.application;
 import com.securepass.modules.identity.domain.Minor;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -19,14 +20,11 @@ import java.util.UUID;
  * {@code "recurso de otro barrio"} — no cambiar a 404 sin cambiar tambien
  * /members, si no dos endpoints devuelven cosas distintas para el mismo caso.
  */
+@AllArgsConstructor
 @Service
 public class ListMinorsUseCase {
 
     private final MinorRepository minors;
-
-    public ListMinorsUseCase(MinorRepository minors) {
-        this.minors = minors;
-    }
 
     public List<Minor> list(CurrentUser actor, UUID lotId) {
         if (actor == null) throw new IllegalArgumentException("actor requerido");

@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.application.ListRevokedInvitationsUseCa
 import com.securepass.modules.invitation.application.SigningKeyQuery;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/access")
 public class AccessKeysController {
@@ -23,15 +25,6 @@ public class AccessKeysController {
     private final SigningKeyQuery signingKeys;
     private final ListRevokedInvitationsUseCase revokedUseCase;
     private final AccessGuard guard;
-
-    public AccessKeysController(
-            SigningKeyQuery signingKeys,
-            ListRevokedInvitationsUseCase revokedUseCase,
-            AccessGuard guard) {
-        this.signingKeys = signingKeys;
-        this.revokedUseCase = revokedUseCase;
-        this.guard = guard;
-    }
 
     @GetMapping("/keys")
     @PreAuthorize("hasRole('GUARD')")

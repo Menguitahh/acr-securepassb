@@ -4,6 +4,7 @@ import com.securepass.modules.identity.domain.Minor;
 import com.securepass.shared.exception.BusinessRuleViolationException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +32,12 @@ import java.util.UUID;
  * tiene DNI, se ignora (el del padron gana, para evitar que el titular
  * mande uno distinto por accidente).
  */
+@AllArgsConstructor
 @Service
 public class GraduateMinorUseCase {
 
     private final MinorRepository minors;
     private final AddFamilyMemberUseCase addFamilyMember;
-
-    public GraduateMinorUseCase(MinorRepository minors, AddFamilyMemberUseCase addFamilyMember) {
-        this.minors = minors;
-        this.addFamilyMember = addFamilyMember;
-    }
 
     @Transactional
     public Result graduate(

@@ -4,6 +4,7 @@ import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
 import com.securepass.shared.security.JwtTokenProvider;
 import com.securepass.shared.security.RefreshTokenGenerator;
+import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class LoginUseCase {
 
@@ -20,21 +22,6 @@ public class LoginUseCase {
     private final RefreshTokenGenerator refresh;
     private final UserProfileQuery profiles;
     private final RefreshTokenStore refreshStore;
-
-    public LoginUseCase(
-            UserRepository users,
-            PasswordEncoder encoder,
-            JwtTokenProvider jwt,
-            RefreshTokenGenerator refresh,
-            UserProfileQuery profiles,
-            RefreshTokenStore refreshStore) {
-        this.users = users;
-        this.encoder = encoder;
-        this.jwt = jwt;
-        this.refresh = refresh;
-        this.profiles = profiles;
-        this.refreshStore = refreshStore;
-    }
 
     public Result login(String identifier, String rawPassword) {
         if (identifier == null || identifier.isBlank()) return Failure.INVALID_CREDENTIALS;

@@ -18,6 +18,7 @@ import com.securepass.shared.crypto.Ed25519Verifier;
 import com.securepass.shared.exception.InvalidLotChoiceException;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.schedule.ScheduleWindow;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class ValidateAccessUseCase {
 
@@ -35,23 +37,6 @@ public class ValidateAccessUseCase {
     private final GuestEnrollmentRepository enrollments;
     private final WorkerTokenRepository workerTokens;
     private final WorkerValidationQuery workerQuery;
-
-    public ValidateAccessUseCase(
-            QrTokenCodec codec,
-            SigningKeyRepository signingKeys,
-            InvitationRepository invitations,
-            LotStatusQuery lots,
-            GuestEnrollmentRepository enrollments,
-            WorkerTokenRepository workerTokens,
-            WorkerValidationQuery workerQuery) {
-        this.codec = codec;
-        this.signingKeys = signingKeys;
-        this.invitations = invitations;
-        this.lots = lots;
-        this.enrollments = enrollments;
-        this.workerTokens = workerTokens;
-        this.workerQuery = workerQuery;
-    }
 
     /**
      * {@code neighborhoodId} es el barrio del guardia (JWT), no el del token:

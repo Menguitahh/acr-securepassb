@@ -1,20 +1,18 @@
 package com.securepass.modules.notification.infrastructure.persistence;
 
 import com.securepass.modules.notification.application.ResidentDecisionContextQuery;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class ResidentDecisionContextJdbcQuery implements ResidentDecisionContextQuery {
 
     private final JdbcClient jdbc;
-
-    public ResidentDecisionContextJdbcQuery(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public Optional<Context> find(UUID invitationId) {

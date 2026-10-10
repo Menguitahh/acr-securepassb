@@ -1,19 +1,17 @@
 package com.securepass.modules.invitation.infrastructure.persistence;
 
 import com.securepass.modules.identity.application.ActiveInvitationRevoker;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class ActiveInvitationJdbcRevoker implements ActiveInvitationRevoker {
 
     private final JdbcClient jdbc;
-
-    public ActiveInvitationJdbcRevoker(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public int revokeActiveByLotAndUser(UUID lotId, UUID userId, UUID revokedBy) {

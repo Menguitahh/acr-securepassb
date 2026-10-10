@@ -1,18 +1,16 @@
 package com.securepass.modules.access.application;
 
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class ListOpenStaysUseCase {
 
     private final StayRepository stays;
-
-    public ListOpenStaysUseCase(StayRepository stays) {
-        this.stays = stays;
-    }
 
     public List<OpenStayView> list(UUID neighborhoodId) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

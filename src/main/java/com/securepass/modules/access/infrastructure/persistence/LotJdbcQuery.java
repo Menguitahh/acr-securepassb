@@ -3,6 +3,7 @@ package com.securepass.modules.access.infrastructure.persistence;
 import com.securepass.modules.access.application.LotSnapshot;
 import com.securepass.modules.access.application.LotStatusQuery;
 import com.securepass.modules.access.domain.LotStatus;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -10,14 +11,11 @@ import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class LotJdbcQuery implements LotStatusQuery {
 
     private final JdbcClient jdbc;
-
-    public LotJdbcQuery(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public Optional<UUID> findNeighborhoodId(UUID lotId) {

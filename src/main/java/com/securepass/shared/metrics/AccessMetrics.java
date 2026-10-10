@@ -2,6 +2,7 @@ package com.securepass.shared.metrics;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,15 +13,12 @@ import java.util.concurrent.ConcurrentMap;
  * salen de las metricas HTTP por defecto (`http.server.requests`). Este
  * bean solo agrega el corte por resultado, que Micrometer no expone solo.
  */
+@AllArgsConstructor
 @Component
 public class AccessMetrics {
 
     private final MeterRegistry registry;
     private final ConcurrentMap<String, Counter> counters = new ConcurrentHashMap<>();
-
-    public AccessMetrics(MeterRegistry registry) {
-        this.registry = registry;
-    }
 
     public void recordResult(String result, String source) {
         counters.computeIfAbsent(result + "|" + source, k -> Counter.builder("securepass.access.results")

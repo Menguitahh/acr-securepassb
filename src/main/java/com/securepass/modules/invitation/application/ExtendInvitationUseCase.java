@@ -6,6 +6,7 @@ import com.securepass.modules.invitation.domain.InvitationStatus;
 import com.securepass.shared.exception.BusinessRuleViolationException;
 import com.securepass.shared.exception.NeighborhoodNotProvisionedException;
 import com.securepass.shared.exception.ResourceNotFoundException;
+import lombok.AllArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import java.util.UUID;
  *  actualiza `expected_until` de la stay abierta.
  * BR-17: solo el creador o el titular del lote pueden extender.
  */
+@AllArgsConstructor
 @Service
 public class ExtendInvitationUseCase {
 
@@ -31,19 +33,6 @@ public class ExtendInvitationUseCase {
     private final FamilyMemberQuery family;
     private final StayRepository stays;
     private final ApplicationEventPublisher events;
-
-    public ExtendInvitationUseCase(
-            InvitationRepository invitations,
-            NeighborhoodExtensionPolicyQuery policies,
-            FamilyMemberQuery family,
-            StayRepository stays,
-            ApplicationEventPublisher events) {
-        this.invitations = invitations;
-        this.policies = policies;
-        this.family = family;
-        this.stays = stays;
-        this.events = events;
-    }
 
     @Transactional
     public Result extend(UUID actorNeighborhoodId, UUID actorUserId, UUID invitationId) {
