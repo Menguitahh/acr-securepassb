@@ -39,7 +39,11 @@ public class OpenApiConfig {
             // suspension null si la persona no esta suspendida.
             Map.entry("PersonResponse", Set.of("documentNumber", "email", "suspension")),
             // Suspension anterior a #121: sin barrio, motivo ni fecha.
-            Map.entry("SuspensionResponse", Set.of("neighborhoodName", "reason", "suspendedAt")));
+            Map.entry("SuspensionResponse", Set.of("neighborhoodName", "reason", "suspendedAt")),
+            // securepassb#258: panel de la plataforma.
+            Map.entry("NeighborhoodOverviewResponse", Set.of()),
+            Map.entry("NeighborhoodAdminResponse", Set.of("email")),
+            Map.entry("ProvisionedNeighborhoodResponse", Set.of()));
 
     @Bean
     public OpenAPI securepassOpenApi() {

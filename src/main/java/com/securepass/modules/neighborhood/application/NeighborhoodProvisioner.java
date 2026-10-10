@@ -79,6 +79,12 @@ public class NeighborhoodProvisioner {
      */
     @Transactional
     public ProvisionOutcome provision(Command cmd, Ids ids) {
+        return provision(cmd, ids, "Provisioning CLI");
+    }
+
+    /** securepassb#258: invitedBy es quien aparece en el mail de activacion del admin. */
+    @Transactional
+    public ProvisionOutcome provision(Command cmd, Ids ids, String invitedBy) {
         if (jdbc.sql("SELECT 1 FROM neighborhoods WHERE slug = :s")
                 .param("s", cmd.slug()).query(Integer.class).optional().isPresent()) {
             throw new NeighborhoodAlreadyExistsException("slug", cmd.slug());
@@ -126,7 +132,7 @@ public class NeighborhoodProvisioner {
         memberships.grant(adminUserId, neighborhoodId, Role.ADMIN);
 
         String plaintext = activationIssuer.issue(
-                adminUserId, TokenPurpose.ACTIVATION, "Provisioning CLI", cmd.name());
+                adminUserId, TokenPurpose.ACTIVATION, invitedBy, cmd.name());
 
         LOG.info("neighborhood.provisioned neighborhoodId={} slug={} gateId={} adminUserId={} signingKeyKid={}",
                 neighborhoodId, cmd.slug(), gateId, adminUserId, signingKey.kid());

@@ -1062,6 +1062,23 @@ cuando haga falta autoservicio (super-admin cross-barrio) — hoy el
 onboarding es 1 por cliente-contrato y no lo justifica. El bean está
 listo para exponerse sin refactor.
 
+### 7.5.2 Plataforma (dueño de Securepass)
+
+securepassb#258. Rol `PLATFORM_ADMIN`: sale de la tabla `platform_admins` (V24), no de `memberships`, porque no pertenece a ningún barrio. El login lo devuelve con `neighborhoodId: null`. El primero se da de alta a mano: `INSERT INTO platform_admins (user_id) SELECT id FROM users WHERE email = '...'`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/platform/neighborhoods` | Todos los barrios por nombre: `id, name, slug, timezone, createdAt, lotCount, admins[{fullName, email, status}]`. |
+| POST | `/platform/neighborhoods` | Crea un barrio con el mismo aprovisionamiento que el CLI (7.5.1): barrio, clave de firma, garita y admin `PENDING_ACTIVATION` que recibe el mail de activación con el nombre de quien lo creó. Body `{name, slug, timezone, gateName?, adminEmail, adminFullName, adminDni}`. 201 `{neighborhoodId, adminUserId}`. 409 `code`: `SLUG_TAKEN`, `NAME_TAKEN`, `EMAIL_TAKEN`, `DNI_TAKEN`. |
+
+**Ver un barrio.** No hay endpoint propio: el dueño llama a los endpoints del admin (7.5 y los demás `hasRole('ADMIN')`) con el header `X-Neighborhood-Id: <uuid>`. `JwtAuthenticationFilter` solo lo acepta con un JWT que trae `PLATFORM_ADMIN`; en ese caso:
+- el request corre como admin de ese barrio;
+- solo se aceptan `GET`, `HEAD` y `OPTIONS`; cualquier escritura da 403 ("modo lectura");
+- un UUID inválido da 400;
+- cada request queda en el log (`platform.view`).
+
+Un admin de barrio que manda el header lo ve ignorado y sigue viendo solo su barrio.
+
 ### 7.6 Unidad familiar (titular)
 
 | Método | Ruta | Descripción |

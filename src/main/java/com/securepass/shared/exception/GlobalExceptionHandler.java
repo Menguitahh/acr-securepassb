@@ -176,6 +176,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     // #157 C / #207: un invariante de dominio roto por el input (record o
     // value object que valida en el constructor) es error del cliente, no
     // 500. Se loguea en WARN con stack: si fuera un bug propio, queda rastro.
+    // securepassb#258: nombre o slug de barrio repetido al crearlo.
+    @ExceptionHandler(com.securepass.modules.neighborhood.application.NeighborhoodAlreadyExistsException.class)
+    public ProblemDetail handleNeighborhoodExists(
+            com.securepass.modules.neighborhood.application.NeighborhoodAlreadyExistsException ex) {
+        ProblemDetail pd = problem(HttpStatus.CONFLICT, "neighborhood-exists", ex.getMessage());
+        pd.setProperty("code", "slug".equals(ex.by()) ? "SLUG_TAKEN" : "NAME_TAKEN");
+        return pd;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         LOG.warn("request invalido: {}", ex.getMessage(), ex);

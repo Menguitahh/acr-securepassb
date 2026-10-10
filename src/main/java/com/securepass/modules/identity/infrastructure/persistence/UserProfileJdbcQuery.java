@@ -66,7 +66,13 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
                 neighborhoodTimezone = work.get().timezone();
             }
         }
-        List<Role> roles = memberships.stream().map(MembershipRow::role).distinct().toList();
+        List<Role> roles = new java.util.ArrayList<>(
+                memberships.stream().map(MembershipRow::role).distinct().toList());
+        // securepassb#258: el duenio de la plataforma no tiene barrio propio.
+        if (jdbc.sql("SELECT 1 FROM platform_admins WHERE user_id = :uid")
+                .param("uid", userId).query(Integer.class).optional().isPresent()) {
+            roles.add(Role.PLATFORM_ADMIN);
+        }
 
         // Reads sobre lot_permissions (ver FamilyMemberJdbcRepository para el mapeo).
         // #179: WORKER entra con servicio y franja; el JWT lo deja afuera

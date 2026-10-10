@@ -14,6 +14,8 @@ interface LotJpaRepository extends JpaRepository<LotEntity, UUID> {
 
     Optional<LotEntity> findByNeighborhoodIdAndCode(UUID neighborhoodId, String code);
 
+    long countByNeighborhoodId(UUID neighborhoodId);
+
     List<LotEntity> findByNeighborhoodIdOrderByCode(UUID neighborhoodId, Pageable page);
 
     // Autocomplete de garita: prefijo sin distinguir mayusculas. StartingWith
