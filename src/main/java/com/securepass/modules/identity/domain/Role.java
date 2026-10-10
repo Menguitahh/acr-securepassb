@@ -4,7 +4,10 @@ public enum Role {
     ADMIN,
     GUARD,
     RESIDENT_OWNER,
-    RESIDENT_MEMBER;
+    RESIDENT_MEMBER,
+    // securepassb#258: duenio de la plataforma. Sale de platform_admins, no de
+    // memberships (el CHECK de memberships no lo admite).
+    PLATFORM_ADMIN;
 
     private static final String PREFIX = "ROLE_";
 

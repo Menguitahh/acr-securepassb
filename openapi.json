@@ -223,12 +223,63 @@
         }
       }
     },
+    "/api/v1/platform/neighborhoods" : {
+      "get" : {
+        "tags" : [
+          "platform-neighborhoods-controller"
+        ],
+        "operationId" : "list_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/NeighborhoodOverviewResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [
+          "platform-neighborhoods-controller"
+        ],
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateNeighborhoodRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProvisionedNeighborhoodResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lots/{lotId}/workers" : {
       "get" : {
         "tags" : [
           "worker-controller"
         ],
-        "operationId" : "list_1",
+        "operationId" : "list_2",
         "parameters" : [
           {
             "name" : "lotId",
@@ -334,7 +385,7 @@
         "tags" : [
           "invitation-controller"
         ],
-        "operationId" : "list_2",
+        "operationId" : "list_3",
         "parameters" : [
           {
             "name" : "lotId",
@@ -387,7 +438,7 @@
         "tags" : [
           "invitation-controller"
         ],
-        "operationId" : "create",
+        "operationId" : "create_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -633,7 +684,7 @@
         "tags" : [
           "family-controller"
         ],
-        "operationId" : "list_3",
+        "operationId" : "list_4",
         "parameters" : [
           {
             "name" : "lotId",
@@ -898,7 +949,7 @@
         "tags" : [
           "admin-users-controller"
         ],
-        "operationId" : "create_1",
+        "operationId" : "create_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -1044,7 +1095,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "parameters" : [
           {
             "name" : "page",
@@ -1077,7 +1128,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "create_2",
+        "operationId" : "create_3",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2133,7 +2184,7 @@
         "tags" : [
           "access-logs-controller"
         ],
-        "operationId" : "list_5",
+        "operationId" : "list_6",
         "parameters" : [
           {
             "name" : "from",
@@ -2472,6 +2523,69 @@
           }
         }
       },
+      "CreateNeighborhoodRequest" : {
+        "required" : [
+          "adminDni",
+          "adminEmail",
+          "adminFullName",
+          "name",
+          "slug",
+          "timezone"
+        ],
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "maxLength" : 120,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "slug" : {
+            "maxLength" : 60,
+            "minLength" : 0,
+            "pattern" : "[a-z0-9-]+",
+            "type" : "string"
+          },
+          "timezone" : {
+            "maxLength" : 60,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "gateName" : {
+            "maxLength" : 80,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "adminEmail" : {
+            "type" : "string"
+          },
+          "adminFullName" : {
+            "maxLength" : 140,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "adminDni" : {
+            "pattern" : "\\d{7,8}",
+            "type" : "string"
+          }
+        }
+      },
+      "ProvisionedNeighborhoodResponse" : {
+        "required" : [
+          "adminUserId",
+          "neighborhoodId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "neighborhoodId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "adminUserId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }
+      },
       "AddWorkerRequest" : {
         "required" : [
           "dailyFrom",
@@ -2523,10 +2637,10 @@
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
-          "dailyOrderValid" : {
+          "contactPresent" : {
             "type" : "boolean"
           },
-          "contactPresent" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }
@@ -3950,10 +4064,10 @@
           "nonEmpty" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           }
         }
@@ -4191,6 +4305,67 @@
           "total" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "NeighborhoodAdminResponse" : {
+        "required" : [
+          "email",
+          "fullName",
+          "status"
+        ],
+        "type" : "object",
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "status" : {
+            "type" : "string"
+          }
+        }
+      },
+      "NeighborhoodOverviewResponse" : {
+        "required" : [
+          "admins",
+          "createdAt",
+          "id",
+          "lotCount",
+          "name",
+          "slug",
+          "timezone"
+        ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "timezone" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lotCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "admins" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NeighborhoodAdminResponse"
+            }
           }
         }
       },
