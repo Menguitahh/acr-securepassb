@@ -2,6 +2,7 @@ package com.securepass.modules.notification.infrastructure.persistence;
 
 import com.securepass.modules.notification.application.DeviceRepository;
 import com.securepass.modules.notification.domain.Device;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -11,14 +12,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class DeviceJdbcRepository implements DeviceRepository {
 
     private final JdbcClient jdbc;
-
-    public DeviceJdbcRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public Device upsertByToken(Device d) {

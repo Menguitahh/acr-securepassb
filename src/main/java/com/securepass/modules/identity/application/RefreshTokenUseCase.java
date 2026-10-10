@@ -4,12 +4,14 @@ import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
 import com.securepass.shared.security.JwtTokenProvider;
 import com.securepass.shared.security.RefreshTokenGenerator;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class RefreshTokenUseCase {
 
@@ -18,19 +20,6 @@ public class RefreshTokenUseCase {
     private final UserProfileQuery profiles;
     private final JwtTokenProvider jwt;
     private final RefreshTokenGenerator generator;
-
-    public RefreshTokenUseCase(
-            RefreshTokenStore store,
-            UserRepository users,
-            UserProfileQuery profiles,
-            JwtTokenProvider jwt,
-            RefreshTokenGenerator generator) {
-        this.store = store;
-        this.users = users;
-        this.profiles = profiles;
-        this.jwt = jwt;
-        this.generator = generator;
-    }
 
     public Result refresh(String rawRefreshToken) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) return Failure.INVALID_REFRESH;

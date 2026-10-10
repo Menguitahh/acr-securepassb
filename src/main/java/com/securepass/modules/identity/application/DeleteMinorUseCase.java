@@ -3,6 +3,7 @@ package com.securepass.modules.identity.application;
 import com.securepass.modules.identity.domain.Minor;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,14 +14,11 @@ import java.util.UUID;
  * WBS-111: baja del padron. Hard delete — los menores no dejan historial
  * (no generan permisos ni accesos), soft delete seria peso sin uso.
  */
+@AllArgsConstructor
 @Service
 public class DeleteMinorUseCase {
 
     private final MinorRepository minors;
-
-    public DeleteMinorUseCase(MinorRepository minors) {
-        this.minors = minors;
-    }
 
     @Transactional
     public void delete(CurrentUser actor, UUID lotId, UUID minorId) {

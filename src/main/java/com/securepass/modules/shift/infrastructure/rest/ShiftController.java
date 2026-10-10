@@ -10,6 +10,7 @@ import com.securepass.shared.security.CurrentUser;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,6 +26,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/shifts")
 public class ShiftController {
@@ -34,19 +36,6 @@ public class ShiftController {
     private final GetCurrentShiftUseCase currentUseCase;
     private final ListShiftsUseCase listUseCase;
     private final AccessGuard guard;
-
-    public ShiftController(
-            OpenShiftUseCase openUseCase,
-            CloseShiftUseCase closeUseCase,
-            GetCurrentShiftUseCase currentUseCase,
-            ListShiftsUseCase listUseCase,
-            AccessGuard guard) {
-        this.openUseCase = openUseCase;
-        this.closeUseCase = closeUseCase;
-        this.currentUseCase = currentUseCase;
-        this.listUseCase = listUseCase;
-        this.guard = guard;
-    }
 
     @PostMapping("/open")
     @PreAuthorize("hasRole('GUARD')")

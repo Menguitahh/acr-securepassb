@@ -2,6 +2,7 @@ package com.securepass.modules.identity.infrastructure.email;
 
 import com.securepass.modules.identity.application.SuspensionReviewRequestedEvent;
 import com.securepass.modules.notification.application.EmailSender;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -14,6 +15,7 @@ import java.util.Map;
  * securepassb#121: avisa a los admins del barrio que suspendio que otro
  * barrio pide revisar la suspension. Responden por email a quien la pidio.
  */
+@AllArgsConstructor
 @Component
 public class SuspensionReviewEmailListener {
 
@@ -21,11 +23,6 @@ public class SuspensionReviewEmailListener {
 
     private final EmailSender emailSender;
     private final TemplateRenderer renderer;
-
-    public SuspensionReviewEmailListener(EmailSender emailSender, TemplateRenderer renderer) {
-        this.emailSender = emailSender;
-        this.renderer = renderer;
-    }
 
     @Async("emailExecutor")
     @EventListener

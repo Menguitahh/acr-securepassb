@@ -2,20 +2,18 @@ package com.securepass.modules.identity.infrastructure.persistence;
 
 import com.securepass.modules.identity.application.NeighborhoodNameQuery;
 import com.securepass.shared.config.CacheConfig;
+import lombok.AllArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class IdentityNeighborhoodNameJdbcAdapter implements NeighborhoodNameQuery {
 
     private final JdbcClient jdbc;
-
-    public IdentityNeighborhoodNameJdbcAdapter(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     @Cacheable(CacheConfig.NEIGHBORHOOD_NAMES)

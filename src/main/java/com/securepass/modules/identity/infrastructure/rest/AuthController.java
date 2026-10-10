@@ -12,6 +12,7 @@ import com.securepass.shared.exception.TokenGoneException;
 import com.securepass.shared.ratelimit.RateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -51,21 +53,6 @@ public class AuthController {
     private final RequestPasswordResetUseCase requestReset;
     private final ResetPasswordUseCase resetPassword;
     private final RateLimiter limiter;
-
-    public AuthController(
-            LoginUseCase loginUseCase,
-            RefreshTokenUseCase refreshUseCase,
-            LogoutUseCase logoutUseCase,
-            RequestPasswordResetUseCase requestReset,
-            ResetPasswordUseCase resetPassword,
-            RateLimiter limiter) {
-        this.loginUseCase = loginUseCase;
-        this.refreshUseCase = refreshUseCase;
-        this.logoutUseCase = logoutUseCase;
-        this.requestReset = requestReset;
-        this.resetPassword = resetPassword;
-        this.limiter = limiter;
-    }
 
     @PostMapping("/login")
     @PreAuthorize("permitAll()")

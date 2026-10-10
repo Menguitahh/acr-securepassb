@@ -1,6 +1,7 @@
 package com.securepass.modules.notification.application;
 
 import com.securepass.modules.access.application.GuestArrivedEvent;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -18,16 +19,13 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * llamada a Expo puede colgarse hasta el timeout. Ver
  * {@link com.securepass.modules.notification.infrastructure.NotificationAsyncConfig}.
  */
+@AllArgsConstructor
 @Service
 public class NotifyGuestArrivalUseCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(NotifyGuestArrivalUseCase.class);
 
     private final PushSender push;
-
-    public NotifyGuestArrivalUseCase(PushSender push) {
-        this.push = push;
-    }
 
     @Async("pushExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

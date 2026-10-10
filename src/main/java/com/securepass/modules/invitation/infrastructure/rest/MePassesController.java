@@ -4,6 +4,7 @@ import com.securepass.modules.invitation.application.IssueResidentPassesUseCase;
 import com.securepass.modules.invitation.application.ResidentPass;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,17 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/me")
 public class MePassesController {
 
     private final IssueResidentPassesUseCase useCase;
     private final AccessGuard guard;
-
-    public MePassesController(IssueResidentPassesUseCase useCase, AccessGuard guard) {
-        this.useCase = useCase;
-        this.guard = guard;
-    }
 
     @GetMapping("/passes")
     @PreAuthorize("hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER')")

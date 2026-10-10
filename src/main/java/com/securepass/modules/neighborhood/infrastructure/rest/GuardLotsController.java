@@ -3,6 +3,7 @@ package com.securepass.modules.neighborhood.infrastructure.rest;
 import com.securepass.modules.neighborhood.application.SearchLotsForGuardUseCase;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,17 +18,13 @@ import java.util.List;
  * `POST /access/manual` recibe `lotId` UUID y el guardia solo conoce el
  * codigo del lote. Sin este endpoint el ingreso manual es inusable.
  */
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/lots")
 public class GuardLotsController {
 
     private final SearchLotsForGuardUseCase useCase;
     private final AccessGuard guard;
-
-    public GuardLotsController(SearchLotsForGuardUseCase useCase, AccessGuard guard) {
-        this.useCase = useCase;
-        this.guard = guard;
-    }
 
     // WBS-36: todos los lotes activos, para el ingreso manual sin red.
     @GetMapping("/active")

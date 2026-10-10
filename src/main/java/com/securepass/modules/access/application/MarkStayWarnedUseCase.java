@@ -3,6 +3,7 @@ package com.securepass.modules.access.application;
 import com.securepass.modules.access.domain.Stay;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,14 +17,11 @@ import java.util.UUID;
  *
  * Idempotente: llamadas repetidas devuelven el `warned_at` original.
  */
+@AllArgsConstructor
 @Service
 public class MarkStayWarnedUseCase {
 
     private final StayRepository stays;
-
-    public MarkStayWarnedUseCase(StayRepository stays) {
-        this.stays = stays;
-    }
 
     @Transactional
     public Result mark(UUID neighborhoodId, UUID stayId) {

@@ -5,6 +5,7 @@ import com.securepass.modules.identity.domain.User;
 import com.securepass.modules.identity.domain.UserStatus;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -15,16 +16,12 @@ import java.util.UUID;
  * Rate limit por usuario objetivo lo aplica el controller (misma capa que
  * los limites de auth/forgot-password).
  */
+@AllArgsConstructor
 @Service
 public class ResendActivationUseCase {
 
     private final UserRepository users;
     private final IssueActivationTokenUseCase issuer;
-
-    public ResendActivationUseCase(UserRepository users, IssueActivationTokenUseCase issuer) {
-        this.users = users;
-        this.issuer = issuer;
-    }
 
     public void resend(UUID userId, String actorFullName, String neighborhoodName) {
         if (userId == null) throw new IllegalArgumentException("userId requerido");

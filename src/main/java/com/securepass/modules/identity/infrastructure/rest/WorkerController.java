@@ -2,6 +2,7 @@ package com.securepass.modules.identity.infrastructure.rest;
 
 import com.securepass.modules.identity.application.ChangePendingWorkerEmailUseCase;
 
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.PutMapping;
 
 import com.securepass.modules.identity.application.AddWorkerUseCase;
@@ -36,6 +37,7 @@ import java.util.UUID;
  * aislamiento cross-barrio: un OWNER de otro barrio jamas pasa el gate para
  * este lotId, porque el lote pertenece a un solo barrio.
  */
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/lots/{lotId}/workers")
 public class WorkerController {
@@ -47,23 +49,6 @@ public class WorkerController {
     private final UserRepository users;
     private final NeighborhoodNameQuery neighborhoods;
     private final AccessGuard accessGuard;
-
-    public WorkerController(
-            AddWorkerUseCase addUseCase,
-            ListWorkersUseCase listUseCase,
-            UpdateWorkerUseCase updateUseCase,
-            ChangePendingWorkerEmailUseCase changeEmailUseCase,
-            UserRepository users,
-            NeighborhoodNameQuery neighborhoods,
-            AccessGuard accessGuard) {
-        this.addUseCase = addUseCase;
-        this.listUseCase = listUseCase;
-        this.updateUseCase = updateUseCase;
-        this.changeEmailUseCase = changeEmailUseCase;
-        this.users = users;
-        this.neighborhoods = neighborhoods;
-        this.accessGuard = accessGuard;
-    }
 
     @GetMapping
     @PreAuthorize("@lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).OWNER)")

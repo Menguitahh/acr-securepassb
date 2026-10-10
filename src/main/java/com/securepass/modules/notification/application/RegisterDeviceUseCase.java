@@ -1,6 +1,7 @@
 package com.securepass.modules.notification.application;
 
 import com.securepass.modules.notification.domain.Device;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,14 +13,11 @@ import java.util.UUID;
  * pushes de ingreso. El mismo aparato puede rotar de usuario (cuenta
  * familiar compartida); el mismo residente puede tener varios devices.
  */
+@AllArgsConstructor
 @Service
 public class RegisterDeviceUseCase {
 
     private final DeviceRepository devices;
-
-    public RegisterDeviceUseCase(DeviceRepository devices) {
-        this.devices = devices;
-    }
 
     @Transactional
     public Device register(UUID userId, String expoPushToken, Device.Platform platform) {

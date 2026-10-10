@@ -1,19 +1,17 @@
 package com.securepass.modules.shift.infrastructure.persistence;
 
 import com.securepass.modules.access.application.OpenShiftQuery;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class OpenShiftJdbcQuery implements OpenShiftQuery {
 
     private final JdbcClient jdbc;
-
-    public OpenShiftJdbcQuery(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public boolean hasOpenShift(UUID guardId) {

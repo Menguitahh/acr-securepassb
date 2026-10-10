@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
@@ -51,23 +53,6 @@ public class AdminUsersController {
     // securepassb#121: un pedido de revision por persona y barrio cada 24 h.
     static final int REVIEW_LIMIT = 1;
     static final Duration REVIEW_WINDOW = Duration.ofHours(24);
-
-    public AdminUsersController(
-            OnboardUserUseCase onboard,
-            ResendActivationUseCase resend,
-            UserRepository users,
-            NeighborhoodNameQuery neighborhoods,
-            AccessGuard guard,
-            RateLimiter limiter,
-            SuspendUserUseCase suspension) {
-        this.onboard = onboard;
-        this.resend = resend;
-        this.users = users;
-        this.neighborhoods = neighborhoods;
-        this.guard = guard;
-        this.limiter = limiter;
-        this.suspension = suspension;
-    }
 
     // securepassb#121: buscar a una persona del barrio para suspenderla.
     @org.springframework.web.bind.annotation.GetMapping

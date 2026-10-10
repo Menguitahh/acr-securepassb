@@ -9,6 +9,7 @@ import com.securepass.modules.access.domain.Stay;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/stays")
 public class StaysController {
@@ -29,17 +31,6 @@ public class StaysController {
     private final CloseStayManuallyUseCase closeUseCase;
     private final MarkStayWarnedUseCase markWarnedUseCase;
     private final AccessGuard guard;
-
-    public StaysController(
-            ListOpenStaysUseCase listUseCase,
-            CloseStayManuallyUseCase closeUseCase,
-            MarkStayWarnedUseCase markWarnedUseCase,
-            AccessGuard guard) {
-        this.listUseCase = listUseCase;
-        this.closeUseCase = closeUseCase;
-        this.markWarnedUseCase = markWarnedUseCase;
-        this.guard = guard;
-    }
 
     @GetMapping("/open")
     @PreAuthorize("hasAnyRole('GUARD','ADMIN','RESIDENT_OWNER','RESIDENT_MEMBER')")

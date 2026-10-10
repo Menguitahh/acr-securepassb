@@ -5,6 +5,7 @@ import com.securepass.modules.identity.application.UserProfileQuery;
 import com.securepass.modules.identity.application.UserProfileSummary;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.schedule.ScheduleWindow;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -17,14 +18,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class UserProfileJdbcQuery implements UserProfileQuery {
 
     private final JdbcClient jdbc;
-
-    public UserProfileJdbcQuery(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public UserProfileSummary summarize(UUID userId) {

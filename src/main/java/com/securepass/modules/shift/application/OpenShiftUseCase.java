@@ -1,19 +1,17 @@
 package com.securepass.modules.shift.application;
 
 import com.securepass.modules.shift.domain.Shift;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class OpenShiftUseCase {
 
     private final ShiftRepository shifts;
-
-    public OpenShiftUseCase(ShiftRepository shifts) {
-        this.shifts = shifts;
-    }
 
     public Shift open(UUID neighborhoodId, UUID gateId, UUID guardId, String handoverNotes) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");

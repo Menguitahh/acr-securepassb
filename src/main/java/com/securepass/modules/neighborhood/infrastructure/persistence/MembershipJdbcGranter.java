@@ -2,19 +2,17 @@ package com.securepass.modules.neighborhood.infrastructure.persistence;
 
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.neighborhood.application.MembershipGranter;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
+@AllArgsConstructor
 @Component
 public class MembershipJdbcGranter implements MembershipGranter {
 
     private final JdbcClient jdbc;
-
-    public MembershipJdbcGranter(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public void grant(UUID userId, UUID neighborhoodId, Role role) {

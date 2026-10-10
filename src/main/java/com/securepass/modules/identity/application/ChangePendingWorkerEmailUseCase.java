@@ -6,6 +6,7 @@ import com.securepass.modules.identity.domain.UserStatus;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.UserOnboardingConflictException;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,19 +25,13 @@ import java.util.UUID;
  * la cuenta (y el QR) de alguien que tambien trabaja en otra casa. Una
  * cuenta ya activa nunca se toca: el email es suyo.
  */
+@AllArgsConstructor
 @Service
 public class ChangePendingWorkerEmailUseCase {
 
     private final UserRepository users;
     private final WorkerPermissionRepository workers;
     private final IssueActivationTokenUseCase activation;
-
-    public ChangePendingWorkerEmailUseCase(UserRepository users, WorkerPermissionRepository workers,
-                                           IssueActivationTokenUseCase activation) {
-        this.users = users;
-        this.workers = workers;
-        this.activation = activation;
-    }
 
     @Transactional
     public Result change(CurrentUser actor, UUID lotId, UUID userId, String rawEmail,

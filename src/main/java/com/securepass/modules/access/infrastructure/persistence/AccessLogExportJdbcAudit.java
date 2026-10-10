@@ -3,20 +3,18 @@ package com.securepass.modules.access.infrastructure.persistence;
 import com.securepass.modules.access.application.AccessLogExportAudit;
 import com.securepass.modules.access.application.AccessLogQuery;
 import com.securepass.modules.access.application.ExportFormat;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class AccessLogExportJdbcAudit implements AccessLogExportAudit {
 
     private final JdbcClient jdbc;
-
-    public AccessLogExportJdbcAudit(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public void record(UUID actorUserId, AccessLogQuery.ExportFilter f, ExportFormat format) {

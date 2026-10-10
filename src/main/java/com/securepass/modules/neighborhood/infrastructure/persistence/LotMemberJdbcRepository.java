@@ -2,6 +2,7 @@ package com.securepass.modules.neighborhood.infrastructure.persistence;
 
 import com.securepass.modules.neighborhood.application.LotMemberRepository;
 import com.securepass.modules.neighborhood.domain.LotMember;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -10,14 +11,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class LotMemberJdbcRepository implements LotMemberRepository {
 
     private final JdbcClient jdbc;
-
-    public LotMemberJdbcRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     // Reads y writes sobre lot_permissions (ver FamilyMemberJdbcRepository
     // para el mapeo). El campo `id` es el id de la fila de lot_permissions;

@@ -2,20 +2,18 @@ package com.securepass.modules.invitation.infrastructure.persistence;
 
 import com.securepass.modules.invitation.application.FamilyMemberQuery;
 import com.securepass.modules.invitation.application.FamilyMembership;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class FamilyMemberJdbcQuery implements FamilyMemberQuery {
 
     private final JdbcClient jdbc;
-
-    public FamilyMemberJdbcQuery(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     @Override
     public Optional<FamilyMembership> find(UUID userId, UUID lotId) {

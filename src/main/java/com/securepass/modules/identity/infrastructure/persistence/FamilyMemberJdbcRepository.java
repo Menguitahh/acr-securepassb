@@ -4,6 +4,7 @@ import com.securepass.modules.identity.application.FamilyMemberRepository;
 import com.securepass.modules.identity.domain.FamilyMember;
 import com.securepass.modules.identity.domain.Membership;
 import com.securepass.modules.identity.domain.Role;
+import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -11,14 +12,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Repository
 public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
 
     private final JdbcClient jdbc;
-
-    public FamilyMemberJdbcRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
 
     // Reads y writes sobre lot_permissions. Mapeo:
     //   family_members.is_owner       <- (permission_type = 'OWNER')

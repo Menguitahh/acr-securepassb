@@ -1,20 +1,18 @@
 package com.securepass.modules.access.infrastructure.persistence;
 
 import com.securepass.modules.access.application.AntiReplayStore;
+import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.UUID;
 
+@AllArgsConstructor
 @Component
 public class RedisAntiReplayStore implements AntiReplayStore {
 
     private final StringRedisTemplate redis;
-
-    public RedisAntiReplayStore(StringRedisTemplate redis) {
-        this.redis = redis;
-    }
 
     @Override
     public ClaimResult claim(UUID jti, int useSeq, String clientEventId, Duration ttl) {

@@ -4,21 +4,18 @@ import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.security.CurrentUser;
+import lombok.AllArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
+@AllArgsConstructor
 @Service
 public class GetInvitationUseCase {
 
     private final InvitationRepository invitations;
     private final FamilyMemberQuery family;
-
-    public GetInvitationUseCase(InvitationRepository invitations, FamilyMemberQuery family) {
-        this.invitations = invitations;
-        this.family = family;
-    }
 
     public Invitation get(CurrentUser actor, UUID invitationId) {
         if (actor == null) throw new IllegalArgumentException("actor requerido");

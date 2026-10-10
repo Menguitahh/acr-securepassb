@@ -4,6 +4,7 @@ import com.securepass.modules.access.application.StayRepository;
 import com.securepass.modules.invitation.domain.Invitation;
 import com.securepass.shared.exception.ResourceNotFoundException;
 import com.securepass.shared.exception.StateConflictException;
+import lombok.AllArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.UUID;
  *  titular del lote pueden pedir salida.
  * Idempotencia: si ya estaba pedida, conserva el timestamp original.
  */
+@AllArgsConstructor
 @Service
 public class RequestGuestExitUseCase {
 
@@ -27,17 +29,6 @@ public class RequestGuestExitUseCase {
     private final FamilyMemberQuery family;
     private final StayRepository stays;
     private final ApplicationEventPublisher events;
-
-    public RequestGuestExitUseCase(
-            InvitationRepository invitations,
-            FamilyMemberQuery family,
-            StayRepository stays,
-            ApplicationEventPublisher events) {
-        this.invitations = invitations;
-        this.family = family;
-        this.stays = stays;
-        this.events = events;
-    }
 
     @Transactional
     public Result requestExit(UUID actorNeighborhoodId, UUID actorUserId, UUID invitationId) {

@@ -10,6 +10,7 @@ import com.securepass.modules.neighborhood.domain.LotMember;
 import com.securepass.shared.security.AccessGuard;
 import com.securepass.shared.security.CurrentUser;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/admin/lots")
 @PreAuthorize("hasRole('ADMIN')")
@@ -36,21 +38,6 @@ public class AdminLotsController {
     private final AddLotMemberUseCase addMemberUseCase;
     private final LotMemberRepository members;
     private final AccessGuard guard;
-
-    public AdminLotsController(
-            CreateLotUseCase createLot,
-            UpdateLotUseCase updateLot,
-            ListLotsUseCase listLots,
-            AddLotMemberUseCase addMemberUseCase,
-            LotMemberRepository members,
-            AccessGuard guard) {
-        this.createLot = createLot;
-        this.updateLot = updateLot;
-        this.listLots = listLots;
-        this.addMemberUseCase = addMemberUseCase;
-        this.members = members;
-        this.guard = guard;
-    }
 
     @GetMapping
     public List<LotResponse> list(@RequestParam(defaultValue = "0") int page) {
