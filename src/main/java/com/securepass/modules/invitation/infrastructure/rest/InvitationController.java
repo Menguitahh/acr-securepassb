@@ -80,7 +80,8 @@ public class InvitationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or #lotId == null or @lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).MEMBER)")
+    // spec §7: RESIDENT_* y ADMIN. Antes, con lotId null pasaba cualquier rol.
+    @PreAuthorize("hasRole('ADMIN') or (hasAnyRole('RESIDENT_OWNER','RESIDENT_MEMBER') and (#lotId == null or @lotPerm.hasAtLeast(#lotId, T(com.securepass.shared.security.LotPermissionType).MEMBER)))")
     public PagedInvitationsResponse list(
             @RequestParam(required = false) UUID lotId,
             @RequestParam(required = false) InvitationStatus status,
