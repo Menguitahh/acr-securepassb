@@ -63,7 +63,16 @@ public class OpenApiConfig {
                     if (property == null) {
                         throw new IllegalStateException("campo nullable inexistente: " + name + "." + field);
                     }
-                    property.setNullable(true);
+                    if (property.get$ref() != null) {
+                        // OpenAPI 3.0 ignora nullable al lado de un $ref: se
+                        // envuelve en allOf para que el cliente lo tipe X | null.
+                        Schema<Object> wrapped = new Schema<>();
+                        wrapped.setAllOf(List.of(new Schema<>().$ref(property.get$ref())));
+                        wrapped.setNullable(true);
+                        schema.getProperties().put(field, wrapped);
+                    } else {
+                        property.setNullable(true);
+                    }
                 }
             });
         };
