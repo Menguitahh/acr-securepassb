@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
 import com.securepass.modules.identity.domain.UserStatus;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import com.securepass.shared.security.RefreshTokenGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class LoginUseCaseTest {
     private UserRepository users;
     private UserProfileQuery profiles;
     private PasswordEncoder encoder;
-    private JwtService jwt;
+    private JwtTokenProvider jwt;
     private RefreshTokenGenerator refresh;
     private RefreshTokenStore refreshStore;
     private LoginUseCase useCase;
@@ -44,7 +44,7 @@ class LoginUseCaseTest {
         users = mock(UserRepository.class);
         profiles = mock(UserProfileQuery.class);
         encoder = new BCryptPasswordEncoder(4);
-        jwt = new JwtService(TEST_SECRET, 900, new ObjectMapper());
+        jwt = new JwtTokenProvider(TEST_SECRET, 900, new ObjectMapper());
         refresh = new RefreshTokenGenerator();
         refreshStore = mock(RefreshTokenStore.class);
         useCase = new LoginUseCase(users, encoder, jwt, refresh, profiles, refreshStore);

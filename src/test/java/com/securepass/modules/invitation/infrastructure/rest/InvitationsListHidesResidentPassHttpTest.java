@@ -3,7 +3,7 @@ package com.securepass.modules.invitation.infrastructure.rest;
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.invitation.application.SigningKeyIssuer;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,7 +48,7 @@ class InvitationsListHidesResidentPassHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
     @Autowired SigningKeyIssuer signingKeys;
 
     @Test

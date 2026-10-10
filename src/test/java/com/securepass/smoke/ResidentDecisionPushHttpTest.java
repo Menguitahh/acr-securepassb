@@ -3,7 +3,7 @@ package com.securepass.smoke;
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.notification.application.PushSender;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +58,7 @@ class ResidentDecisionPushHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
 
     // Reemplaza LoggingPushSender/ExpoPushSender por un mock: el listener
     // corre AFTER_COMMIT en pushExecutor, por eso los verify usan timeout().

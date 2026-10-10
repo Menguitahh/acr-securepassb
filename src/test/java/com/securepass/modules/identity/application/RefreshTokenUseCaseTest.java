@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
 import com.securepass.modules.identity.domain.UserStatus;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import com.securepass.shared.security.RefreshTokenGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +28,7 @@ class RefreshTokenUseCaseTest {
     private RefreshTokenStore store;
     private UserRepository users;
     private UserProfileQuery profiles;
-    private JwtService jwt;
+    private JwtTokenProvider jwt;
     private RefreshTokenGenerator generator;
     private RefreshTokenUseCase useCase;
     private UUID userId;
@@ -40,7 +40,7 @@ class RefreshTokenUseCaseTest {
         store = mock(RefreshTokenStore.class);
         users = mock(UserRepository.class);
         profiles = mock(UserProfileQuery.class);
-        jwt = new JwtService(TEST_SECRET, 900, new ObjectMapper());
+        jwt = new JwtTokenProvider(TEST_SECRET, 900, new ObjectMapper());
         generator = new RefreshTokenGenerator();
         useCase = new RefreshTokenUseCase(store, users, profiles, jwt, generator);
         userId = UUID.randomUUID();

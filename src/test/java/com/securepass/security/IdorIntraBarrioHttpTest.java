@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.invitation.application.SigningKeyIssuer;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +32,7 @@ import java.util.UUID;
  * Baseline IDOR intra-barrio cross-lote a nivel HTTP (pre WBS-108).
  *
  * A diferencia de IdorIntraBarrioTest (que llama use cases directamente),
- * este suite hace requests HTTP reales con JWT emitido por JwtService,
+ * este suite hace requests HTTP reales con JWT emitido por JwtTokenProvider,
  * de modo que el @PreAuthorize se ejecuta antes que la logica de use case.
  *
  * Un STATUS 200/201 aca es un IDOR intra-barrio real: el residente del
@@ -76,7 +76,7 @@ class IdorIntraBarrioHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
     @Autowired ObjectMapper json;
     @Autowired SigningKeyIssuer signingKeyIssuer;
 

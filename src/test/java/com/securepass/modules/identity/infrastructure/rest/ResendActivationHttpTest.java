@@ -2,7 +2,7 @@ package com.securepass.modules.identity.infrastructure.rest;
 
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +46,7 @@ class ResendActivationHttpTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
-    @Autowired JwtService jwt;
+    @Autowired JwtTokenProvider jwt;
 
     final HttpClient http = HttpClient.newHttpClient();
     UUID barrio;

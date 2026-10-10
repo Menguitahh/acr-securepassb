@@ -4,6 +4,9 @@ import com.securepass.modules.invitation.application.PublicKeyView;
 import com.securepass.modules.invitation.application.SigningKeyQuery;
 import com.securepass.modules.invitation.application.SigningKeyRepository;
 import com.securepass.modules.invitation.domain.SigningKey;
+import com.securepass.shared.config.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -54,7 +57,11 @@ public class SigningKeyJdbcRepository implements SigningKeyRepository, SigningKe
                 .optional();
     }
 
+    // Cada escaneo de QR busca la clave por kid. Un kid inexistente no se
+    // cachea (unless): una clave recien emitida se encuentra al primer pedido.
     @Override
+    @Cacheable(cacheNames = CacheConfig.SIGNING_KEYS_BY_KID, key = "#neighborhoodId + ':' + #kid",
+            unless = "#result == null")
     public Optional<SigningKey> findByKid(UUID neighborhoodId, String kid) {
         return jdbc.sql("""
                 SELECT id, neighborhood_id, kid, public_key, private_key_enc, active, rotated_at, created_at
@@ -68,6 +75,7 @@ public class SigningKeyJdbcRepository implements SigningKeyRepository, SigningKe
     }
 
     @Override
+    @CacheEvict(cacheNames = CacheConfig.SIGNING_KEYS_BY_KID, allEntries = true)
     public void markInactive(UUID id, Instant rotatedAt) {
         jdbc.sql("""
                 UPDATE signing_keys

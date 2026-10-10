@@ -2,7 +2,7 @@ package com.securepass.security;
 
 import com.securepass.TestcontainersConfiguration;
 import com.securepass.modules.identity.domain.Role;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,7 +34,7 @@ class UnauthenticatedHttpTest {
     int port;
 
     @Autowired
-    JwtService jwt;
+    JwtTokenProvider jwt;
 
     private final HttpClient http = HttpClient.newHttpClient();
 

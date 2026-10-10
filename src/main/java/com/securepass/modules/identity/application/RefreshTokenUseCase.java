@@ -2,7 +2,7 @@ package com.securepass.modules.identity.application;
 
 import com.securepass.modules.identity.domain.Role;
 import com.securepass.modules.identity.domain.User;
-import com.securepass.shared.security.JwtService;
+import com.securepass.shared.security.JwtTokenProvider;
 import com.securepass.shared.security.RefreshTokenGenerator;
 import org.springframework.stereotype.Service;
 
@@ -16,14 +16,14 @@ public class RefreshTokenUseCase {
     private final RefreshTokenStore store;
     private final UserRepository users;
     private final UserProfileQuery profiles;
-    private final JwtService jwt;
+    private final JwtTokenProvider jwt;
     private final RefreshTokenGenerator generator;
 
     public RefreshTokenUseCase(
             RefreshTokenStore store,
             UserRepository users,
             UserProfileQuery profiles,
-            JwtService jwt,
+            JwtTokenProvider jwt,
             RefreshTokenGenerator generator) {
         this.store = store;
         this.users = users;
@@ -51,7 +51,7 @@ public class RefreshTokenUseCase {
         User user = found.get();
         UserProfileSummary summary = profiles.summarize(user.id());
         List<UUID> lotIds = summary.residentLotIds();
-        JwtService.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
+        JwtTokenProvider.IssuedAccessToken access = jwt.issue(user.id(), summary.neighborhoodId(), summary.roles(), lotIds);
         String newRefresh = generator.generate();
         store.save(newRefresh, consumed.familyId(), consumed.userId());
         return new Success(
