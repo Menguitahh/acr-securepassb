@@ -39,11 +39,10 @@ public class AccessLogJdbcQuery implements AccessLogQuery {
     public Page list(Filter f) {
         StringBuilder where = new StringBuilder("WHERE al.neighborhood_id = :nid");
         if (!f.lotIdsAllowed().isEmpty()) {
-            // #210, decision abierta: el residente ve lo mismo que antes de que
-            // los denegados de validate llevaran lote. Solo el de enrolamiento
-            // lo tenia. Si se decide que los vea, se borra esta linea.
-            where.append(" AND al.lot_id = ANY(:lots)")
-                    .append(" AND (al.result = 'ALLOWED' OR al.denial_reason = 'DOCUMENT_MISMATCH')");
+            // #214 (decidido): el residente ve tambien los denegados de su
+            // lote (pase vencido, copia de su QR, etc.). La app los muestra
+            // con texto neutro: nombra el pase, no a quien lo presento.
+            where.append(" AND al.lot_id = ANY(:lots)");
         }
         if (f.lotIdFilter() != null) where.append(" AND al.lot_id = :lotFilter");
         if (f.shiftId() != null) where.append(" AND al.shift_id = :shift");

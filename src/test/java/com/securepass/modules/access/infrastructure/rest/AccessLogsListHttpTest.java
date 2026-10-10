@@ -215,13 +215,15 @@ class AccessLogsListHttpTest {
     // #210, decision abierta: el residente ve lo mismo que antes del fix. Los
     // denegados de validate no tenian lote; el de enrolamiento si.
     @Test
-    void residenteNoVeLosDenegadosDeValidateDeSuLote() throws Exception {
+    void residenteVeLosDenegadosDeSuLoteYNoLosDeOtro() throws Exception {
         UUID lot = seedLot();
         UUID inv = seedInvitation(lot, "Maria Lopez");
         Instant at = FROM.plusSeconds(3600);
         insertLinkedLog(lot, inv, "Maria Lopez", at, "ALLOWED", null);
         insertLinkedLog(lot, inv, null, at.plusSeconds(60), "DENIED", "EXPIRED");
         insertLinkedLog(lot, inv, null, at.plusSeconds(120), "DENIED", "DOCUMENT_MISMATCH");
+        UUID otroLote = seedLot();
+        insertLinkedLog(otroLote, seedInvitation(otroLote, "Ajena"), null, at.plusSeconds(30), "DENIED", "EXPIRED");
         String resident = jwt.issue(UUID.randomUUID(), barrio, List.of(Role.RESIDENT_OWNER), List.of(lot)).token();
 
         HttpResponse<String> resp = get("", resident);
@@ -230,7 +232,8 @@ class AccessLogsListHttpTest {
         JsonNode body = json.readTree(resp.body());
         List<String> seen = new ArrayList<>();
         body.get("items").forEach(i -> seen.add(i.get("result").asText() + ":" + i.path("denialReason").asText()));
-        assertThat(seen).containsExactly("DENIED:DOCUMENT_MISMATCH", "ALLOWED:");
-        assertThat(body.get("total").asLong()).isEqualTo(2);
+        // #214: ve tambien el EXPIRED de su lote; el del otro lote no.
+        assertThat(seen).containsExactly("DENIED:DOCUMENT_MISMATCH", "DENIED:EXPIRED", "ALLOWED:");
+        assertThat(body.get("total").asLong()).isEqualTo(3);
     }
 }
