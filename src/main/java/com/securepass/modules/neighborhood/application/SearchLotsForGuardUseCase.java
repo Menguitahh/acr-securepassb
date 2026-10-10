@@ -32,6 +32,19 @@ public class SearchLotsForGuardUseCase {
         this.shifts = shifts;
     }
 
+    // WBS-36: el ingreso manual funciona sin red. La garita guarda los lotes
+    // activos del barrio para elegir el destino offline.
+    // ponytail: tope fijo; paginar si un barrio supera los 2000 lotes.
+    static final int ALL_LIMIT = 2000;
+
+    public List<Lot> listActive(UUID neighborhoodId, UUID guardId) {
+        if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
+        if (!shifts.hasOpenShift(guardId)) {
+            throw new StateConflictException("el guardia no tiene turno abierto");
+        }
+        return lots.searchActiveByCodePrefix(neighborhoodId, "", ALL_LIMIT);
+    }
+
     public List<Lot> search(UUID neighborhoodId, UUID guardId, String q) {
         if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
         if (guardId == null) throw new IllegalArgumentException("guardId requerido");

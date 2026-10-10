@@ -273,7 +273,7 @@ class IdorIsolationTest {
     void manualAccessConLotDeOtroBarrio_404() {
         assertThatThrownBy(() -> manualAccess.record(new ManualAccessUseCase.Command(
                 barrioA, gateA, guardA, lotB.id(),
-                "Juan", "30123456", UUID.randomUUID(), Instant.now())))
+                "Juan", "30123456", UUID.randomUUID(), Instant.now(), 0)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

@@ -52,7 +52,7 @@ public class ManualAccessUseCase {
                 UUID.randomUUID(), cmd.neighborhoodId(), cmd.gateId(), cmd.guardId(),
                 null, cmd.lotId(),
                 Direction.IN, SubjectType.MANUAL, true, null,
-                cmd.subjectName(), cmd.subjectDocument(), 0,
+                cmd.subjectName(), cmd.subjectDocument(), cmd.companions(),
                 null, cmd.capturedAt(), false, false, cmd.clientEventId());
         return logs.saveIdempotent(log);
     }
@@ -65,7 +65,8 @@ public class ManualAccessUseCase {
             String subjectName,
             String subjectDocument,
             UUID clientEventId,
-            Instant capturedAt
+            Instant capturedAt,
+            int companions
     ) {
         public Command {
             if (neighborhoodId == null) throw new IllegalArgumentException("neighborhoodId requerido");
@@ -80,6 +81,7 @@ public class ManualAccessUseCase {
             }
             if (clientEventId == null) throw new IllegalArgumentException("clientEventId requerido");
             if (capturedAt == null) throw new IllegalArgumentException("capturedAt requerido");
+            if (companions < 0 || companions > 10) throw new IllegalArgumentException("companions 0..10");
         }
     }
 }

@@ -1526,6 +1526,9 @@
         ],
         "operationId" : "current",
         "responses" : {
+          "204" : {
+            "description" : "El guardia no tiene turno abierto"
+          },
           "200" : {
             "description" : "Turno abierto del guardia",
             "content" : {
@@ -1535,9 +1538,6 @@
                 }
               }
             }
-          },
-          "204" : {
-            "description" : "El guardia no tiene turno abierto"
           }
         }
       }
@@ -1598,6 +1598,29 @@
             }
           }
         ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/LotAutocompleteResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lots/active" : {
+      "get" : {
+        "tags" : [
+          "guard-lots-controller"
+        ],
+        "operationId" : "active",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -2375,10 +2398,10 @@
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
-          "dailyOrderValid" : {
+          "contactPresent" : {
             "type" : "boolean"
           },
-          "contactPresent" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }
@@ -3630,6 +3653,12 @@
           "capturedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "companions" : {
+            "maximum" : 10,
+            "minimum" : 0,
+            "type" : "integer",
+            "format" : "int32"
           }
         }
       },
@@ -3770,10 +3799,10 @@
           "active" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
           "nonEmpty" : {

@@ -50,7 +50,7 @@ class ManualAccessUseCaseTest {
     private ManualAccessUseCase.Command cmd() {
         return new ManualAccessUseCase.Command(
                 neighborhoodId, gateId, guardId, lotId,
-                "Juan Perez", "30123456", clientEventId, Instant.now());
+                "Juan Perez", "30123456", clientEventId, Instant.now(), 0);
     }
 
     @Test

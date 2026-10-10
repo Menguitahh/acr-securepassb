@@ -29,6 +29,17 @@ public class GuardLotsController {
         this.guard = guard;
     }
 
+    // WBS-36: todos los lotes activos, para el ingreso manual sin red.
+    @GetMapping("/active")
+    @PreAuthorize("hasRole('GUARD')")
+    public List<LotAutocompleteResponse> active() {
+        CurrentUser user = guard.require();
+        if (user.neighborhoodId() == null) throw new AccessDeniedException("usuario sin barrio");
+        return useCase.listActive(user.neighborhoodId(), user.userId()).stream()
+                .map(LotAutocompleteResponse::from)
+                .toList();
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('GUARD')")
     public List<LotAutocompleteResponse> search(@RequestParam("q") String q) {
