@@ -58,4 +58,13 @@ public interface UserRepository {
      * pueda cambiarle el email sin afectar a otro titular.
      */
     boolean onlyOwnedBy(UUID userId, UUID ownerId);
+
+    /** US-54: cuentas PENDING_ACTIVATION con membresia o permiso de lote en el barrio. */
+    java.util.List<PendingActivation> pendingInNeighborhood(UUID neighborhoodId);
+
+    /** US-54: el user tiene membresia o permiso de lote activo en el barrio. */
+    boolean belongsToNeighborhood(UUID userId, UUID neighborhoodId);
+
+    /** US-54: el user tiene un permiso activo MEMBER o WORKER en ese lote. */
+    boolean belongsToLotAsMemberOrWorker(UUID userId, UUID lotId);
 }

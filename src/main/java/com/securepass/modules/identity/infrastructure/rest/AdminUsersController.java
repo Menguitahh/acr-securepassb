@@ -86,9 +86,22 @@ public class AdminUsersController {
         return ResponseEntity.created(URI.create("/api/v1/admin/users/" + result.userId())).body(body);
     }
 
+    // US-54: cuentas del barrio que todavia no se activaron, para reenviar.
+    @org.springframework.web.bind.annotation.GetMapping("/pending")
+    public java.util.List<PendingActivationResponse> pending() {
+        CurrentUser admin = guard.require();
+        return users.pendingInNeighborhood(admin.neighborhoodId()).stream()
+                .map(PendingActivationResponse::from).toList();
+    }
+
     @PostMapping("/{id}/resend-activation")
     public ResponseEntity<Void> resendActivation(@PathVariable UUID id) {
         CurrentUser admin = guard.require();
+        // US-54: solo cuentas del barrio del admin. Antes cualquier admin podia
+        // disparar el mail de una cuenta de otro barrio.
+        if (!users.belongsToNeighborhood(id, admin.neighborhoodId())) {
+            throw new com.securepass.shared.exception.ResourceNotFoundException("user", id);
+        }
 
         Optional<Duration> retry = limiter.tryAcquire(
                 "resend-activation:" + id, RESEND_LIMIT, RESEND_WINDOW);

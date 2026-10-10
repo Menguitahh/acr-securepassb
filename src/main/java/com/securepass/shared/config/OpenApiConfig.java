@@ -32,7 +32,9 @@ public class OpenApiConfig {
             "Overstay", Set.of("subjectDocument"),
             "LotResponse", Set.of("street", "number"),
             "LotMemberResponse", Set.of("relation"),
-            "OnboardUserResponse", Set.of());
+            "OnboardUserResponse", Set.of(),
+            // US-54: un trabajador dado de alta solo con telefono no tiene email.
+            "PendingActivationResponse", Set.of("email"));
 
     @Bean
     public OpenAPI securepassOpenApi() {

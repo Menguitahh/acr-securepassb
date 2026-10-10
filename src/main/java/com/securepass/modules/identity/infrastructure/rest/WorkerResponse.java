@@ -14,7 +14,8 @@ public record WorkerResponse(
         List<Integer> weekdays,
         String dailyFrom,
         String dailyUntil,
-        boolean active
+        boolean active,
+        com.securepass.modules.identity.domain.UserStatus userStatus
 ) {
     public static WorkerResponse from(WorkerListingRow row) {
         return new WorkerResponse(
@@ -23,6 +24,7 @@ public record WorkerResponse(
                 row.schedule().weekdays(),
                 row.schedule().dailyFrom().toString(),
                 row.schedule().dailyUntil().toString(),
-                row.active());
+                row.active(),
+                row.userStatus());
     }
 }

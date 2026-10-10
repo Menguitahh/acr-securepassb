@@ -16,5 +16,7 @@ public record WorkerListingRow(
         String documentNumber,
         String service,
         ScheduleWindow schedule,
-        boolean active
+        boolean active,
+        // US-54: PENDING_ACTIVATION muestra "Reenviar activacion".
+        com.securepass.modules.identity.domain.UserStatus userStatus
 ) {}

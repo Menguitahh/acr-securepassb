@@ -995,7 +995,9 @@ Endpoints de residente para permanencia (US-42):
 | GET/POST/PATCH | `/admin/lots` | Padrón catastral |
 | POST | `/admin/lots/{id}/members` | Vincular usuario a lote |
 | POST | `/admin/users` | Alta de usuario (v2, WBS-128). Body `{email, fullName, dni, role, lotId?}` con `role ∈ {RESIDENT_OWNER, GUARD}`. 201 con `{userId, role, status: PENDING_ACTIVATION}`. Dispara email de activación. |
-| POST | `/admin/users/{id}/resend-activation` | Reenvía el email de activación (v2, WBS-128). 3/hora por usuario. 409 si el usuario no está en `PENDING_ACTIVATION`. |
+| POST | `/admin/users/{id}/resend-activation` | Reenvía el email de activación (v2, WBS-128). 3/hora por usuario. 409 si el usuario no está en `PENDING_ACTIVATION`. 404 si la cuenta no es del barrio del admin (US-54). |
+| GET | `/admin/users/pending` | US-54: cuentas del barrio sin activar (membresía o permiso de lote), con roles y lotes, más reciente primero, hasta 200. |
+| POST | `/lots/{lotId}/members/{userId}/resend-activation` | US-54, OWNER del lote: reenvía la activación a un familiar o trabajador del lote. Mismo límite que el admin. 404 si no es del lote; 409 si ya activó o no tiene email. |
 | GET | `/admin/reports/access-logs.csv` | Export para importar a otro sistema: CSV RFC 4180, UTF-8 con BOM, `captured_at` ISO 8601 con offset. |
 | GET | `/admin/reports/access-logs.xlsx` | Export para leer e imprimir en Excel (#195): encabezados y valores en castellano, `Capturado el` como fecha de Excel en hora del barrio, filas denegadas destacadas. Mismos parámetros, rango máximo, límite de concurrencia y auditoría que el CSV. 422 si el filtro supera el límite de filas del XLSX. |
 

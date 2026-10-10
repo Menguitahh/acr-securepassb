@@ -10,7 +10,9 @@ public record FamilyMemberView(
         String relation,
         boolean isOwner,
         boolean canInvite,
-        boolean active
+        boolean active,
+        // US-54: PENDING_ACTIVATION muestra "Reenviar activacion".
+        com.securepass.modules.identity.domain.UserStatus userStatus
 ) {
     public FamilyMemberView {
         if (userId == null) throw new IllegalArgumentException("userId requerido");

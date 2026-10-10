@@ -59,6 +59,7 @@ public class WorkerPermissionJdbcRepository implements WorkerPermissionRepositor
                        u.full_name,
                        u.email,
                        u.document_number,
+                       u.status AS user_status,
                        p.attributes->>'service'    AS service,
                        p.attributes->>'dailyFrom'  AS daily_from,
                        p.attributes->>'dailyUntil' AS daily_until,
@@ -81,7 +82,8 @@ public class WorkerPermissionJdbcRepository implements WorkerPermissionRepositor
                         rs.getString("document_number"),
                         rs.getString("service"),
                         readSchedule(rs),
-                        rs.getBoolean("active")))
+                        rs.getBoolean("active"),
+                        com.securepass.modules.identity.domain.UserStatus.valueOf(rs.getString("user_status"))))
                 .list();
     }
 

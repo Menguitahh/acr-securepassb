@@ -385,6 +385,9 @@ class AdminUserOnboardingE2ETest {
 
     @Test
     void resendSobreUsuarioActiveDevuelve409() throws Exception {
+        // US-54: el admin reenvia solo a cuentas de su barrio.
+        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'RESIDENT_MEMBER', TRUE)",
+                existingActive, barrioA);
         HttpResponse<String> resp = post(
                 "/api/v1/admin/users/" + existingActive + "/resend-activation",
                 adminToken(), "");
@@ -393,6 +396,8 @@ class AdminUserOnboardingE2ETest {
 
     @Test
     void resendSobreUsuarioPendingEmiteTokenNuevoInvalidandoElAnterior() throws Exception {
+        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'RESIDENT_MEMBER', TRUE)",
+                existingPending, barrioA);
         // Sembrar un token viejo
         UUID oldTokenId = UUID.randomUUID();
         byte[] oldHash = new byte[32];

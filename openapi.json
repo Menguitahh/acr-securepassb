@@ -296,6 +296,39 @@
         }
       }
     },
+    "/api/v1/lots/{lotId}/members/{userId}/resend-activation" : {
+      "post" : {
+        "tags" : [
+          "lot-activation-controller"
+        ],
+        "operationId" : "resend",
+        "parameters" : [
+          {
+            "name" : "lotId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
+          {
+            "name" : "userId",
+            "in" : "path",
+            "required" : true,
+            "schema" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          }
+        ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
     "/api/v1/invitations" : {
       "get" : {
         "tags" : [
@@ -1613,6 +1646,29 @@
         }
       }
     },
+    "/api/v1/admin/users/pending" : {
+      "get" : {
+        "tags" : [
+          "admin-users-controller"
+        ],
+        "operationId" : "pending",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/PendingActivationResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/reports/access-logs.xlsx" : {
       "get" : {
         "tags" : [
@@ -2001,6 +2057,12 @@
           }
         ],
         "responses" : {
+          "400" : {
+            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
+            "content" : {
+              "application/problem+json" : { }
+            }
+          },
           "200" : {
             "description" : "OK",
             "content" : {
@@ -2009,12 +2071,6 @@
                   "$ref" : "#/components/schemas/AccessLogsResponse"
                 }
               }
-            }
-          },
-          "400" : {
-            "description" : "reason fuera del enum, o reason junto con result=ALLOWED: no existe un acceso permitido con motivo de denegacion",
-            "content" : {
-              "application/problem+json" : { }
             }
           }
         }
@@ -3714,13 +3770,13 @@
           "active" : {
             "type" : "boolean"
           },
-          "nonEmpty" : {
-            "type" : "boolean"
-          },
           "scheduleBundled" : {
             "type" : "boolean"
           },
           "dailyOrderValid" : {
+            "type" : "boolean"
+          },
+          "nonEmpty" : {
             "type" : "boolean"
           }
         }
@@ -4051,6 +4107,15 @@
           },
           "active" : {
             "type" : "boolean"
+          },
+          "userStatus" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "PENDING_ACTIVATION",
+              "SUSPENDED",
+              "DELETED"
+            ]
           }
         }
       },
@@ -4104,6 +4169,55 @@
           },
           "active" : {
             "type" : "boolean"
+          },
+          "userStatus" : {
+            "type" : "string",
+            "enum" : [
+              "ACTIVE",
+              "PENDING_ACTIVATION",
+              "SUSPENDED",
+              "DELETED"
+            ]
+          }
+        }
+      },
+      "PendingActivationResponse" : {
+        "required" : [
+          "createdAt",
+          "email",
+          "fullName",
+          "lotCodes",
+          "roles",
+          "userId"
+        ],
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "fullName" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string",
+            "nullable" : true
+          },
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "lotCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       },

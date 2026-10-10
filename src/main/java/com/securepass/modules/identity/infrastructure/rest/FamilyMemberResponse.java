@@ -12,11 +12,12 @@ public record FamilyMemberResponse(
         String relation,
         boolean isOwner,
         boolean canInvite,
-        boolean active
+        boolean active,
+        com.securepass.modules.identity.domain.UserStatus userStatus
 ) {
     public static FamilyMemberResponse from(FamilyMemberView view) {
         return new FamilyMemberResponse(
                 view.userId(), view.fullName(), view.email(), view.phone(),
-                view.relation(), view.isOwner(), view.canInvite(), view.active());
+                view.relation(), view.isOwner(), view.canInvite(), view.active(), view.userStatus());
     }
 }

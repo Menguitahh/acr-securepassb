@@ -86,7 +86,7 @@ public class UpdateFamilyMemberUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("usuario", memberUserId));
         FamilyMemberView view = new FamilyMemberView(
                 memberUserId, user.fullName(), user.email(), user.phone(),
-                member.relation(), member.isOwner(), newCanInvite, newActive);
+                member.relation(), member.isOwner(), newCanInvite, newActive, user.status());
         return new Result(view, outcome, revokedCount);
     }
 

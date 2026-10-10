@@ -52,7 +52,8 @@ public class ListFamilyMembersUseCase {
                 .flatMap(member -> users.findById(member.userId())
                         .map(user -> new FamilyMemberView(
                                 member.userId(), user.fullName(), user.email(), user.phone(),
-                                member.relation(), member.isOwner(), member.canInvite(), member.active()))
+                                member.relation(), member.isOwner(), member.canInvite(), member.active(),
+                                user.status()))
                         .stream())
                 .toList();
     }

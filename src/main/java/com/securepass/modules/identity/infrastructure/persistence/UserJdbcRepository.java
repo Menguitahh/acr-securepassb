@@ -123,6 +123,67 @@ public class UserJdbcRepository implements UserRepository {
     }
 
     @Override
+    public java.util.List<com.securepass.modules.identity.application.PendingActivation> pendingInNeighborhood(
+            UUID neighborhoodId) {
+        return jdbc.sql("""
+                SELECT u.id, u.full_name, u.email, u.created_at,
+                       COALESCE((SELECT array_agg(DISTINCT m.role::text) FROM memberships m
+                                  WHERE m.user_id = u.id AND m.neighborhood_id = :nid AND m.active = TRUE),
+                                '{}') AS roles,
+                       COALESCE((SELECT array_agg(DISTINCT l.code) FROM lot_permissions p
+                                   JOIN lots l ON l.id = p.lot_id
+                                  WHERE p.user_id = u.id AND l.neighborhood_id = :nid AND p.active = TRUE),
+                                '{}') AS lot_codes
+                  FROM users u
+                 WHERE u.status = 'PENDING_ACTIVATION'
+                   AND (EXISTS (SELECT 1 FROM memberships m
+                                 WHERE m.user_id = u.id AND m.neighborhood_id = :nid AND m.active = TRUE)
+                        OR EXISTS (SELECT 1 FROM lot_permissions p JOIN lots l ON l.id = p.lot_id
+                                    WHERE p.user_id = u.id AND l.neighborhood_id = :nid AND p.active = TRUE))
+                 ORDER BY u.created_at DESC
+                 LIMIT 200
+                """)
+                .param("nid", neighborhoodId)
+                .query((rs, i) -> new com.securepass.modules.identity.application.PendingActivation(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("full_name"),
+                        rs.getString("email"),
+                        java.util.List.of((String[]) rs.getArray("roles").getArray()),
+                        java.util.List.of((String[]) rs.getArray("lot_codes").getArray()),
+                        rs.getTimestamp("created_at").toInstant()))
+                .list();
+    }
+
+    @Override
+    public boolean belongsToNeighborhood(UUID userId, UUID neighborhoodId) {
+        return Boolean.TRUE.equals(jdbc.sql("""
+                SELECT EXISTS (SELECT 1 FROM memberships m
+                                WHERE m.user_id = :uid AND m.neighborhood_id = :nid AND m.active = TRUE)
+                    OR EXISTS (SELECT 1 FROM lot_permissions p JOIN lots l ON l.id = p.lot_id
+                                WHERE p.user_id = :uid AND l.neighborhood_id = :nid AND p.active = TRUE)
+                """)
+                .param("uid", userId)
+                .param("nid", neighborhoodId)
+                .query(Boolean.class)
+                .single());
+    }
+
+    @Override
+    public boolean belongsToLotAsMemberOrWorker(UUID userId, UUID lotId) {
+        return jdbc.sql("""
+                SELECT 1 FROM lot_permissions
+                 WHERE lot_id = :lot AND user_id = :uid AND active = TRUE
+                   AND permission_type IN ('MEMBER', 'WORKER')
+                 LIMIT 1
+                """)
+                .param("lot", lotId)
+                .param("uid", userId)
+                .query(Integer.class)
+                .optional()
+                .isPresent();
+    }
+
+    @Override
     public boolean completeEmail(UUID userId, String email) {
         int rows = jdbc.sql("""
                 UPDATE users
