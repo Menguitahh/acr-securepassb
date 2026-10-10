@@ -121,7 +121,7 @@ class AdminUserOnboardingE2ETest {
 
         assertThat(status(newId)).isEqualTo("PENDING_ACTIVATION");
         assertThat(passwordHash(newId)).isNull();
-        assertThat(hasMembership(newId, barrioA, "RESIDENT_OWNER")).isTrue();
+        assertThat(hasMembership(newId, barrioA, "ROLE_RESIDENT_OWNER")).isTrue();
         assertThat(hasLotPermission(newId, lotA, "OWNER")).isTrue();
         assertThat(activationTokensFor(newId)).isEqualTo(1);
         verify(emailSender, timeout(2000)).send(any());
@@ -136,7 +136,7 @@ class AdminUserOnboardingE2ETest {
 
         assertThat(resp.statusCode()).isEqualTo(201);
         UUID newId = UUID.fromString(json.readTree(resp.body()).get("userId").asText());
-        assertThat(hasMembership(newId, barrioA, "GUARD")).isTrue();
+        assertThat(hasMembership(newId, barrioA, "ROLE_GUARD")).isTrue();
         assertThat(lotPermissionsFor(newId)).isZero();
         verify(emailSender, timeout(2000)).send(any());
     }
@@ -191,7 +191,7 @@ class AdminUserOnboardingE2ETest {
         assertThat(j.get("email").asText()).isEqualTo(realEmail);
         assertThat(j.get("fullName").asText()).isEqualTo("Con Dni"); // el viejo, no "Nombre Escrito Mal"
 
-        assertThat(hasMembership(existingWithDni, barrioA, "RESIDENT_OWNER")).isTrue();
+        assertThat(hasMembership(existingWithDni, barrioA, "ROLE_RESIDENT_OWNER")).isTrue();
         assertThat(hasLotPermission(existingWithDni, lotA, "OWNER")).isTrue();
         assertThat(hasLotPermission(existingWithDni, lotA, "OWNER")).isTrue();
     }
@@ -331,7 +331,7 @@ class AdminUserOnboardingE2ETest {
         assertThat(j.get("code").asText()).isEqualTo("USER_SUSPENDED");
         assertThat(UUID.fromString(j.get("existingUserId").asText())).isEqualTo(suspended);
         // No suma permiso
-        assertThat(hasMembership(suspended, barrioA, "GUARD")).isFalse();
+        assertThat(hasMembership(suspended, barrioA, "ROLE_GUARD")).isFalse();
     }
 
     @Test
@@ -386,7 +386,7 @@ class AdminUserOnboardingE2ETest {
     @Test
     void resendSobreUsuarioActiveDevuelve409() throws Exception {
         // US-54: el admin reenvia solo a cuentas de su barrio.
-        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'RESIDENT_MEMBER', TRUE)",
+        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'ROLE_RESIDENT_MEMBER', TRUE)",
                 existingActive, barrioA);
         HttpResponse<String> resp = post(
                 "/api/v1/admin/users/" + existingActive + "/resend-activation",
@@ -396,7 +396,7 @@ class AdminUserOnboardingE2ETest {
 
     @Test
     void resendSobreUsuarioPendingEmiteTokenNuevoInvalidandoElAnterior() throws Exception {
-        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'RESIDENT_MEMBER', TRUE)",
+        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'ROLE_RESIDENT_MEMBER', TRUE)",
                 existingPending, barrioA);
         // Sembrar un token viejo
         UUID oldTokenId = UUID.randomUUID();

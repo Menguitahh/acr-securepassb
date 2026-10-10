@@ -77,7 +77,7 @@ class LoginLotsHttpTest {
                 INSERT INTO users (id, email, password_hash, full_name, status)
                 VALUES (?, ?, ?, 'Juan', 'ACTIVE')
                 """, user, email, encoder.encode(PASSWORD));
-        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role) VALUES (?, ?, 'RESIDENT_OWNER')",
+        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role) VALUES (?, ?, 'ROLE_RESIDENT_OWNER')",
                 user, barrio);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)

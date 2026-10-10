@@ -21,7 +21,7 @@ public class MembershipJdbcGranter implements MembershipGranter {
                 VALUES (:u, :n, :r, TRUE)
                 ON CONFLICT (user_id, neighborhood_id, role) DO UPDATE SET active = TRUE
                 """)
-                .param("u", userId).param("n", neighborhoodId).param("r", role.name())
+                .param("u", userId).param("n", neighborhoodId).param("r", role.authority())
                 .update();
     }
 
@@ -31,7 +31,7 @@ public class MembershipJdbcGranter implements MembershipGranter {
                 SELECT 1 FROM memberships
                  WHERE user_id = :u AND neighborhood_id = :n AND role = :r
                 """)
-                .param("u", userId).param("n", neighborhoodId).param("r", role.name())
+                .param("u", userId).param("n", neighborhoodId).param("r", role.authority())
                 .query(Integer.class).optional().isPresent();
     }
 }

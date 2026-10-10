@@ -141,12 +141,12 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
                 """)
                 .param("uid", userId)
                 .param("nid", neighborhoodId)
-                .param("role", role.name())
+                .param("role", role.authority())
                 .query((rs, i) -> new Membership(
                         rs.getObject("id", UUID.class),
                         rs.getObject("user_id", UUID.class),
                         rs.getObject("neighborhood_id", UUID.class),
-                        Role.valueOf(rs.getString("role")),
+                        Role.fromAuthority(rs.getString("role")),
                         rs.getBoolean("active")))
                 .optional();
     }
@@ -160,7 +160,7 @@ public class FamilyMemberJdbcRepository implements FamilyMemberRepository {
                 .param("id", membership.id())
                 .param("user", membership.userId())
                 .param("neighborhood", membership.neighborhoodId())
-                .param("role", membership.role().name())
+                .param("role", membership.role().authority())
                 .param("active", membership.active())
                 .update();
     }

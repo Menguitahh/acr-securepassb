@@ -363,7 +363,7 @@ CREATE TABLE memberships (
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     neighborhood_id UUID NOT NULL REFERENCES neighborhoods(id) ON DELETE CASCADE,
     role            VARCHAR(20) NOT NULL
-                    CHECK (role IN ('ADMIN','GUARD','RESIDENT_OWNER','RESIDENT_MEMBER')),
+                    CHECK (role IN ('ROLE_ADMIN','ROLE_GUARD','ROLE_RESIDENT_OWNER','ROLE_RESIDENT_MEMBER')), -- V23 (#256): prefijo de Spring Security; la API y el JWT usan el nombre sin prefijo
     active          BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, neighborhood_id, role)

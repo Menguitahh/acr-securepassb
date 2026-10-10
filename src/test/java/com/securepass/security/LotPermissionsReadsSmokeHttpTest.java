@@ -87,7 +87,7 @@ class LotPermissionsReadsSmokeHttpTest {
                 """, owner, lot);
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active)
-                VALUES (?, ?, 'RESIDENT_OWNER', TRUE)
+                VALUES (?, ?, 'ROLE_RESIDENT_OWNER', TRUE)
                 """, owner, barrio);
 
         // Fila insertada directo en lot_permissions (sin pasar por el flujo
@@ -112,7 +112,7 @@ class LotPermissionsReadsSmokeHttpTest {
         insertUser(admin, "admin");
         jdbc.update("""
                 INSERT INTO memberships (user_id, neighborhood_id, role, active)
-                VALUES (?, ?, 'ADMIN', TRUE)
+                VALUES (?, ?, 'ROLE_ADMIN', TRUE)
                 """, admin, barrio);
         String adminToken = jwt.issue(admin, barrio, List.of(Role.ADMIN), List.of()).token();
 

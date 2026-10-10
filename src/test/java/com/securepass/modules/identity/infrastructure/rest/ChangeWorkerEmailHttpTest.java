@@ -72,7 +72,7 @@ class ChangeWorkerEmailHttpTest {
         for (UUID[] o : new UUID[][] {{owner, lot}, {otherOwner, otherLot}}) {
             jdbc.update("INSERT INTO users (id, email, password_hash, full_name, status) VALUES (?, ?, 'h', 'Titular', 'ACTIVE')",
                     o[0], "o-" + o[0] + "@t.com");
-            jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'RESIDENT_OWNER', TRUE)",
+            jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'ROLE_RESIDENT_OWNER', TRUE)",
                     o[0], barrio);
             jdbc.update("INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active) VALUES (?, ?, 'OWNER', '{}'::jsonb, TRUE)",
                     o[0], o[1]);

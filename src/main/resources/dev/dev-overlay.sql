@@ -45,8 +45,8 @@ INSERT INTO users (id, email, password_hash, full_name, status) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES
-('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'GUARD', TRUE),
-('cccccccc-cccc-cccc-cccc-cccccccccccc', '11111111-1111-1111-1111-111111111111', 'RESIDENT_OWNER', TRUE)
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'ROLE_GUARD', TRUE),
+('cccccccc-cccc-cccc-cccc-cccccccccccc', '11111111-1111-1111-1111-111111111111', 'ROLE_RESIDENT_OWNER', TRUE)
 ON CONFLICT (user_id, neighborhood_id, role) DO NOTHING;
 
 INSERT INTO lots (id, neighborhood_id, code, street, number, status)
@@ -99,9 +99,9 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES
 ('d0000001-0000-0000-0000-000000000000',
- '11111111-1111-1111-1111-111111111111', 'RESIDENT_OWNER', TRUE),
+ '11111111-1111-1111-1111-111111111111', 'ROLE_RESIDENT_OWNER', TRUE),
 ('d0000002-0000-0000-0000-000000000000',
- '11111111-1111-1111-1111-111111111111', 'RESIDENT_MEMBER', TRUE)
+ '11111111-1111-1111-1111-111111111111', 'ROLE_RESIDENT_MEMBER', TRUE)
 ON CONFLICT (user_id, neighborhood_id, role) DO NOTHING;
 
 INSERT INTO lots (id, neighborhood_id, code, street, number, status)
@@ -192,7 +192,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES
 ('d0000005-0000-0000-0000-000000000000',
- '11111111-1111-1111-1111-111111111111', 'RESIDENT_MEMBER', TRUE)
+ '11111111-1111-1111-1111-111111111111', 'ROLE_RESIDENT_MEMBER', TRUE)
 ON CONFLICT (user_id, neighborhood_id, role) DO NOTHING;
 
 INSERT INTO lots (id, neighborhood_id, code, street, number, status)

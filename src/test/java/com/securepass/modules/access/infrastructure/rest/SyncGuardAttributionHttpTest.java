@@ -65,10 +65,10 @@ class SyncGuardAttributionHttpTest {
             jdbc.update("INSERT INTO users (id, email, password_hash, full_name, status) VALUES (?, ?, 'h', 'U', 'ACTIVE')",
                     u, u + "@t.com");
         }
-        membership(guardiaA, barrio, "GUARD");
-        membership(guardiaB, barrio, "GUARD");
-        membership(guardiaAjeno, otroBarrio, "GUARD");
-        membership(residente, barrio, "RESIDENT_OWNER");
+        membership(guardiaA, barrio, "ROLE_GUARD");
+        membership(guardiaB, barrio, "ROLE_GUARD");
+        membership(guardiaAjeno, otroBarrio, "ROLE_GUARD");
+        membership(residente, barrio, "ROLE_RESIDENT_OWNER");
 
         UUID deA = UUID.randomUUID();
         UUID deResidente = UUID.randomUUID();

@@ -61,7 +61,7 @@ class InvitationsListHidesResidentPassHttpTest {
         jdbc.update("INSERT INTO lots (id, neighborhood_id, code) VALUES (?, ?, 'L-1')", lot, barrio);
         jdbc.update("INSERT INTO users (id, email, password_hash, full_name, status) VALUES (?, ?, 'h', 'owner', 'ACTIVE')",
                 owner, "o-" + owner + "@t.com");
-        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'RESIDENT_OWNER', TRUE)",
+        jdbc.update("INSERT INTO memberships (user_id, neighborhood_id, role, active) VALUES (?, ?, 'ROLE_RESIDENT_OWNER', TRUE)",
                 owner, barrio);
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)

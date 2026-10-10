@@ -82,9 +82,9 @@ class UserSuspensionHttpTest {
 
         adminRoblesEmail = "adm-" + UUID.randomUUID() + "@r.com";
         adminRobles = user(adminRoblesEmail, "Admin Robles", "h");
-        member(adminRobles, robles, "ADMIN");
+        member(adminRobles, robles, "ROLE_ADMIN");
         adminAcacias = user("adm-" + UUID.randomUUID() + "@a.com", "Admin Acacias", "h");
-        member(adminAcacias, acacias, "ADMIN");
+        member(adminAcacias, acacias, "ROLE_ADMIN");
 
         workerDni = String.valueOf(ThreadLocalRandom.current().nextInt(20_000_000, 49_999_999));
         worker = user("w-" + UUID.randomUUID() + "@t.com", "Carlos Plomero", "h");
@@ -98,7 +98,7 @@ class UserSuspensionHttpTest {
                 worker, robles, UUID.randomUUID());
 
         resident = user("res-" + UUID.randomUUID() + "@t.com", "Ana Residente", "h");
-        member(resident, robles, "RESIDENT_OWNER");
+        member(resident, robles, "ROLE_RESIDENT_OWNER");
         jdbc.update("""
                 INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
                 VALUES (?, ?, 'OWNER', jsonb_build_object('can_invite', TRUE, 'relation', 'OWNER'), TRUE)

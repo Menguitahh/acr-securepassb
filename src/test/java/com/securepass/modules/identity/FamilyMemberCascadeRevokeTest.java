@@ -61,7 +61,7 @@ class FamilyMemberCascadeRevokeTest {
                 """, ownerId, lotId, memberId, lotId, otherMemberId, lotId);
         jdbc.update("""
                 INSERT INTO memberships (id, user_id, neighborhood_id, role, active)
-                VALUES (?, ?, ?, 'RESIDENT_OWNER', TRUE), (?, ?, ?, 'RESIDENT_MEMBER', TRUE)
+                VALUES (?, ?, ?, 'ROLE_RESIDENT_OWNER', TRUE), (?, ?, ?, 'ROLE_RESIDENT_MEMBER', TRUE)
                 """, UUID.randomUUID(), ownerId, neighborhoodId,
                 UUID.randomUUID(), memberId, neighborhoodId);
         seedInvitation(memberInvitationId, memberId);

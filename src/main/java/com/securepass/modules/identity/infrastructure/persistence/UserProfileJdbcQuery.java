@@ -36,7 +36,7 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
                 .param("uid", userId)
                 .query((rs, i) -> new MembershipRow(
                         rs.getObject("neighborhood_id", UUID.class),
-                        Role.valueOf(rs.getString("role")),
+                        Role.fromAuthority(rs.getString("role")),
                         rs.getString("timezone")))
                 .list();
 
