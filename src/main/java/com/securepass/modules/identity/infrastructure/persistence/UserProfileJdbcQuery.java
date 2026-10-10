@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -43,6 +44,30 @@ public class UserProfileJdbcQuery implements UserProfileQuery {
 
         UUID neighborhoodId = memberships.isEmpty() ? null : memberships.get(0).neighborhoodId();
         String neighborhoodTimezone = memberships.isEmpty() ? null : memberships.get(0).timezone();
+        if (memberships.isEmpty()) {
+            // US-65: el trabajador no tiene membresia (el alta de WORKER no la
+            // crea). Sin barrio la sesion le llegaba incompleta y no podia
+            // entrar a la app a ver su QR: el barrio sale de donde trabaja.
+            // ponytail: un trabajador en varios barrios toma el primero por
+            // codigo de lote; elegir barrio cuando eso exista.
+            Optional<MembershipRow> work = jdbc.sql("""
+                    SELECT l.neighborhood_id, n.timezone
+                      FROM lot_permissions p
+                      JOIN lots l ON l.id = p.lot_id
+                      JOIN neighborhoods n ON n.id = l.neighborhood_id
+                     WHERE p.user_id = :uid AND p.active = TRUE AND p.permission_type = 'WORKER'
+                     ORDER BY l.code
+                     LIMIT 1
+                    """)
+                    .param("uid", userId)
+                    .query((rs, i) -> new MembershipRow(
+                            rs.getObject("neighborhood_id", UUID.class), null, rs.getString("timezone")))
+                    .optional();
+            if (work.isPresent()) {
+                neighborhoodId = work.get().neighborhoodId();
+                neighborhoodTimezone = work.get().timezone();
+            }
+        }
         List<Role> roles = memberships.stream().map(MembershipRow::role).distinct().toList();
 
         // Reads sobre lot_permissions (ver FamilyMemberJdbcRepository para el mapeo).

@@ -165,4 +165,32 @@ class LoginLotsHttpTest {
         assertLots(body.get("user").get("lots"));
         assertThat(jwtLots(body.get("accessToken").asText())).containsExactly(casaPropia.toString());
     }
+
+    // US-65: trabajador sin membresia de barrio (el alta de WORKER no la
+    // crea). Antes el login devolvia neighborhoodId null y la app rechazaba
+    // la sesion: el trabajador no podia ver su QR.
+    @Test
+    void trabajadorSinMembresiaEntraConElBarrioDondeTrabaja() throws Exception {
+        UUID worker = UUID.randomUUID();
+        String workerEmail = "w-" + worker + "@t.com";
+        jdbc.update("""
+                INSERT INTO users (id, email, password_hash, full_name, status)
+                VALUES (?, ?, ?, 'Wanda', 'ACTIVE')
+                """, worker, workerEmail, encoder.encode(PASSWORD));
+        jdbc.update("""
+                INSERT INTO lot_permissions (user_id, lot_id, permission_type, attributes, active)
+                VALUES (?, ?, 'WORKER', jsonb_build_object(
+                    'service', 'Limpieza', 'weekdays', '[2]'::jsonb,
+                    'dailyFrom', '09:00', 'dailyUntil', '13:00'), TRUE)
+                """, worker, casaDondeTrabaja);
+
+        HttpResponse<String> resp = send("POST", "/api/v1/auth/login",
+                "{\"identifier\":\"" + workerEmail + "\",\"password\":\"" + PASSWORD + "\"}", null);
+
+        assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
+        JsonNode user = json.readTree(resp.body()).get("user");
+        assertThat(user.get("neighborhoodId").asText()).isEqualTo(barrio.toString());
+        assertThat(user.get("roles")).isEmpty();
+        assertThat(user.get("lots").get(0).get("kind").asText()).isEqualTo("WORKER");
+    }
 }
