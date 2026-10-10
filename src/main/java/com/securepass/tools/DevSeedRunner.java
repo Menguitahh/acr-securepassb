@@ -66,6 +66,11 @@ public class DevSeedRunner implements CommandLineRunner {
         LOG.warn("NUNCA debe correr fuera de una maquina de desarrollo.");
         LOG.warn("========================================================================");
 
+        // Idempotente: va antes del corte de "barrio ya sembrado".
+        try (Connection c = dataSource.getConnection()) {
+            ScriptUtils.executeSqlScript(c, new ClassPathResource("dev/dev-platform.sql"));
+        }
+
         boolean exists = jdbc.sql("SELECT 1 FROM neighborhoods WHERE slug = :s")
                 .param("s", DEV_SLUG).query(Integer.class).optional().isPresent();
         if (exists) {
