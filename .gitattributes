@@ -1,0 +1,4 @@
+# gradlew corre en Linux (CI, docker build): siempre LF.
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

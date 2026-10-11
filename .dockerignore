@@ -1,0 +1,9 @@
+# Contexto de build minimo: solo lo que el Dockerfile copia.
+# Todo lo demas queda afuera (secretos, artefactos locales, git, docs).
+*
+!gradlew
+!gradle/
+!settings.gradle.kts
+!build.gradle.kts
+!src/main/
+!docker/HealthCheck.java
