@@ -11,6 +11,22 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/securepass}
     username: ${DB_USER:securepass}
     password: ${DB_PASSWORD:securepass}
+    hikari:
+      pool-name: securepassb-pool
+      # securepass.export.max-concurrent se calculo como ~20% de este tope.
+      # Postgres B1MS de Azure tiene max_connections 50 (algunas reservadas):
+      # 10 por replica deja margen para 2-3 replicas y para Flyway.
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      # Pocas ociosas: con escala a cero no se pagan conexiones de mas.
+      minimum-idle: 2
+      # Fallar rapido si el pool esta agotado o la base no responde, en vez
+      # de colgar el request 30 s (default).
+      connection-timeout: 10000
+      # El NAT de salida de Azure corta TCP ociosas a los 4 min: el ping cada
+      # 2 min las mantiene vivas y evita conexiones muertas en el pool.
+      keepalive-time: 120000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -66,6 +82,12 @@ management:
     health:
       probes:
         enabled: true
+      # Sin base o sin Redis la replica no sirve (login falla): readiness DOWN
+      # y el orquestador deja de mandarle trafico. Liveness no los incluye:
+      # reiniciar el contenedor no arregla una base caida.
+      group:
+        readiness:
+          include: readinessState,db,redis
   metrics:
     distribution:
       percentiles-histogram:

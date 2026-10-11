@@ -1,0 +1,13 @@
+# Perfil prod (Azure Container Apps). Se activa con SPRING_PROFILES_ACTIVE=prod.
+# Pisa los defaults de dev de application.yml: si falta una variable la app no
+# arranca, en vez de conectarse a localhost con credenciales de desarrollo.
+spring:
+  datasource:
+    # Azure exige TLS: DB_URL termina en ?sslmode=require.
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
