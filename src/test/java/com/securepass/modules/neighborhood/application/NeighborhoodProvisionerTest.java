@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -25,7 +25,7 @@ class NeighborhoodProvisionerTest {
 
     // signingKeyIssuer se mockea SOLO en el test de rollback. En el resto,
     // usa el bean real contra la DB de Testcontainers.
-    @MockBean SigningKeyIssuer signingKeyIssuer;
+    @MockitoBean SigningKeyIssuer signingKeyIssuer;
 
     @org.junit.jupiter.api.BeforeEach
     void resetMock() {

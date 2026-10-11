@@ -228,7 +228,7 @@
         "tags" : [
           "platform-neighborhoods-controller"
         ],
-        "operationId" : "list_1",
+        "operationId" : "list",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -279,7 +279,7 @@
         "tags" : [
           "worker-controller"
         ],
-        "operationId" : "list_2",
+        "operationId" : "list_1",
         "parameters" : [
           {
             "name" : "lotId",
@@ -385,7 +385,7 @@
         "tags" : [
           "invitation-controller"
         ],
-        "operationId" : "list_3",
+        "operationId" : "list_2",
         "parameters" : [
           {
             "name" : "lotId",
@@ -684,7 +684,7 @@
         "tags" : [
           "family-controller"
         ],
-        "operationId" : "list_4",
+        "operationId" : "list_3",
         "parameters" : [
           {
             "name" : "lotId",
@@ -916,7 +916,7 @@
         "tags" : [
           "admin-users-controller"
         ],
-        "operationId" : "search_1",
+        "operationId" : "search",
         "parameters" : [
           {
             "name" : "q",
@@ -1095,7 +1095,7 @@
         "tags" : [
           "admin-lots-controller"
         ],
-        "operationId" : "list_5",
+        "operationId" : "list_4",
         "parameters" : [
           {
             "name" : "page",
@@ -1231,7 +1231,7 @@
         "tags" : [
           "activation-controller"
         ],
-        "operationId" : "get_1",
+        "operationId" : "get",
         "parameters" : [
           {
             "name" : "token",
@@ -1641,7 +1641,7 @@
         "tags" : [
           "shift-controller"
         ],
-        "operationId" : "list",
+        "operationId" : "list_5",
         "parameters" : [
           {
             "name" : "gateId",
@@ -1723,7 +1723,7 @@
         "tags" : [
           "worker-qr-controller"
         ],
-        "operationId" : "get",
+        "operationId" : "get_1",
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -1763,7 +1763,7 @@
         "tags" : [
           "guard-lots-controller"
         ],
-        "operationId" : "search",
+        "operationId" : "search_1",
         "parameters" : [
           {
             "name" : "q",
@@ -2382,7 +2382,8 @@
           "email" : {
             "maxLength" : 160,
             "minLength" : 0,
-            "type" : "string"
+            "type" : "string",
+            "format" : "email"
           }
         }
       },
@@ -2556,7 +2557,9 @@
             "type" : "string"
           },
           "adminEmail" : {
-            "type" : "string"
+            "minLength" : 1,
+            "type" : "string",
+            "format" : "email"
           },
           "adminFullName" : {
             "maxLength" : 140,
@@ -2564,6 +2567,7 @@
             "type" : "string"
           },
           "adminDni" : {
+            "minLength" : 1,
             "pattern" : "\\d{7,8}",
             "type" : "string"
           }
@@ -2610,7 +2614,8 @@
           "email" : {
             "maxLength" : 160,
             "minLength" : 0,
-            "type" : "string"
+            "type" : "string",
+            "format" : "email"
           },
           "phone" : {
             "maxLength" : 30,
@@ -2623,17 +2628,22 @@
             "type" : "string"
           },
           "weekdays" : {
+            "minItems" : 1,
             "type" : "array",
             "items" : {
+              "maximum" : 7,
+              "minimum" : 1,
               "type" : "integer",
               "format" : "int32"
             }
           },
           "dailyFrom" : {
+            "minLength" : 1,
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
           "dailyUntil" : {
+            "minLength" : 1,
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
           },
@@ -2731,6 +2741,7 @@
             "type" : "string"
           },
           "guestDocument" : {
+            "minLength" : 1,
             "pattern" : "^[0-9]{7,8}$",
             "type" : "string"
           },
@@ -2940,7 +2951,8 @@
           "email" : {
             "maxLength" : 160,
             "minLength" : 0,
-            "type" : "string"
+            "type" : "string",
+            "format" : "email"
           },
           "relation" : {
             "maxLength" : 30,
@@ -3043,7 +3055,8 @@
           "email" : {
             "maxLength" : 160,
             "minLength" : 0,
-            "type" : "string"
+            "type" : "string",
+            "format" : "email"
           },
           "relation" : {
             "maxLength" : 30,
@@ -3104,9 +3117,11 @@
         "type" : "object",
         "properties" : {
           "token" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "password" : {
+            "minLength" : 1,
             "type" : "string"
           }
         }
@@ -3118,6 +3133,7 @@
         "type" : "object",
         "properties" : {
           "refreshToken" : {
+            "minLength" : 1,
             "type" : "string"
           }
         }
@@ -3236,9 +3252,11 @@
         "type" : "object",
         "properties" : {
           "identifier" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "password" : {
+            "minLength" : 1,
             "type" : "string"
           }
         }
@@ -3268,7 +3286,9 @@
         "type" : "object",
         "properties" : {
           "email" : {
-            "type" : "string"
+            "minLength" : 1,
+            "type" : "string",
+            "format" : "email"
           }
         }
       },
@@ -3282,16 +3302,21 @@
         "type" : "object",
         "properties" : {
           "email" : {
-            "type" : "string"
+            "minLength" : 1,
+            "type" : "string",
+            "format" : "email"
           },
           "fullName" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "dni" : {
+            "minLength" : 1,
             "pattern" : "\\d{7,8}",
             "type" : "string"
           },
           "role" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "lotId" : {
@@ -3506,6 +3531,7 @@
         "type" : "object",
         "properties" : {
           "password" : {
+            "minLength" : 1,
             "type" : "string"
           }
         }
@@ -3521,6 +3547,7 @@
         "type" : "object",
         "properties" : {
           "token" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "gateId" : {
@@ -3730,6 +3757,7 @@
             "format" : "uuid"
           },
           "token" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "gateId" : {
@@ -3957,6 +3985,7 @@
         "type" : "object",
         "properties" : {
           "token" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "documentNumber" : {
@@ -4046,6 +4075,8 @@
           "weekdays" : {
             "type" : "array",
             "items" : {
+              "maximum" : 7,
+              "minimum" : 1,
               "type" : "integer",
               "format" : "int32"
             }
@@ -4064,10 +4095,10 @@
           "nonEmpty" : {
             "type" : "boolean"
           },
-          "dailyOrderValid" : {
+          "scheduleBundled" : {
             "type" : "boolean"
           },
-          "scheduleBundled" : {
+          "dailyOrderValid" : {
             "type" : "boolean"
           }
         }

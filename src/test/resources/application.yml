@@ -6,6 +6,11 @@ spring:
     hibernate:
       ddl-auto: validate
 
+# Igual que main: OpenApiSnapshotTest compara contra el contrato 3.0.
+springdoc:
+  api-docs:
+    version: openapi_3_0
+
 management:
   health:
     redis:
