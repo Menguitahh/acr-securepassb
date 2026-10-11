@@ -19,7 +19,7 @@ flowchart LR
 |---|---|
 | Multietapa | El JDK, Gradle y el codigo fuente quedan en la etapa `build`; la imagen final solo lleva el JRE y el jar extraido |
 | `eclipse-temurin:21-jdk-jammy` para compilar | Java 21 (el toolchain del proyecto). Gradle lo detecta y no descarga otro JDK |
-| `gcr.io/distroless/java21-debian12:nonroot` para correr | Sin shell, sin gestor de paquetes, sin curl: menos superficie de ataque y menos CVEs. 261 MB contra 407 MB de `eclipse-temurin:21-jre-jammy` |
+| `gcr.io/distroless/java21-debian13:nonroot` para correr | Sin shell, sin gestor de paquetes, sin curl: menos superficie de ataque y menos CVEs. 261 MB contra 407 MB de `eclipse-temurin:21-jre-jammy`. Debian 13 en vez de 12: 68 vulnerabilidades contra 112 y JRE 21.0.12.1 (ver `docs/vulnerabilidades.md`) |
 | Usuario `65532` (nonroot) | El proceso no corre como root (verificado con `docker top`) |
 | Dependencias antes que el codigo | `./gradlew dependencies` en su propia capa: mientras no cambie `build.gradle.kts`, Docker la reutiliza |
 | `--mount=type=cache` | La cache de Gradle sobrevive entre builds |
