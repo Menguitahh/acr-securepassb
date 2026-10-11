@@ -73,7 +73,17 @@ securepass:
   password-reset:
     ttl-hours: ${SECUREPASS_PASSWORD_RESET_TTL_HOURS:2}
 
+# /actuator/info: que imagen esta corriendo. El Dockerfile setea las dos
+# variables con los build args (tag y SHA del commit).
+info:
+  app:
+    version: ${APP_VERSION:dev}
+    revision: ${APP_REVISION:unknown}
+
 management:
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
