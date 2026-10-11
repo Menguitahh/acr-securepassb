@@ -163,6 +163,16 @@ barrio. No viene en el seed porque el cifrado depende de `SECUREPASS_MASTER_KEY`
 crearla via el endpoint admin correspondiente (o llamando a `SigningKeyIssuer`)
 una vez que la app esta arriba.
 
+## Correr todo en Docker
+
+```powershell
+Copy-Item .env.example .env
+docker compose --profile app up -d --build
+curl.exe http://localhost:8080/actuator/health
+```
+
+Detalle de la imagen, Compose y comandos: `docs/docker.md`.
+
 ## Comandos utiles
 
 ```powershell

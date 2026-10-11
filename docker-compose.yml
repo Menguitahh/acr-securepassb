@@ -1,17 +1,27 @@
+# Nombre fijo del proyecto: los contenedores y el volumen se llaman
+# securepassb-* aunque la carpeta del repo tenga otro nombre.
+name: securepassb
+
+# Dos modos:
+#   docker compose up -d                       -> solo Postgres + Redis (para bootRun)
+#   docker compose --profile app up -d --build -> ademas el backend en contenedor
+# Valores sensibles desde .env (copiar .env.example). Los defaults de abajo
+# son los placeholders de desarrollo de .env.example, no credenciales reales.
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: securepassb-postgres
     environment:
-      POSTGRES_USER: securepass
-      POSTGRES_PASSWORD: securepass
+      POSTGRES_USER: ${DB_USER:-securepass}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-securepass}
       POSTGRES_DB: securepass
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U securepass"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -27,5 +37,39 @@ services:
       timeout: 3s
       retries: 10
 
+  backend:
+    profiles: ["app"]
+    build:
+      context: .
+      args:
+        VERSION: ${IMAGE_TAG:-local}
+    image: securepassb:${IMAGE_TAG:-local}
+    container_name: securepassb-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      # Dentro de la red de compose la base y Redis se llaman por el nombre
+      # del servicio, no por localhost.
+      DB_URL: jdbc:postgresql://postgres:5432/securepass
+      DB_USER: ${DB_USER:-securepass}
+      DB_PASSWORD: ${DB_PASSWORD:-securepass}
+      REDIS_HOST: redis
+      # Sin default: si faltan en .env el backend no arranca y lo dice en el
+      # log. No se usa ":?" porque compose lo evaluaria tambien en modo infra.
+      SECUREPASS_JWT_SECRET: ${SECUREPASS_JWT_SECRET:-}
+      SECUREPASS_MASTER_KEY: ${SECUREPASS_MASTER_KEY:-}
+      SECUREPASS_CORS_ALLOWED_ORIGINS: ${SECUREPASS_CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://localhost:3000}
+      SECUREPASS_DEV_SEED: ${SECUREPASS_DEV_SEED:-false}
+      SECUREPASS_DEMO_SEED: ${SECUREPASS_DEMO_SEED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # El healthcheck viene de la imagen (HEALTHCHECK del Dockerfile).
+    restart: unless-stopped
+
+# Redis no tiene volumen a proposito: sesiones y rate limit son efimeros.
 volumes:
   postgres-data:
