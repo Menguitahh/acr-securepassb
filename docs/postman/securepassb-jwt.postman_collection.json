@@ -1,0 +1,222 @@
+{
+  "info": {
+    "name": "securepassb - JWT y seguridad",
+    "description": "Demuestra que el JWT es real: firma HMAC-SHA256, expiracion, 401 vs 403, roles, refresh con rotacion y logout. Correr en orden (Run collection). baseUrl apunta a local; para Azure cambiar baseUrl y las credenciales en las variables de la coleccion.\n\nRate limit de login: 5 intentos cada 15 min por IP + usuario. Si aparece 429, esperar o reiniciar Redis local (docker restart securepassb-redis).\n\nExpiracion: arrancar el backend con SECUREPASS_JWT_TTL_SECONDS=60, correr '03 Login admin', esperar 60 s y correr '05 Endpoint protegido con token': da 401.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminUser", "value": "admin@dev.local" },
+    { "key": "adminPass", "value": "admin123" },
+    { "key": "guardUser", "value": "guard@dev.local" },
+    { "key": "guardPass", "value": "guard123" },
+    { "key": "ownerUser", "value": "owner@dev.local" },
+    { "key": "ownerPass", "value": "resident123" },
+    { "key": "platformUser", "value": "platform@dev.local" },
+    { "key": "platformPass", "value": "platform123" }
+  ],
+  "item": [
+    {
+      "name": "01 Health publico",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('200 sin token', () => pm.response.to.have.status(200));",
+        "pm.test('status UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/actuator/health" }
+    },
+    {
+      "name": "02 Login incorrecto",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('401 con password mala', () => pm.response.to.have.status(401));",
+        "pm.test('no devuelve token', () => pm.expect(pm.response.text()).to.not.include('accessToken'));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"identifier\":\"{{adminUser}}\",\"password\":\"incorrecta\"}" },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "03 Login admin",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('200', () => pm.response.to.have.status(200));",
+        "const body = pm.response.json();",
+        "const parts = body.accessToken.split('.');",
+        "pm.test('JWT con header.payload.firma', () => pm.expect(parts.length).to.eql(3));",
+        "const decode = s => JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/')));",
+        "const header = decode(parts[0]);",
+        "const payload = decode(parts[1]);",
+        "pm.test('firmado con HS256', () => pm.expect(header.alg).to.eql('HS256'));",
+        "pm.test('rol ADMIN en el token', () => pm.expect(payload.roles).to.include('ADMIN'));",
+        "pm.test('exp - iat == expiresIn', () => pm.expect(payload.exp - payload.iat).to.eql(body.expiresIn));",
+        "console.log('payload del JWT', payload);",
+        "pm.collectionVariables.set('adminToken', body.accessToken);",
+        "pm.collectionVariables.set('adminRefresh', body.refreshToken);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"identifier\":\"{{adminUser}}\",\"password\":\"{{adminPass}}\"}" },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "04 Endpoint protegido sin token",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('401 sin token', () => pm.response.to.have.status(401));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/admin/lots" }
+    },
+    {
+      "name": "05 Endpoint protegido con token",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('200 con token valido', () => pm.response.to.have.status(200));"
+      ] } }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/v1/admin/lots"
+      }
+    },
+    {
+      "name": "06 Token adulterado",
+      "event": [
+        { "listen": "prerequest", "script": { "exec": [
+          "// Cambia el payload (rol PLATFORM_ADMIN) sin poder recalcular la firma.",
+          "const [h, p, s] = pm.collectionVariables.get('adminToken').split('.');",
+          "const payload = JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/')));",
+          "payload.roles = ['PLATFORM_ADMIN'];",
+          "const forged = btoa(JSON.stringify(payload)).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+          "pm.collectionVariables.set('forgedToken', [h, forged, s].join('.'));"
+        ] } },
+        { "listen": "test", "script": { "exec": [
+          "pm.test('401: la firma no coincide con el payload', () => pm.response.to.have.status(401));"
+        ] } }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{forgedToken}}" }],
+        "url": "{{baseUrl}}/api/v1/admin/lots"
+      }
+    },
+    {
+      "name": "07 Login guardia",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('200', () => pm.response.to.have.status(200));",
+        "pm.collectionVariables.set('guardToken', pm.response.json().accessToken);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"identifier\":\"{{guardUser}}\",\"password\":\"{{guardPass}}\"}" },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "08 Guardia en endpoint de admin",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('403: autenticado pero sin el rol', () => pm.response.to.have.status(403));"
+      ] } }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{guardToken}}" }],
+        "url": "{{baseUrl}}/api/v1/admin/lots"
+      }
+    },
+    {
+      "name": "09 Usuario autenticado: invitaciones del titular",
+      "event": [
+        { "listen": "prerequest", "script": { "exec": [
+          "pm.sendRequest({",
+          "  url: pm.collectionVariables.get('baseUrl') + '/api/v1/auth/login',",
+          "  method: 'POST',",
+          "  header: { 'Content-Type': 'application/json' },",
+          "  body: { mode: 'raw', raw: JSON.stringify({ identifier: pm.collectionVariables.get('ownerUser'), password: pm.collectionVariables.get('ownerPass') }) }",
+          "}, (err, res) => pm.collectionVariables.set('ownerToken', res.json().accessToken));"
+        ] } },
+        { "listen": "test", "script": { "exec": [
+          "// El cliente no manda userId ni barrio: el backend los saca del token.",
+          "const t = pm.collectionVariables.get('ownerToken').split('.')[1];",
+          "const nid = JSON.parse(atob(t.replace(/-/g, '+').replace(/_/g, '/'))).nid;",
+          "pm.test('200', () => pm.response.to.have.status(200));",
+          "pm.test('todo pertenece al barrio del token', () => pm.response.json().items.forEach(i => pm.expect(i.neighborhoodId).to.eql(nid)));"
+        ] } }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+        "url": "{{baseUrl}}/api/v1/invitations"
+      }
+    },
+    {
+      "name": "10 Refresh (rota el refresh token)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('200', () => pm.response.to.have.status(200));",
+        "const body = pm.response.json();",
+        "pm.test('refresh token nuevo', () => pm.expect(body.refreshToken).to.not.eql(pm.collectionVariables.get('adminRefresh')));",
+        "pm.collectionVariables.set('oldRefresh', pm.collectionVariables.get('adminRefresh'));",
+        "pm.collectionVariables.set('adminToken', body.accessToken);",
+        "pm.collectionVariables.set('adminRefresh', body.refreshToken);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{adminRefresh}}\"}" },
+        "url": "{{baseUrl}}/api/v1/auth/refresh"
+      }
+    },
+    {
+      "name": "11 Reusar refresh viejo",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('401: reuso detectado, se revoca la familia', () => pm.response.to.have.status(401));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{oldRefresh}}\"}" },
+        "url": "{{baseUrl}}/api/v1/auth/refresh"
+      }
+    },
+    {
+      "name": "12 Actuator metricas sin token",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('401: metricas no son publicas', () => pm.response.to.have.status(401));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/actuator/prometheus" }
+    },
+    {
+      "name": "13 Actuator metricas con admin de barrio",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('403: solo el duenio de la plataforma', () => pm.response.to.have.status(403));"
+      ] } }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/actuator/prometheus"
+      }
+    },
+    {
+      "name": "14 Actuator metricas con duenio de la plataforma",
+      "event": [
+        { "listen": "prerequest", "script": { "exec": [
+          "pm.sendRequest({",
+          "  url: pm.collectionVariables.get('baseUrl') + '/api/v1/auth/login',",
+          "  method: 'POST',",
+          "  header: { 'Content-Type': 'application/json' },",
+          "  body: { mode: 'raw', raw: JSON.stringify({ identifier: pm.collectionVariables.get('platformUser'), password: pm.collectionVariables.get('platformPass') }) }",
+          "}, (err, res) => pm.collectionVariables.set('platformToken', res.json().accessToken));"
+        ] } },
+        { "listen": "test", "script": { "exec": [
+          "pm.test('200', () => pm.response.to.have.status(200));",
+          "pm.test('incluye metricas de login HTTP', () => pm.expect(pm.response.text()).to.include('http_server_requests_seconds'));"
+        ] } }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{platformToken}}" }],
+        "url": "{{baseUrl}}/actuator/prometheus"
+      }
+    }
+  ]
+}
