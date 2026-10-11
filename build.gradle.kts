@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.3.13"
+    id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -19,6 +19,16 @@ repositories {
 
 extra["testcontainers.version"] = "1.21.4"
 
+// Parches de seguridad por encima de lo que trae Boot 3.5.16 (misma rama
+// menor, sin cambios de API). Ver docs/seguridad.md (Grype). Sacar cuando
+// el Boot del proyecto ya los incluya.
+extra["tomcat.version"] = "10.1.60"
+extra["netty.version"] = "4.1.137.Final"
+extra["jackson-bom.version"] = "2.21.7"
+extra["postgresql.version"] = "42.7.12"
+extra["commons-lang3.version"] = "3.18.0"
+extra["log4j2.version"] = "2.25.5"
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -33,7 +43,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17")
     // #195: export XLSX. SXSSF en streaming con temporales cifrados.
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     implementation("org.flywaydb:flyway-core")

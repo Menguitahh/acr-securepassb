@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -70,7 +70,7 @@ class AccessLogsXlsxExportHttpTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired JwtTokenProvider jwt;
     @Autowired ExportAccessLogsUseCase exports;
-    @SpyBean AccessLogQuery logs;
+    @MockitoSpyBean AccessLogQuery logs;
 
     UUID barrio;
     UUID otroBarrio;

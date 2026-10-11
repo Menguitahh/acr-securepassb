@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -76,7 +76,7 @@ class IdorIsolationTest {
 
     // El shift lookup en manual access requiere turno abierto: mockearlo a
     // true para no seedear turnos y aislar la prueba al IDOR.
-    @MockBean OpenShiftQuery openShifts;
+    @MockitoBean OpenShiftQuery openShifts;
 
     UUID barrioA;
     UUID barrioB;

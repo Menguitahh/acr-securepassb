@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -41,7 +41,7 @@ class RecordAccessAttemptIdempotencyTest {
 
     @Autowired JdbcTemplate jdbc;
     @Autowired RecordAccessAttemptUseCase useCase;
-    @MockBean ValidateAccessUseCase validator;
+    @MockitoBean ValidateAccessUseCase validator;
 
     UUID neighborhoodId;
     UUID gateId;

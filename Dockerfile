@@ -30,7 +30,7 @@ COPY docker/HealthCheck.java /healthcheck/
 RUN javac -d /healthcheck /healthcheck/HealthCheck.java
 
 
-FROM gcr.io/distroless/java21-debian12:nonroot AS runtime
+FROM gcr.io/distroless/java21-debian13:nonroot AS runtime
 
 ARG VERSION=dev
 ARG REVISION=unknown
