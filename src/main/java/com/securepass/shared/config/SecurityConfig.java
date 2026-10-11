@@ -1,7 +1,9 @@
 package com.securepass.shared.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.securepass.modules.identity.domain.Role;
 import com.securepass.shared.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,8 +64,14 @@ public class SecurityConfig {
                 }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        // Un 403 de URL redirige a /error sin el filtro JWT: sin esto
+                        // el cliente veria 401 y refrescaria en vez de mostrar el 403.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/auth/**", "/api/v1/activation/**", "/activar/**",
-                                "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                                "/actuator/health/**", "/actuator/info",
+                                "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        // Metricas revelan rutas, latencias y estado del pool: solo plataforma.
+                        .requestMatchers("/actuator/**").hasRole(Role.PLATFORM_ADMIN.name())
                         .anyRequest().authenticated());
         return http.build();
     }
