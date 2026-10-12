@@ -7,7 +7,7 @@ verificado; los numeros salen de corridas reales del 2026-10-11/12.
 
 **URL del backend:** https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io
 **Repo:** https://github.com/Menguitahh/acr-securepassb (publico)
-**Version en produccion:** `v1.1.0` (`/actuator/info`)
+**Version en produccion:** `v1.2.0` (`/actuator/info`). Azure queda detenido entre usos: ver "Antes de la defensa"
 
 ## Mapa del trabajo
 
@@ -75,7 +75,7 @@ secretos de GitHub y de la Container App, `%USERPROFILE%\.securepassb\azure-secr
 | 19 | Reduccion de vulnerabilidades | COMPLETADO | Base glibc-dynamic, Boot 3.5.16, parches | Grype antes/despues | Criticas 10 -> 2 (sin fix, no aplicables); `--only-fixed` vacio |
 | 20 | GitHub Actions | COMPLETADO | `.github/workflows/` | Runs | Verde |
 | 21 | CI | COMPLETADO | job build + image | PR y push | OK |
-| 22 | CD | COMPLETADO | job deploy | Tag v1.0.0, v1.1.0 | Desplego y verifico la version |
+| 22 | CD | COMPLETADO | job deploy | Tags v1.0.0, v1.1.0, v1.2.0 | Desplego y verifico la version |
 | 23 | CI sin despliegue | COMPLETADO | push a develop | Caso A | Imagen en ACR, Azure sin cambios |
 | 24 | Despliegue condicionado | COMPLETADO | `if:` del job deploy | Casos A, B, C | OK |
 | 25 | GitHub Secrets | COMPLETADO | `AZURE_CREDENTIALS` | `gh secret list` | Solo ese secreto |
@@ -104,6 +104,19 @@ Pendientes conocidos (no bloquean la demo):
   la cuenta de alumno no tiene acceso a Entra ID (`docs/azure.md`).
 - Redis es por replica: escala maxima 1 (`docs/azure.md`).
 - Spring Boot 4 cerraria las 2 criticas de Spring (no aplicables).
+
+## Release v1.2.0 en Azure (2026-10-12)
+
+Tag `v1.2.0` (caso B, run 38310352410): build, image y deploy OK.
+
+| Prueba en Azure | Resultado |
+|---|---|
+| `/actuator/info` | `v1.2.0`, commit `dac87cb` |
+| Readiness | UP (Postgres por TLS y Redis) |
+| Logs | Agente de Application Insights iniciado; Spring en 10,4 s; 0 errores |
+| Postman con admin, guardia y titular | 21/21 aserciones |
+| QR del titular firmado en Azure y validado por la garita | `ALLOWED`; alterado: `DENIED INVALID_SIGNATURE` |
+| Vulnerabilidades de la imagen | Grype y Trivy: 2 (spring-webmvc, ver `docs/vulnerabilidades.md`) |
 
 ## Simulacro de defensa
 
@@ -151,12 +164,26 @@ v1.2.0` (caso B, construye y despliega solo).
 
 ### Antes de la defensa
 
+Entre usos todo queda detenido (sin consumo). Para encenderlo, en orden
+(la app necesita la base):
+
 ```powershell
-az containerapp update -g universidad -n securepassb --min-replicas 1   # sin espera de arranque en frio
-python scripts/azure.py status
+az postgres flexible-server start -g universidad -n psql-securepassb-um   # 2-3 min
+python scripts/azure.py start                                             # ~40 s
+az containerapp update -g universidad -n securepassb --min-replicas 1    # sin espera de arranque en frio
+python scripts/azure.py status                                            # Running, imagen v1.2.0
+curl.exe https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io/actuator/info
 ```
 
-Despues: `--min-replicas 0` para no consumir credito.
+Despues, para no consumir credito:
+
+```powershell
+az containerapp update -g universidad -n securepassb --min-replicas 0
+python scripts/azure.py stop
+az postgres flexible-server stop -g universidad -n psql-securepassb-um
+```
+
+Azure vuelve a encender Postgres sola a los 7 dias de detenida.
 
 ## Las 50 preguntas
 
@@ -174,7 +201,7 @@ minutos, no el dia de la entrega."* `backend-ci.yml`, jobs `build` e
 Una version que paso la CI se publica y se pone en produccion por el
 pipeline, sin pasos manuales. Aca es condicionado: solo con un tag de
 version o a pedido. *"El mismo pipeline la deja corriendo en Azure, pero
-solo cuando lo decidimos."* Job `deploy`. Run del tag `v1.1.0`.
+solo cuando lo decidimos."* Job `deploy`. Run del tag `v1.2.0`.
 
 **3. Que sucede cuando hacemos un push a GitHub?**
 GitHub dispara `backend-ci` (y `codeql`): compila, corre 770 tests con
@@ -234,7 +261,7 @@ acringenieriaum --repository securepassb -o table`. El deploy se niega a
 usar un tag que no este.
 
 **15. Como sabemos que version corre en Azure?**
-`curl .../actuator/info` -> `{"app":{"version":"v1.1.0","revision":"<sha>"}}`.
+`curl .../actuator/info` -> `{"app":{"version":"v1.2.0","revision":"<sha>"}}`.
 Tambien `python scripts/azure.py status` (imagen) y el resumen del run.
 
 **16. Como detenemos la app?**
