@@ -43,7 +43,7 @@ antes, y la imagen solo se construye si pasaron.
 | Caso | Como se dispara | Build y tests | Imagen en ACR | Deploy |
 |---|---|---|---|---|
 | **A**: cambio sin deploy | `git push` a `develop` | Si | `sha-<7>` | **No** |
-| **B**: cambio con deploy | `git tag v1.0.0` + `git push origin v1.0.0` | Si | `v1.0.0` y `sha-<7>` | **Si** |
+| **B**: cambio con deploy | `git tag v1.0.0` + `git push origin v1.0.0` | Si | `v1.0.0` (y `sha-<7>` si no existia) | **Si** |
 | **C**: manual | Actions > backend-ci > Run workflow, `deploy` tildado | Si (o no, si se elige un tag existente) | Si | **Si** (o no, sin tildar) |
 | PR | Pull request a `develop`/`main` | Si | No (solo se construye y escanea) | No |
 
@@ -72,9 +72,16 @@ Para cambiar las condiciones (por ejemplo, desplegar tambien cada push a
 | Evento | Tags que se publican |
 |---|---|
 | push de rama / Run workflow | `sha-<7 primeros caracteres del commit>` |
-| push de tag `vX.Y.Z` | `vX.Y.Z` y `sha-<7>` (misma imagen, mismo digest) |
+| push de tag `vX.Y.Z` | `vX.Y.Z`, y `sha-<7>` solo si ese commit no se habia publicado antes |
 
-Nunca `latest`: siempre se sabe que commit genero la imagen.
+Nunca `latest`: siempre se sabe que commit genero la imagen. Un `sha-<7>` no
+se sobrescribe: si el commit ya se publico con el push a `develop`, el build
+del tag no lo pisa con otro digest (paso "push al ACR").
+
+Mejora posible (12 factores, V. Build, release, run): en vez de reconstruir
+el commit al crear el tag, promover la imagen `sha-<7>` ya testeada con
+`az acr import ... --image securepassb:vX.Y.Z`. No se hizo porque la version
+se hornea en la imagen (`/actuator/info` mostraria el `sha-` y no el `v`).
 
 - **Que version se construyo**: resumen del run (tabla "Imagen publicada") o
   `python scripts/azure.py tags`.
@@ -179,3 +186,17 @@ failed jobs**. Terminal: `gh run rerun <id> --failed`.
 | `image` / azure login | `AZURE_CREDENTIALS` vencido o mal cargado (`AADSTS7000222`) | Renovar el secreto del SP y volver a cargarlo |
 | `deploy` / verificar imagen | Se pidio un tag que no existe | `python scripts/azure.py tags` y usar uno de la lista |
 | `deploy` / esperar version | La app no arranca con la imagen nueva | `python scripts/azure.py logs`; volver a la version anterior con `deploy --tag` |
+
+## Resultados reales (2026-10-11)
+
+| Caso | Run | Jobs | Resultado |
+|---|---|---|---|
+| PR #19 | 38193654220 | build OK, image OK (push salteado), deploy salteado | Imagen construida y escaneada, nada publicado |
+| **A** push a develop | 38194453674 | build OK, image OK, **deploy salteado** | `sha-fe808dd` en el ACR; Azure siguio en `sha-99cb750` |
+| **B** tag `v1.0.0` | 38195404667 | build OK, image OK, **deploy OK** | `/actuator/info` = `v1.0.0`, commit `fe808dd`; revision `securepassb--0000001` |
+| **C** Run workflow `tag=sha-99cb750` | 38196103415 | build e image **salteados**, deploy OK | Rollback en ~2 min: `/actuator/info` = `sha-99cb750` |
+| **C** Run workflow `tag=v1.0.0` | 38196209339 | deploy OK | De vuelta en `v1.0.0`, revision `securepassb--0000003` |
+
+Hallazgo del caso B: el build del tag volvio a subir `sha-fe808dd` con otro
+digest (mismo commit, otra fecha de build). Corregido: un `sha-` existente ya
+no se sobrescribe.

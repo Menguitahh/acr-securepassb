@@ -604,3 +604,34 @@ admin `admin@demo-um.example`, activado. Su contrasena esta en
 | `/actuator/prometheus` sin token / con ADMIN | 401 / 403 |
 | Refresh / reuso del refresh viejo | 200 con token nuevo / 401 |
 | Firewall de Postgres al cierre | Solo `AllowAllAzureServices...` |
+
+## Operacion de la Container App (Fase 12)
+
+Portal: **Container Apps** > `securepassb` (o Resource groups > universidad >
+securepassb). CLI: `python scripts/azure.py <accion>` o el `az` equivalente.
+
+| Operacion | Portal | CLI | Como comprobarlo | Consecuencias | Perdida de datos / costo |
+|---|---|---|---|---|---|
+| **Estado y URL** | Overview: *Status*, *Application Url* | `azure.py status` / `az containerapp show -g universidad -n securepassb --query "{estado:properties.runningStatus,url:properties.configuration.ingress.fqdn}"` | Muestra `Running`/`Stopped`, URL, imagen | Ninguna | No |
+| **Que version corre** | Containers: imagen `securepassb:<tag>` | `azure.py status` o `curl https://<url>/actuator/info` | `version` = tag, `revision` = commit | Ninguna | No |
+| **Deploy de una version** | Containers > **Edit and deploy** > container `backend` > Edit > tag de la imagen > Save > **Create** | `azure.py deploy --tag <tag>` / `az containerapp update -g universidad -n securepassb --container-name backend --image acringenieriaum.azurecr.io/securepassb:<tag>` / Actions > Run workflow | Nueva revision en *Revisions*; `/actuator/info` con el tag | Crea una revision nueva y apaga la anterior (modo Single) | Redis se reinicia: se pierden sesiones (hay que volver a loguearse) |
+| **Revisiones** | **Revisions and replicas** (*Active revisions* / *Inactive revisions*) | `azure.py revisions` / `az containerapp revision list -g universidad -n securepassb --all -o table` | Lista con imagen y fecha | Ninguna | No |
+| **Rollback** | Revisions > revision inactiva > **Activate** (o Edit and deploy con el tag viejo) | `azure.py deploy --tag <tag viejo>` / Run workflow con `tag=<tag viejo>` | `/actuator/info` vuelve a la version vieja | Revision nueva con la imagen vieja; la base no se toca (las migraciones Flyway no se deshacen) | Sesiones en Redis |
+| **Logs** | **Monitoring > Log stream** (en vivo) o **Logs** (consultas KQL, ver `docs/monitoreo.md`) | `azure.py logs` / `azure.py logs -f` / `az containerapp logs show -g universidad -n securepassb --container backend --follow` | Lineas JSON del backend | Ninguna | No (los logs viven 30 dias en Log Analytics) |
+| **Detener (stop)** | Overview > **Stop** | `azure.py stop` | `status` = `Stopped`; la URL responde 404 | Sin replicas: deja de atender | Se pierden sesiones; deja de consumir computo |
+| **Iniciar (start)** | Overview > **Start** | `azure.py start` | readiness 200 (~40 s) | Arranca una replica nueva con la misma revision | No |
+| **Reinicio** | Revisions > revision activa > **Restart** | `az containerapp revision restart -g universidad -n securepassb --revision <rev>` | Replica nueva; misma imagen | Corte de ~40 s | Sesiones en Redis |
+| **Escala para la demo** | **Scale** > Min replicas 1 > Save | `az containerapp update -g universidad -n securepassb --min-replicas 1` (volver con `--min-replicas 0`) | `az containerapp replica list ...` | Sin espera de arranque en frio | Consume computo 24/7 mientras este en 1 |
+| **Listar apps** | Container Apps | `az containerapp list -g universidad -o table` | `securepassb` y `app-azure` | Ninguna | No |
+| **Eliminar** | Overview > **Delete** > escribir el nombre | `azure.py delete` (pide escribir `securepassb`) / `az containerapp delete -g universidad -n securepassb --yes` | `az containerapp list` ya no la muestra | **Irreversible**: borra app, revisiones, secretos y configuracion | No borra la base, las imagenes del ACR ni la identidad. Se recrea con `azure.py deploy` (necesita `azure-secrets.env`) |
+
+### Verificado (2026-10-11)
+
+| Prueba | Resultado |
+|---|---|
+| `azure.py stop` | `Stopped`; la URL responde 404 |
+| `azure.py start` | `Running`; readiness 200 a los 38 s, version `v1.0.0` |
+| Rollback por Run workflow (`tag=sha-99cb750`) | Solo corrio el job deploy; `/actuator/info` paso a `sha-99cb750` |
+| Vuelta a `v1.0.0` por el mismo camino | Revision `securepassb--0000003` activa con `v1.0.0` |
+| `azure.py revisions` | 4 revisiones: 3 inactivas (`sha-99cb750`, `v1.0.0`, `sha-99cb750`) y la activa |
+| `azure.py logs` | Logs JSON del arranque de Spring |
