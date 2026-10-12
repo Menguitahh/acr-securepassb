@@ -179,6 +179,7 @@ Backend desplegado: https://securepassb.proudbush-b955ebd5.eastus.azurecontainer
 (`/actuator/health`, `/actuator/info`). Operacion manual: `python scripts/azure.py --help`.
 Infraestructura, secretos y despliegue: `docs/azure.md`. CI/CD: `docs/ci-cd.md`. Monitoreo: `docs/monitoreo.md`.
 Seguridad: `docs/seguridad.md`, `docs/vulnerabilidades.md`.
+Guia para la defensa (estado de requisitos, simulacro, 50 preguntas): `docs/guia-parcial.md`.
 
 ## Comandos utiles
 
