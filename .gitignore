@@ -13,3 +13,4 @@ dist/
 .agents/
 .claude/
 skills-lock.json
+__pycache__/

@@ -17,7 +17,7 @@ flowchart TD
     RG --> LAW[Log Analytics<br/>workspaceuniversidadaf47]
     RG --> PG[(PostgreSQL Flexible Server<br/>psql-securepassb-um, centralus)]
     ACR -->|imagen securepassb:tag| APP
-    ENV --> APP[Container App securepassb<br/>a crear]
+    ENV --> APP[Container App securepassb]
     APP --> BE[contenedor backend<br/>Spring Boot :8080]
     APP --> RD[contenedor redis<br/>sidecar :6379]
     BE -->|JDBC + TLS| PG
@@ -474,3 +474,133 @@ Resultado (2026-10-11): `AZURE_CREDENTIALS` cargado, `id-securepassb` con
 `AcrPull` sobre `acringenieriaum`, y `azure-check` en verde: login como
 `servicePrincipal` en Azure for Students, grupo `universidad`, ACR Basic con
 `az acr login` exitoso, environment `managedEnvironment-universidad-8a60`.
+
+## Despliegue manual (Fase 9)
+
+URL del backend: **https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io**
+
+### Script `scripts/azure.py`
+
+Reemplaza a `build.py` de la catedra. Que cambia:
+
+| `build.py` (catedra) | `scripts/azure.py` |
+|---|---|
+| Despliega a **Azure Container Instances** (`az container create`) | Despliega a **Azure Container Apps** |
+| Tag manual en `.env` (`IMAGE_TAG`), distinto del CI: el deploy manual podia usar una imagen que el CI nunca construyo | **Misma regla que el CI**: `vX.Y.Z` si el commit tiene tag git, si no `sha-<7>`. Ver `image_tag()` |
+| Solo build, push y deploy | build, push, tags, deploy (crear o actualizar), status, revisions, logs, start, stop, delete con confirmacion |
+| Defaults de otro resource group hardcodeados | Mismos nombres que las GitHub Variables, sobreescribibles por variable de entorno |
+
+Requisitos: Docker corriendo y `az` logueado (`az account show`). La sesion
+puede ser el Service Principal o tu usuario.
+
+| Accion | Comando (desde la raiz del repo) |
+|---|---|
+| Que tag le toca al commit actual | `python scripts/azure.py tag` |
+| Construir la imagen (amd64, etiquetas OCI) | `python scripts/azure.py build` |
+| Subirla al ACR y verificar que llego | `python scripts/azure.py push` |
+| Ver versiones en el ACR | `python scripts/azure.py tags` |
+| Desplegar (crea la app la primera vez; despues solo cambia la imagen) | `python scripts/azure.py deploy` |
+| Desplegar una version especifica (rollback) | `python scripts/azure.py deploy --tag sha-xxxxxxx` |
+| Estado, URL, imagen corriendo | `python scripts/azure.py status` |
+| Revisiones | `python scripts/azure.py revisions` |
+| Logs (ultimas 100 / en vivo) | `python scripts/azure.py logs` / `logs -f` / `logs --container redis` |
+| Detener / iniciar | `python scripts/azure.py stop` / `start` |
+| Borrar la app (pide escribir el nombre) | `python scripts/azure.py delete` |
+
+`deploy` se niega a desplegar un tag que no este en el ACR. Tests:
+`cd scripts; python -m unittest test_azure.py`.
+
+### Que crea `deploy` la primera vez
+
+```mermaid
+flowchart LR
+    U[Internet / app movil] -->|HTTPS 443<br/>HTTP redirige 301| ING[Ingress de Container Apps]
+    subgraph APP["Container App securepassb (0 a 1 replica)"]
+        BE["backend :8080<br/>0,75 vCPU / 1,5 GiB"]
+        RD["redis :6379 (127.0.0.1)<br/>0,25 vCPU / 0,5 GiB"]
+        BE -->|localhost| RD
+    end
+    ING --> BE
+    BE -->|TLS| PG[(psql-securepassb-um<br/>centralus)]
+    APP -.->|id-securepassb AcrPull| ACR[(ACR)]
+```
+
+| Configuracion | Valor | Por que |
+|---|---|---|
+| Ingress | externo, puerto 8080, solo HTTPS | Azure pone el certificado; el backend no maneja TLS |
+| Registro | `acringenieriaum.azurecr.io` con identidad `id-securepassb` | Sin contrasena guardada |
+| Revisiones | modo Single | Cada deploy crea una revision nueva y apaga la anterior |
+| Escala | 0 a 1 | Sin trafico no consume; Redis es por replica |
+| Startup probe | `/actuator/health/liveness` cada 10 s, 30 fallos | Hasta 5 min para arrancar sin que lo maten |
+| Liveness | `/actuator/health/liveness` cada 30 s | Reinicia si la JVM se cuelga |
+| Readiness | `/actuator/health/readiness` cada 10 s | No le manda trafico si no hay base o Redis |
+| Secretos | `db-password`, `jwt-secret`, `master-key` | Variables `DB_PASSWORD`, `SECUREPASS_JWT_SECRET`, `SECUREPASS_MASTER_KEY` con `secretRef` |
+| Variables | `SPRING_PROFILES_ACTIVE=prod`, `DB_URL` (con `sslmode=require`), `DB_USER`, `REDIS_HOST=localhost`, `SECUREPASS_ACTIVATION_BASE_URL` | Configuracion no secreta (factor III) |
+
+La spec se arma en `app_spec()` y se pasa a `az containerapp create --yaml`
+desde un archivo temporal en `%USERPROFILE%\.securepassb\` que se borra
+apenas termina (tiene los valores de los secretos).
+
+### Portal: lo mismo a mano
+
+1. **Container Apps** > **+ Create** > **Container App**. Basics: grupo
+   `universidad`, nombre `securepassb`, region East US, environment
+   `managedEnvironment-universidad-8a60`.
+2. Container: desmarcar quickstart; Image source **Azure Container Registry**,
+   registry `acringenieriaum`, image `securepassb`, tag `<TAG>`;
+   autenticacion **Managed identity** `id-securepassb`; CPU 0.75 / memoria
+   1.5 Gi; variables de entorno de la tabla de arriba (las secretas como
+   *Reference a secret*, creando los secretos en la pestana **Secrets**).
+3. Ingress: **Enabled**, **Accepting traffic from anywhere**, target port
+   **8080**.
+4. **Review + create**. Despues, en la app: **Containers** > **Edit and
+   deploy** > **+ Add** > App container `redis`, imagen
+   `docker.io/library/redis:7-alpine`, 0.25 / 0.5 Gi; **Scale**: min 0,
+   max 1; **Health probes** como la tabla.
+
+### Datos iniciales en produccion
+
+El perfil `prod` no siembra datos (los seeds son solo `dev`). El primer barrio
+se crea con el aprovisionamiento oficial del proyecto, contra la base de
+Azure, abriendo y cerrando una regla de firewall temporal:
+
+```bash
+set -a; . ~/.securepassb/azure-secrets.env; set +a
+MYIP=$(curl -s https://api.ipify.org)
+az postgres flexible-server firewall-rule create -g universidad -s "$PG_SERVER" -n tmp-provision --start-ip-address "$MYIP" --end-ip-address "$MYIP"
+SPRING_PROFILES_ACTIVE=prod \
+DB_URL="jdbc:postgresql://$PG_SERVER.postgres.database.azure.com:5432/securepass?sslmode=require" \
+DB_USER="$PG_APP_USER" DB_PASSWORD="$PG_APP_PASSWORD" REDIS_HOST=localhost \
+SECUREPASS_ACTIVATION_BASE_URL=https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io \
+./gradlew provisionNeighborhood -PbarrioName="<NOMBRE>" -Pslug=<slug> -Ptimezone=America/Argentina/Mendoza \
+  -PgateName="Garita principal" -PadminEmail=<EMAIL> -PadminFullName="<NOMBRE>" -PadminDni=<DNI> \
+  > ~/.securepassb/provision-<slug>.txt
+az postgres flexible-server firewall-rule delete -g universidad -s "$PG_SERVER" -n tmp-provision --yes
+```
+
+`SECUREPASS_MASTER_KEY` y `SECUREPASS_JWT_SECRET` salen del mismo archivo:
+la clave de firma de QR del barrio queda cifrada con la master key de
+produccion. La salida trae el **link de activacion** (es una credencial: por
+eso va a un archivo y no a la pantalla). Abrirlo en el navegador y elegir la
+contrasena del admin.
+
+Creado: barrio `Barrio Demo UM` (slug `demo-um`, garita `Garita principal`),
+admin `admin@demo-um.example`, activado. Su contrasena esta en
+`azure-secrets.env` como `AZ_ADMIN_PASSWORD`.
+
+### Verificacion (2026-10-11, imagen `sha-99cb750`)
+
+| Prueba | Resultado |
+|---|---|
+| Push al ACR con el Service Principal | `sha-99cb750` en el repositorio `securepassb` |
+| Creacion de la app | `Running`, revision `securepassb--0jvli4k`, escala 0-1 |
+| Arranque en frio (desde 0 replicas) | readiness 200 a los 28 s |
+| `/actuator/health/readiness` | UP (Postgres en Azure + Redis sidecar conectados) |
+| `/actuator/info` | `version: sha-99cb750`, `revision: 99cb7502...` (el commit) |
+| HTTP | 301 a HTTPS; certificado valido |
+| Login incorrecto / correcto | 401 / 200, JWT HS256 con rol ADMIN, `exp - iat = 900` |
+| `GET /api/v1/admin/lots` sin / con token | 401 / 200 (0 lotes: barrio recien creado) |
+| Token con payload adulterado | 401 |
+| `/actuator/prometheus` sin token / con ADMIN | 401 / 403 |
+| Refresh / reuso del refresh viejo | 200 con token nuevo / 401 |
+| Firewall de Postgres al cierre | Solo `AllowAllAzureServices...` |
