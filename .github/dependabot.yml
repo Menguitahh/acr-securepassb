@@ -1,6 +1,10 @@
 # Actualizaciones automaticas: cada semana Dependabot abre PRs con versiones
 # nuevas de las imagenes base del Dockerfile, de las dependencias de Gradle y
 # de las acciones de GitHub. El CI (tests + Grype) valida cada PR.
+#
+# Solo versiones menores y parches (traen correcciones de seguridad sin
+# romper compatibilidad). Las mayores (Spring Boot 4, Java 25, springdoc 3...)
+# son migraciones: se hacen a mano, con su propio issue.
 version: 2
 updates:
   - package-ecosystem: docker
@@ -8,12 +12,18 @@ updates:
     schedule:
       interval: weekly
     target-branch: develop
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: gradle
     directory: /
     schedule:
       interval: weekly
     target-branch: develop
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
