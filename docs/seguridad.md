@@ -116,3 +116,61 @@ Resultado verificado en local (2026-10-11): 23/23 aserciones con Newman, y
 expiracion con TTL 5 s: 200 a los 0 s, 401 a los 6 s.
 
 Desde la terminal, sin abrir Postman: `npx newman run docs/postman/securepassb-jwt.postman_collection.json`.
+
+## Analisis de seguridad: estatico, dependencias e imagen
+
+Tres herramientas, tres preguntas distintas:
+
+| | CodeQL | Grype / Trivy | gitleaks |
+|---|---|---|---|
+| Tipo | **SAST**: analisis estatico del codigo fuente | **SCA** + escaneo de imagen: componentes de terceros con CVE conocidos | Busqueda de secretos en el historial de git |
+| Que mira | Nuestro codigo: como fluyen los datos desde una entrada HTTP hasta una consulta SQL, un archivo, un log | Las versiones de librerias Java y paquetes Debian dentro de la imagen | Todos los commits, buscando claves, tokens, passwords |
+| Detecta | Inyeccion SQL, path traversal, XSS, deserializacion insegura, regex vulnerables, secretos hardcodeados, permisos de workflows | CVE publicados (con su CVSS) en dependencias que no escribimos | Credenciales commiteadas por error |
+| No detecta | Vulnerabilidades en librerias de terceros | Errores de logica en nuestro codigo | Vulnerabilidades |
+| Cuando corre | `codeql.yml`: push, PR, los lunes | `backend-ci.yml` (job image) en cada build | A mano antes de publicar el repo |
+
+CodeQL es analisis **estatico**: lee el codigo, no lo ejecuta, y no bloquea
+nada en runtime. Que CodeQL no encuentre inyeccion SQL significa que no hay
+un camino de un dato externo a un SQL sin parametrizar; la proteccion real
+la dan las consultas parametrizadas.
+
+### CodeQL (`.github/workflows/codeql.yml`)
+
+Lenguajes: Java (observando la compilacion real con Gradle), Python
+(`scripts/`) y los workflows de GitHub Actions. Set de reglas
+`security-extended`. Resultados: repo > **Security** > **Code scanning**.
+
+Resultado (2026-10-12, PR #23): **0 alertas** (Java 120 reglas, Python 50,
+Actions 23).
+
+Requisito: code scanning es gratis en repos publicos; en privados necesita
+GitHub Code Security (pago). Por eso `acr-securepassb` se hizo publico.
+
+### gitleaks antes de publicar el repo
+
+```powershell
+docker run --rm -v "${PWD}:/repo" zricethezav/gitleaks:latest git /repo --redact
+```
+
+Resultado (2026-10-12): 213 commits, 17 coincidencias, **todas falsos
+positivos**: el placeholder de `.env.example` y de los tests (en base64 dice
+`DEV_ONLY_KEY_32_BYTES_XXXXXXXXXX`), un texto de test que dice
+`no-es-un-cifrado-valido-para-esta-clave`, y ejemplos truncados de tokens en
+`spec.md`. Los secretos de produccion nunca estuvieron en el repo.
+
+Con el repo publico tambien son publicos los logs de Actions y los artifacts
+(informes de Grype): muestran nombres de recursos y la URL; los secretos
+aparecen enmascarados como `***`.
+
+### Revision manual
+
+| Punto | Estado | Donde |
+|---|---|---|
+| Consultas parametrizadas | Todas las consultas usan parametros con nombre (`:nid`, `:lots`). Los `WHERE` dinamicos concatenan solo fragmentos constantes, nunca datos del usuario | `*JdbcRepository`, `AccessLogJdbcQuery.java` |
+| Validacion de entrada | `@Valid` en 30 endpoints, records con `@NotBlank`, `@Email`; el dominio valida invariantes en el constructor | Controllers, `domain/` |
+| Manejo de errores | Errores como `application/problem+json`; un error inesperado devuelve `"Error interno"` sin stack trace ni mensaje interno | `GlobalExceptionHandler.java` |
+| Informacion sensible | Actuator: solo health e info publicos; metricas solo para `PLATFORM_ADMIN`. Logs JSON sin passwords; el link de activacion no se loguea | `SecurityConfig.java`, `NeighborhoodProvisioningCli.java` |
+| Secretos | Por variable de entorno; en Azure como secretos de la Container App; GitHub solo tiene `AZURE_CREDENTIALS` | `docs/azure.md` |
+| Dockerfile | Multietapa, distroless sin shell, usuario 65532, `.dockerignore` allowlist, descarga del agente con hash fijo | `Dockerfile`, `docs/docker.md` |
+| Dependencias | Spring Boot 3.5.16 + parches; gate de Grype en el CI | `build.gradle.kts`, `docs/vulnerabilidades.md` |
+| Transporte | HTTPS obligatorio (Azure redirige HTTP con 301); Postgres con TLS obligatorio | `docs/azure.md` |
