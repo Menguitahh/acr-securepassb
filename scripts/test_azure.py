@@ -35,6 +35,18 @@ class AppSpecTest(unittest.TestCase):
         self.assertEqual([c["name"] for c in tpl["containers"]], ["backend", "redis"])
         self.assertEqual(tpl["scale"]["maxReplicas"], 1)
 
+    def test_sin_connection_string_no_activa_app_insights(self):
+        names = [e["name"] for e in self.spec["properties"]["template"]["containers"][0]["env"]]
+        self.assertNotIn("JDK_JAVA_OPTIONS", names)
+
+    def test_con_connection_string_activa_el_agente_como_secreto(self):
+        spec = app_spec("img", dict(SECRETS, APPINSIGHTS_CONNECTION_STRING="pw-ai"), "e", "i", "eastus", "x")
+        backend = spec["properties"]["template"]["containers"][0]
+        self.assertNotIn("pw-ai", json.dumps(backend))
+        env = {e["name"]: e for e in backend["env"]}
+        self.assertEqual(env["APPLICATIONINSIGHTS_CONNECTION_STRING"]["secretRef"], "appinsights-connection")
+        self.assertIn("-javaagent:", env["JDK_JAVA_OPTIONS"]["value"])
+
     def test_la_imagen_se_baja_con_la_identidad_administrada(self):
         self.assertEqual(self.spec["properties"]["configuration"]["registries"][0]["identity"], "id-id")
 

@@ -177,7 +177,8 @@ Detalle de la imagen, Compose y comandos: `docs/docker.md`.
 
 Backend desplegado: https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io
 (`/actuator/health`, `/actuator/info`). Operacion manual: `python scripts/azure.py --help`.
-Infraestructura, secretos y despliegue: `docs/azure.md`.
+Infraestructura, secretos y despliegue: `docs/azure.md`. CI/CD: `docs/ci-cd.md`. Monitoreo: `docs/monitoreo.md`.
+Seguridad: `docs/seguridad.md`, `docs/vulnerabilidades.md`.
 
 ## Comandos utiles
 

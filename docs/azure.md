@@ -23,6 +23,7 @@ flowchart TD
     BE -->|JDBC + TLS| PG
     BE -->|localhost:6379| RD
     ENV -->|logs de consola| LAW
+    APP -.->|telemetria| AI[Application Insights<br/>appi-securepassb] --> LAW
 ```
 
 - **Suscripcion**: el contrato de facturacion. Todo recurso vive en una.
@@ -50,6 +51,7 @@ flowchart TD
 | Key Vault | - | No existe, proveedor no registrado | No se usa (ver abajo) |
 | Service Principal | appId `542811c2...` | `Contributor` sobre `universidad`, `Reader` sobre la suscripcion | Reutilizar (ver Service Principal) |
 | Identidad administrada | `id-securepassb` (eastus) | Creada en la Fase 8, gratis | La Container App la usa para bajar imagenes |
+| Application Insights | `appi-securepassb` (eastus) | Creado en la Fase 13, basado en el workspace | Telemetria del backend (ver `docs/monitoreo.md`) |
 
 Proveedores de recursos de la suscripcion: `Microsoft.App`,
 `Microsoft.ContainerRegistry` y `Microsoft.OperationalInsights` registrados;

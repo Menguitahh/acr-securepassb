@@ -29,6 +29,15 @@ RUN --mount=type=cache,target=/root/.gradle \
 COPY docker/HealthCheck.java /healthcheck/
 RUN javac -d /healthcheck /healthcheck/HealthCheck.java
 
+# Agente de Application Insights (Azure Monitor). Version y hash fijos: si el
+# archivo de Maven Central cambia, el build falla. ADD desde una URL deja el
+# archivo con permisos 600 (solo root): en runtime se copia con --chmod=444
+# para que el usuario nonroot lo pueda leer.
+ARG APPINSIGHTS_AGENT_VERSION=3.7.10
+ADD --checksum=sha256:93a70c8f5d364c7e777f6c4d1b235dba91aef8448bd3fa94359f1d7f3e2eb0ec \
+    https://repo1.maven.org/maven2/com/microsoft/azure/applicationinsights-agent/${APPINSIGHTS_AGENT_VERSION}/applicationinsights-agent-${APPINSIGHTS_AGENT_VERSION}.jar \
+    /agent/applicationinsights-agent.jar
+
 
 FROM gcr.io/distroless/java21-debian13:nonroot AS runtime
 
@@ -45,6 +54,11 @@ LABEL org.opencontainers.image.title="securepassb" \
       org.opencontainers.image.source="${SOURCE}"
 
 WORKDIR /app
+
+# Inactivo salvo que el entorno defina
+# JDK_JAVA_OPTIONS=-javaagent:/app/applicationinsights-agent.jar (lo hace la
+# Container App, junto con APPLICATIONINSIGHTS_CONNECTION_STRING).
+COPY --from=build --chmod=444 /agent/applicationinsights-agent.jar /app/applicationinsights-agent.jar
 
 # De lo que menos cambia a lo que mas cambia: un cambio de codigo solo
 # reconstruye la ultima capa.

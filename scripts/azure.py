@@ -10,7 +10,7 @@ llaman igual:
 Requiere docker y az logueado (`az account show`). Uso:
   python scripts/azure.py tag | build | push | tags | deploy [--tag T]
   python scripts/azure.py status | revisions | logs [-f] | url
-  python scripts/azure.py start | stop | delete
+  python scripts/azure.py start | stop | delete | monitor
 
 Los nombres de recursos salen de variables de entorno con los mismos nombres
 que las GitHub Variables (defaults abajo). Los secretos de runtime solo se
@@ -83,6 +83,15 @@ def read_secrets():
     return {k.strip(): v.strip() for k, v in pairs}
 
 
+# Application Insights: el agente esta en la imagen y se activa con
+# JDK_JAVA_OPTIONS (JAVA_TOOL_OPTIONS de la imagen sigue con las opciones de memoria).
+APPINSIGHTS_ENV = [
+    {"name": "JDK_JAVA_OPTIONS", "value": "-javaagent:/app/applicationinsights-agent.jar"},
+    {"name": "APPLICATIONINSIGHTS_CONNECTION_STRING", "secretRef": "appinsights-connection"},
+    {"name": "APPLICATIONINSIGHTS_ROLE_NAME", "value": "securepassb"},
+]
+
+
 def app_spec(image, s, env_id, identity_id, location, fqdn_base):
     """Spec de la Container App: backend + Redis sidecar. Los secretos van en
     configuration.secrets y el backend los ve por secretRef."""
@@ -99,6 +108,14 @@ def app_spec(image, s, env_id, identity_id, location, fqdn_base):
         {"name": "SECUREPASS_MASTER_KEY", "secretRef": "master-key"},
         {"name": "SECUREPASS_ACTIVATION_BASE_URL", "value": f"https://{APP}.{fqdn_base}"},
     ]
+    secrets = [
+        {"name": "db-password", "value": s["PG_APP_PASSWORD"]},
+        {"name": "jwt-secret", "value": s["SECUREPASS_JWT_SECRET"]},
+        {"name": "master-key", "value": s["SECUREPASS_MASTER_KEY"]},
+    ]
+    if s.get("APPINSIGHTS_CONNECTION_STRING"):
+        env += APPINSIGHTS_ENV
+        secrets.append({"name": "appinsights-connection", "value": s["APPINSIGHTS_CONNECTION_STRING"]})
     return {
         "location": location,
         "identity": {"type": "UserAssigned", "userAssignedIdentities": {identity_id: {}}},
@@ -108,11 +125,7 @@ def app_spec(image, s, env_id, identity_id, location, fqdn_base):
                 "activeRevisionsMode": "Single",
                 "ingress": {"external": True, "targetPort": 8080, "transport": "auto", "allowInsecure": False},
                 "registries": [{"server": REGISTRY, "identity": identity_id}],
-                "secrets": [
-                    {"name": "db-password", "value": s["PG_APP_PASSWORD"]},
-                    {"name": "jwt-secret", "value": s["SECUREPASS_JWT_SECRET"]},
-                    {"name": "master-key", "value": s["SECUREPASS_MASTER_KEY"]},
-                ],
+                "secrets": secrets,
             },
             "template": {
                 "containers": [
@@ -196,6 +209,20 @@ def cmd_deploy(a):
     cmd_status(a)
 
 
+def cmd_monitor(_):
+    """Activa Application Insights en la app existente (crea una revision nueva)."""
+    conn = read_secrets().get("APPINSIGHTS_CONNECTION_STRING")
+    if not conn:
+        sys.exit(f"[error] falta APPINSIGHTS_CONNECTION_STRING en {SECRETS_FILE} (ver docs/monitoreo.md)")
+    print("[cmd] az containerapp secret set ... appinsights-connection=<oculto>")
+    run("az", "containerapp", "secret", "set", "-g", RG, "-n", APP, "--secrets", f"appinsights-connection={conn}",
+        "-o", "none", capture=True)
+    env_args = [f"{e['name']}=" + (f"secretref:{e['secretRef']}" if "secretRef" in e else e["value"]) for e in APPINSIGHTS_ENV]
+    run("az", "containerapp", "update", "-g", RG, "-n", APP, "--container-name", "backend", "--set-env-vars", *env_args, "-o", "none")
+    print("[ok] Application Insights activado")
+    cmd_status(_)
+
+
 def cmd_status(_):
     app = az_json("containerapp", "show", "-g", RG, "-n", APP)
     p = app["properties"]
@@ -247,14 +274,14 @@ def main():
     logs = sub.add_parser("logs")
     logs.add_argument("-f", "--follow", action="store_true")
     logs.add_argument("--container", default="backend", choices=["backend", "redis"])
-    for name in ("tag", "tags", "status", "revisions", "url", "start", "stop", "delete"):
+    for name in ("tag", "tags", "status", "revisions", "url", "start", "stop", "delete", "monitor"):
         sub.add_parser(name)
     a = parser.parse_args()
     handlers = {
         "tag": lambda _: print(current_tag()), "build": cmd_build, "push": cmd_push, "tags": cmd_tags,
         "deploy": cmd_deploy, "status": cmd_status, "revisions": cmd_revisions, "logs": cmd_logs,
         "url": cmd_url, "start": lambda _: lifecycle("start"), "stop": lambda _: lifecycle("stop"),
-        "delete": cmd_delete,
+        "delete": cmd_delete, "monitor": cmd_monitor,
     }
     os.environ.setdefault("MSYS_NO_PATHCONV", "1")  # Git Bash no debe tocar rutas /subscriptions/...
     handlers[a.cmd](a)
