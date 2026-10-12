@@ -173,6 +173,12 @@ curl.exe http://localhost:8080/actuator/health
 
 Detalle de la imagen, Compose y comandos: `docs/docker.md`.
 
+## Azure
+
+Backend desplegado: https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io
+(`/actuator/health`, `/actuator/info`). Operacion manual: `python scripts/azure.py --help`.
+Infraestructura, secretos y despliegue: `docs/azure.md`.
+
 ## Comandos utiles
 
 ```powershell
