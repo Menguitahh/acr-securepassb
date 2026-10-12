@@ -48,7 +48,8 @@ flowchart TD
 | PostgreSQL | `psql-securepassb-um` | Creado en la Fase 7 (ver abajo) | Usar |
 | Redis | - | No existe | Sidecar dentro de la Container App |
 | Key Vault | - | No existe, proveedor no registrado | No se usa (ver abajo) |
-| Service Principal | appId `542811c2...` | `Contributor` sobre `universidad`, `Reader` sobre la suscripcion | Reutilizar (Fase 8) |
+| Service Principal | appId `542811c2...` | `Contributor` sobre `universidad`, `Reader` sobre la suscripcion | Reutilizar (ver Service Principal) |
+| Identidad administrada | `id-securepassb` (eastus) | Creada en la Fase 8, gratis | La Container App la usa para bajar imagenes |
 
 Proveedores de recursos de la suscripcion: `Microsoft.App`,
 `Microsoft.ContainerRegistry` y `Microsoft.OperationalInsights` registrados;
@@ -289,3 +290,173 @@ Portal: el servidor > **Overview** > botones **Stop** / **Start** / **Delete**.
 |---|---|---|
 | ACR Standard -> **Basic** | `az acr update -n acringenieriaum --sku Basic` | `--sku Standard` |
 | Log Analytics tope **0,15 GB/dia** | `az monitor log-analytics workspace update -g universidad -n workspaceuniversidadaf47 --quota 0.15` | `--quota -1` |
+
+## Service Principal, identidades y secretos (Fase 8)
+
+### Que es un Service Principal
+
+Una **identidad para programas**, no para personas. Vive en Microsoft Entra
+ID (el directorio del tenant) y se compone de:
+
+| Dato | Que es | Secreto? |
+|---|---|---|
+| Client ID (appId) | El "usuario" del programa | No |
+| Tenant ID | El directorio donde existe | No |
+| Subscription ID | La suscripcion donde va a operar | No |
+| Client secret | La "contrasena" del programa. Vence | **Si** |
+
+Por si mismo no puede hacer nada: los permisos se le dan con **asignaciones
+de rol** (RBAC) sobre un alcance (scope). El scope es una ruta jerarquica y
+el permiso se hereda hacia abajo:
+
+```
+/subscriptions/<SUB>                                  Reader      (ver todo, no cambiar nada)
+  /resourceGroups/universidad                         Contributor (crear y modificar dentro del grupo)
+    /providers/Microsoft.ContainerRegistry/...        (hereda Contributor: push y pull de imagenes)
+    /providers/Microsoft.App/containerApps/...        (hereda Contributor: actualizar la app)
+```
+
+Asi la suscripcion y el grupo se relacionan con el SP: el SP no "pertenece"
+al grupo; el grupo es el alcance donde tiene permiso.
+
+`Contributor` **no** puede asignar roles (`Microsoft.Authorization/
+roleAssignments/write`): verificado, devuelve `AuthorizationFailed`. Es lo
+correcto: si el secreto se filtra, el atacante no puede darse mas permisos
+ni salir del grupo `universidad`.
+
+Minimo privilegio ideal: `AcrPush` sobre el ACR + `Contributor` solo sobre la
+Container App. Hoy tiene `Contributor` sobre todo el grupo, que incluye eso.
+Reducirlo requiere que el duenio de la suscripcion cambie las asignaciones.
+
+### Las tres identidades del sistema
+
+| Identidad | Quien la usa | Para que | Credencial |
+|---|---|---|---|
+| Service Principal `542811c2...` | GitHub Actions (y la CLI local) | Login en Azure, push al ACR, actualizar la Container App | Client secret en el secret `AZURE_CREDENTIALS` de GitHub |
+| Identidad administrada `id-securepassb` | La Container App | Descargar la imagen del ACR (rol `AcrPull`) | **Ninguna**: Azure emite tokens a la app; no hay contrasena que guardar ni rotar |
+| Usuario `securepass_app` de Postgres | El backend en runtime | Leer y escribir su base | Password en un secreto de la Container App |
+
+La Container App `app-azure` de la cursada descarga del ACR con el client
+secret del SP guardado adentro: si se rota el secreto, deja de poder bajar
+imagenes. `securepassb` usa la identidad administrada para evitar eso.
+
+### Como lo usa GitHub Actions
+
+```mermaid
+sequenceDiagram
+    participant GH as GitHub Actions
+    participant AAD as Microsoft Entra ID
+    participant ACR as ACR acringenieriaum
+    participant ACA as Container App securepassb
+    GH->>AAD: azure/login con AZURE_CREDENTIALS (clientId + secret)
+    AAD-->>GH: token de acceso (rol Contributor sobre universidad)
+    GH->>ACR: az acr login (usa ese token) + docker push securepassb:<tag>
+    GH->>ACA: az containerapp update --image ...:<tag>
+    ACA->>AAD: token de id-securepassb (rol AcrPull)
+    ACA->>ACR: pull securepassb:<tag>
+```
+
+### Donde vive cada secreto
+
+Las credenciales del **pipeline** (para hablar con Azure) y las de la
+**aplicacion** (para que Spring Boot arranque) son distintas y viven en
+lugares distintos. GitHub nunca ve la password de la base ni el JWT secret.
+
+| Dato | Donde | Tipo |
+|---|---|---|
+| `AZURE_CREDENTIALS` (JSON del SP) | GitHub > Settings > Secrets and variables > Actions > **Secrets** | Secreto del pipeline |
+| `AZURE_RESOURCE_GROUP`, `ACR_NAME`, `IMAGE_NAME`, `CONTAINER_APP_NAME`, `CONTAINER_APP_ENV`, `ACA_IDENTITY` | GitHub > ... > **Variables** | Configuracion del pipeline (no secreta) |
+| `DB_PASSWORD`, `SECUREPASS_JWT_SECRET`, `SECUREPASS_MASTER_KEY` | **Secretos de la Container App**, expuestos con `secretref:` | Secretos de runtime (Fase 9) |
+| `DB_URL`, `DB_USER`, `REDIS_HOST`, `SPRING_PROFILES_ACTIVE`, CORS, expiracion JWT | Variables de entorno de la Container App | Configuracion de runtime (no secreta) |
+| Originales de todo lo anterior | `%USERPROFILE%\.securepassb\azure-secrets.env` | Solo en la maquina del duenio |
+
+Por que no Key Vault: ver "Por que no Key Vault (por ahora)" arriba.
+
+### Client secret vs OIDC
+
+| | Client secret (lo de la cursada) | OIDC / federated credentials |
+|---|---|---|
+| Que guarda GitHub | El secreto del SP (vence, hay que rotarlo) | Nada secreto: solo client, tenant y subscription ID |
+| Como se autentica | GitHub manda el secreto a Entra ID | GitHub emite un token firmado para *ese repo y esa rama*; Entra ID lo valida contra una "federated credential" del SP |
+| Si se filtra el secreto | Cualquiera lo puede usar desde cualquier lado hasta que venza | No hay secreto que filtrar; el token dura minutos y solo vale para el repo configurado |
+| Configuracion | Un secret en GitHub | Federated credential en la App registration (requiere ser duenio) + `permissions: id-token: write` en el workflow |
+
+Se mantiene el client secret porque es el mecanismo de la catedra. Pasar a
+OIDC cambia solo el paso de login del workflow:
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+steps:
+  - uses: azure/login@v2
+    with:
+      client-id: ${{ vars.AZURE_CLIENT_ID }}
+      tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+```
+
+y en el Portal: App registrations > el SP > Certificates & secrets >
+Federated credentials > Add > GitHub Actions deploying Azure resources >
+organizacion `Menguitahh`, repo `acr-securepassb`, entidad Branch `develop`.
+
+### Pasos manuales de la Fase 8
+
+**A. Ver cuando vence el secreto del SP.** El SP no puede leer su propia
+App registration. Con tu usuario:
+Portal > **Microsoft Entra ID** > **App registrations** > pestana **All
+applications** > buscar por el Client ID `542811c2...` > **Certificates &
+secrets** > columna **Expires**.
+
+Recomendado: ahi mismo **+ New client secret**, descripcion
+`github-acr-securepassb`, vencimiento 6 meses, **Add**, y copiar el
+**Value** (se muestra una sola vez). Un secreto propio para este repo se
+puede revocar sin romper `acr-um-azure`.
+
+**B. Cargar `AZURE_CREDENTIALS` en GitHub.** Es un JSON con este formato
+(valores reales: Client ID, Tenant ID y Subscription ID salen del `.env` de
+`acr-um-azure` o del Portal; el secreto, del paso A):
+
+```json
+{"clientId":"<CLIENT_ID>","clientSecret":"<CLIENT_SECRET>","subscriptionId":"<SUBSCRIPTION_ID>","tenantId":"<TENANT_ID>"}
+```
+
+Web: repo en GitHub > **Settings** > **Secrets and variables** > **Actions**
+> pestana **Secrets** > **New repository secret** > Name
+`AZURE_CREDENTIALS` > pegar el JSON en **Secret** > **Add secret**.
+
+Terminal (PowerShell), sin que el valor aparezca en pantalla, leyendo el
+`.env` de la cursada (si usas un secreto nuevo, reemplaza
+`$e.AZURE_CLIENT_SECRET` por `Read-Host -AsSecureString`):
+
+```powershell
+$e = @{}; Get-Content ..\acr-um-azure\.env | Where-Object { $_ -match '^[A-Z_]+=' } | ForEach-Object { $k,$v = $_ -split '=',2; $e[$k] = $v.Trim().Trim('"') }
+@{ clientId=$e.AZURE_CLIENT_ID; clientSecret=$e.AZURE_CLIENT_SECRET; subscriptionId=$e.AZURE_SUBSCRIPTION_ID; tenantId=$e.AZURE_TENANT_ID } |
+  ConvertTo-Json -Compress | gh secret set AZURE_CREDENTIALS -R Menguitahh/acr-securepassb
+gh secret list -R Menguitahh/acr-securepassb      # muestra solo el nombre y la fecha
+```
+
+**C. Darle `AcrPull` a la identidad `id-securepassb`.**
+
+Portal: **Container registries** > `acringenieriaum` > **Access control
+(IAM)** > **+ Add** > **Add role assignment** > rol **AcrPull** > Next >
+Assign access to **Managed identity** > **+ Select members** > Managed
+identity: **User-assigned managed identity** > `id-securepassb` > Select >
+**Review + assign**.
+
+CLI (Cloud Shell, con tu usuario):
+
+```bash
+az role assignment create --role AcrPull \
+  --assignee-object-id $(az identity show -g universidad -n id-securepassb --query principalId -o tsv) \
+  --assignee-principal-type ServicePrincipal \
+  --scope $(az acr show -n acringenieriaum --query id -o tsv)
+```
+
+En Git Bash de Windows anteponer `MSYS_NO_PATHCONV=1`: si no, Git Bash
+convierte `/subscriptions/...` en una ruta de Windows y Azure responde
+`MissingSubscription`.
+
+**D. Verificar.** GitHub > **Actions** > **azure-check** > **Run workflow** >
+rama `develop` > **Run workflow**. Tiene que terminar en verde mostrando la
+suscripcion, el grupo, el ACR y el environment.
