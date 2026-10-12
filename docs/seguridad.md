@@ -174,3 +174,18 @@ aparecen enmascarados como `***`.
 | Dockerfile | Multietapa, distroless sin shell, usuario 65532, `.dockerignore` allowlist, descarga del agente con hash fijo | `Dockerfile`, `docs/docker.md` |
 | Dependencias | Spring Boot 3.5.16 + parches; gate de Grype en el CI | `build.gradle.kts`, `docs/vulnerabilidades.md` |
 | Transporte | HTTPS obligatorio (Azure redirige HTTP con 301); Postgres con TLS obligatorio | `docs/azure.md` |
+
+### Pendiente conocido: links de activacion en los logs
+
+Con `SECUREPASS_EMAIL_PROVIDER=logging` (el default; no hay proveedor de
+email configurado en Azure), `LoggingEmailSender` escribe el cuerpo del
+email en el log, link de activacion incluido. En Azure eso llega a Log
+Analytics y Application Insights.
+
+- Alcance: solo leen esos logs los que administran el workspace (el duenio
+  de la suscripcion y el Service Principal).
+- Mitigacion actual: cada link es de un solo uso y vence; las cuentas de
+  prueba se activaron apenas se crearon (reusar el link da 410).
+- Solucion: configurar el proveedor real que ya soporta el backend
+  (`SECUREPASS_EMAIL_PROVIDER=resend`, `RESEND_API_KEY` como secreto de la
+  Container App, dominio verificado). No se cambio la logica de la app.
