@@ -14,7 +14,7 @@ spring:
     hikari:
       pool-name: securepassb-pool
       # securepass.export.max-concurrent se calculo como ~20% de este tope.
-      # Postgres B1MS de Azure tiene max_connections 50 (algunas reservadas):
+      # Postgres B1ms de Azure: max_connections 50, 15 reservadas = 35 utiles.
       # 10 por replica deja margen para 2-3 replicas y para Flyway.
       maximum-pool-size: ${DB_POOL_MAX:10}
       # Pocas ociosas: con escala a cero no se pagan conexiones de mas.
