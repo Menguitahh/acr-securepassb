@@ -445,6 +445,20 @@ Abrir el run, el job y el paso con la cruz roja. Build: reproducir con
 Azure: renovar `AZURE_CREDENTIALS`. Deploy: `azure.py logs` y rollback con
 `deploy --tag`. Reintento: Re-run failed jobs. Tabla en `docs/ci-cd.md`.
 
+## Pregunta extra: OpenTelemetry
+
+**Usan OpenTelemetry? Como?**
+Si. El agente de Application Insights para Java (3.7.10) es la distribucion
+de OpenTelemetry de Azure Monitor: auto-instrumenta Spring MVC, Tomcat, JDBC,
+Hikari, Lettuce (Redis) y Logback sin codigo, y exporta trazas, metricas y
+logs a Application Insights. Cada request es un span y cada consulta SQL un
+span hijo, con el mismo trace id (`OperationId`). *"No escribimos codigo de
+telemetria: el agente OTel engancha las librerias y Azure muestra el
+recorrido completo de cada request."* `Dockerfile` (agente),
+`docs/monitoreo.md`. Mostrar: Application Insights > Search > una request >
+End-to-end transaction details; Application map. Diferencia con la catedra:
+en Go se instrumenta con el SDK en el codigo; en Java alcanza el agente.
+
 ## Anotaciones de Spring que pueden preguntar
 
 `@Configuration`, `@Bean`, `@Component`, `@Service`, `@Entity`, `@Table`,
