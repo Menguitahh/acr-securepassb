@@ -1,0 +1,60 @@
+# Analisis estatico (SAST) con CodeQL. Lee el codigo fuente, no la imagen:
+# busca patrones como inyeccion SQL, path traversal o secretos hardcodeados.
+# Resultados: pestana Security > Code scanning del repo.
+name: codeql
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 6 * * 1"   # lunes 06:00 UTC: reglas nuevas sobre codigo que no cambio
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: codeql (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: python
+            build-mode: none
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: set up JDK 21
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      # CodeQL observa la compilacion real para entender tipos y flujo de datos.
+      - name: compilar
+        if: matrix.build-mode == 'manual'
+        run: ./gradlew compileJava --no-daemon
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
