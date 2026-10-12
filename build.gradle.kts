@@ -43,7 +43,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
     // #195: export XLSX. SXSSF en streaming con temporales cifrados.
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     implementation("org.flywaydb:flyway-core")
