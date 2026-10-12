@@ -1,7 +1,7 @@
 # Analisis de vulnerabilidades de la imagen
 
 Escaneo de la imagen Docker del backend con **Grype** (Anchore) y
-contraste con **Trivy** (Aqua). Fecha: 2026-10-11.
+contraste con **Trivy** (Aqua). Fechas: 2026-10-11 y 2026-10-12.
 
 ## Conceptos
 
@@ -42,14 +42,16 @@ Herramientas usadas: Grype 0.120.1, Trivy 0.75.0.
 | Paso 1 | Base `java21-debian13` (JRE 21.0.10 -> 21.0.12.1) | 150 | 9 | 53 | 53 | 17 | 18 | 0 |
 | Paso 2 | Spring Boot 3.3.13 -> 3.5.16 | 90 | 6 | 27 | 33 | 6 | 18 | 0 |
 | Paso 3 | Parches Tomcat, Netty, Jackson, driver Postgres | 72 | 2 | 20 | 26 | 6 | 18 | 0 |
-| **Final** | Parches commons-lang3 y log4j-api | **70** | **2** | **20** | 24 | 6 | 18 | 0 |
+| Paso 4 | Parches commons-lang3 y log4j-api | 70 | 2 | 20 | 24 | 6 | 18 | 0 |
+| **Final** | Base Chainguard `glibc-dynamic` + JRE 21 de Temurin | **2** | **2** | **0** | 0 | 0 | 0 | 0 |
 
-Reduccion: 194 -> 70 (-64%). Criticas 10 -> 2. Altas 68 -> 20.
+Reduccion: 194 -> 2 (-99%). Criticas 10 -> 2. Altas 68 -> 0. Sistema
+operativo de la imagen: 0 (Grype y Trivy coinciden).
 **Ninguna vulnerabilidad con correccion disponible queda sin aplicar**:
 `grype securepassb:local --only-fixed` devuelve `No vulnerabilities found`.
 
-Por origen, final: dependencias Java 2 criticas; paquetes Debian 20 altas,
-24 medias, 6 bajas, 18 negligibles.
+Por origen, final: 2 criticas en `spring-webmvc` (dependencia Java);
+sistema operativo 0.
 
 ### Correcciones aplicadas
 
@@ -63,6 +65,7 @@ Por origen, final: dependencias Java 2 criticas; paquetes Debian 20 altas,
 | `jackson-bom.version` 2.21.7 | `build.gradle.kts` | CVE-2026-89407, CVE-2026-91777 y otras 3 altas |
 | `postgresql.version` 42.7.12 | `build.gradle.kts` | CVE-2026-54291 (8.2) |
 | `commons-lang3.version` 3.18.0, `log4j2.version` 2.25.5 | `build.gradle.kts` | CVE-2025-48924, CVE-2026-49844 (medias) |
+| Runtime `cgr.dev/chainguard/glibc-dynamic` + `/opt/java/openjdk` de `eclipse-temurin:21-jre-noble` | `Dockerfile` | Las 68 de Debian 13 (libc, expat, zlib, libuuid, libstdc++, gcc): esa base trae solo glibc, certificados y usuarios |
 
 Efectos colaterales del upgrade, resueltos en el mismo cambio:
 
@@ -91,9 +94,10 @@ Spring Boot 4 (Jakarta EE 11, Jackson 3): una migracion mayor que no se hace
 para cerrar dos CVE sobre funciones que no se usan. Accion: revisar en cada
 escaneo; si el codigo empieza a usar XSLT o SSE, migrar antes.
 
-### Altas (20): paquetes de Debian 13 en la imagen base
+### Historico: las 68 de Debian 13 (resueltas cambiando la base)
 
-Debian las marca `wont-fix` (no las va a parchear en trixie) o `not-fixed`
+Con la base `distroless/java21-debian13` quedaban 20 altas, 24 medias, 6
+bajas y 18 negligibles. Debian las marca `wont-fix` (no las va a parchear en trixie) o `not-fixed`
 (todavia sin parche). No hay version corregida que instalar: se actualizan
 solas cuando distroless publique la base con el parche (reconstruir la
 imagen las toma).
@@ -116,9 +120,10 @@ Misma imagen final, mismo dia:
 
 | | Grype 0.120.1 | Trivy 0.75.0 |
 |---|---|---|
-| Total inicial / final | 194 / 70 | 176 / 70 |
+| Total inicial / final (base debian13) | 194 / 70 | 176 / 70 |
+| Total final (base glibc-dynamic) | 2 | 2 |
 | Criticas final | 2 | 2 (las mismas) |
-| Altas final | 20 | 9 |
+| Altas con base debian13 | 20 | 9 |
 | Severidad de paquetes Debian | CVSS de NVD | Rating propio de Debian (suele ser menor) |
 | Fix de las 2 criticas de Spring | "not-fixed" (mira la rama 6.2) | "fixed in 7.0.9" (informa la rama siguiente) |
 
@@ -137,3 +142,49 @@ Diferencias de fondo:
 
 Se usa Grype como herramienta principal (la de la catedra) y Trivy como
 segunda opinion.
+
+## Paso final: cambio de imagen base (2026-10-12)
+
+Las 68 vulnerabilidades restantes de la imagen eran de paquetes de Debian 13
+sin parche. Se midieron alternativas de runtime para Java 21 con Grype:
+
+| Base | Total | Altas | Java | Nota |
+|---|---|---|---|---|
+| `gcr.io/distroless/java21-debian13:nonroot` | 68 | 20 | 21 | La que se usaba; ninguna con fix |
+| `eclipse-temurin:21-jre-alpine` | 67 | 13 | 21 | Ademas trae shell y apk |
+| `bellsoft/liberica-runtime-container:jre-21-slim-musl` | 10 | 10 | 21 | |
+| `ubuntu/jre:21-24.04_stable` (chiseled) | 9 | 7 (+1 critica) | 21 | Las 9 son del binario Go `pebble`, no de Java |
+| `cgr.dev/chainguard/jre:latest` | 3 | 0 | **27** | El tag gratis solo tiene la ultima version de Java |
+| **`cgr.dev/chainguard/glibc-dynamic` + JRE de Temurin 21** | **0** | **0** | **21** | Elegida |
+
+Como queda el `Dockerfile`: una etapa `jre` (`eclipse-temurin:21-jre-noble`)
+de la que solo se copia `/opt/java/openjdk`, y el runtime sobre
+`glibc-dynamic` con el digest fijo. `.github/dependabot.yml` abre un PR
+cuando hay una version nueva de la base (y de dependencias y acciones); el
+CI con Grype valida cada uno.
+
+Que se verifico con la base nueva:
+
+| Prueba | Resultado |
+|---|---|
+| Librerias que pide el JRE (`ldd`) | Solo glibc (la base la trae); X11/ALSA son de AWT grafico, que un servidor headless no carga; zlib viene en el JRE |
+| Usuario | `nobody` existe (UID 65534); el proceso corre como `nobody`, sin shell |
+| Arranque, login, endpoints | healthy, login 200, protegido 401/200 |
+| Export CSV y XLSX (Apache POI) | 200; el `.xlsx` abre con 77 filas (el codigo evita `autoSizeColumn`, que necesita fuentes) |
+| TLS saliente con el JRE copiado | El agente de Application Insights envio telemetria a Azure por HTTPS sin errores de certificados |
+| Grype / Trivy | 2 / 2 (las de Spring); sistema operativo 0 |
+| Syft (inventario) | 7 paquetes de la base, el binario `openjdk` y 122 jars: Grype ve todo el contenido |
+
+Hallazgo de paso: con el agente activado, la JVM del `HEALTHCHECK` tambien
+lo cargaba y superaba el timeout de 5 s (unhealthy con la app sana). Se
+paso a 20 s. Azure Container Apps no usa el `HEALTHCHECK` de Docker.
+
+### Las 2 que quedan
+
+CVE-2026-47884 y CVE-2026-47890 en `spring-webmvc` 6.2.19 (ver arriba: XSLT
+y SSE con fragmentos, no usados). 6.2.19 es la ultima version de la rama
+6.2 en Maven Central; la correccion esta en Spring Framework 7.0.9, que
+llega con Spring Boot 4. Llegar a 0 exige migrar a Boot 4 (Jackson 3,
+Spring Security 7, Hibernate 7, springdoc 3): un cambio grande con riesgo de
+regresiones en la logica de negocio, para cerrar dos CVE sobre funciones que
+el backend no usa. Se deja documentado y no se oculta en los informes.

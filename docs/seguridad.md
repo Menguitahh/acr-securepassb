@@ -171,7 +171,7 @@ aparecen enmascarados como `***`.
 | Manejo de errores | Errores como `application/problem+json`; un error inesperado devuelve `"Error interno"` sin stack trace ni mensaje interno | `GlobalExceptionHandler.java` |
 | Informacion sensible | Actuator: solo health e info publicos; metricas solo para `PLATFORM_ADMIN`. Logs JSON sin passwords; el link de activacion no se loguea | `SecurityConfig.java`, `NeighborhoodProvisioningCli.java` |
 | Secretos | Por variable de entorno; en Azure como secretos de la Container App; GitHub solo tiene `AZURE_CREDENTIALS` | `docs/azure.md` |
-| Dockerfile | Multietapa, distroless sin shell, usuario 65532, `.dockerignore` allowlist, descarga del agente con hash fijo | `Dockerfile`, `docs/docker.md` |
+| Dockerfile | Multietapa, sin shell ni gestor de paquetes (glibc-dynamic), usuario `nobody`, `.dockerignore` allowlist, descarga del agente con hash fijo | `Dockerfile`, `docs/docker.md` |
 | Dependencias | Spring Boot 3.5.16 + parches; gate de Grype en el CI | `build.gradle.kts`, `docs/vulnerabilidades.md` |
 | Transporte | HTTPS obligatorio (Azure redirige HTTP con 301); Postgres con TLS obligatorio | `docs/azure.md` |
 

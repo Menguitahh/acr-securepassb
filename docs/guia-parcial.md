@@ -14,7 +14,7 @@ verificado; los numeros salen de corridas reales del 2026-10-11/12.
 ```mermaid
 flowchart LR
     DEV[git push / tag] --> GH[GitHub Actions<br/>backend-ci]
-    GH -->|build + 770 tests| IMG[docker build<br/>distroless, OCI]
+    GH -->|build + 770 tests| IMG[docker build<br/>sin shell, OCI]
     IMG --> GR[Grype gate]
     GR -->|AZURE_CREDENTIALS<br/>Service Principal| ACR[(ACR acringenieriaum<br/>securepassb:sha-xxx / vX.Y.Z)]
     ACR -->|tag v* o Run workflow| ACA[Container App securepassb<br/>backend + redis sidecar]
@@ -28,10 +28,10 @@ flowchart LR
 
 | Archivo | Que es | Fase |
 |---|---|---|
-| `Dockerfile` | Imagen multietapa: compila con JDK 21, corre en distroless Java 21 nonroot, etiquetas OCI, agente de Application Insights | 4, 6, 13 |
+| `Dockerfile` | Imagen multietapa: compila con JDK 21, corre sin shell sobre Chainguard glibc-dynamic con el JRE 21 de Temurin, usuario nobody, etiquetas OCI, agente de Application Insights | 4, 6, 13 |
 | `.dockerignore` | Allowlist del contexto de build (nunca entra `.env`) | 4 |
 | `.gitattributes` | `gradlew` con LF (con CRLF el build en Linux falla) | 4 |
-| `docker/HealthCheck.java` | HEALTHCHECK sin curl (distroless no tiene shell) | 4 |
+| `docker/HealthCheck.java` | HEALTHCHECK sin curl (la imagen no tiene shell) | 4 |
 | `docker-compose.yml` | Postgres + Redis, y el backend con `--profile app` | 5 |
 | `src/main/resources/application.yml` | Hikari, readiness con db+redis, `/actuator/info` con version, OpenAPI 3.0 | 3, 4, 6 |
 | `src/main/resources/application-prod.yml` | Perfil prod sin defaults de base ni Redis | 3 |
@@ -66,13 +66,13 @@ secretos de GitHub y de la Container App, `%USERPROFILE%\.securepassb\azure-secr
 | 10 | Dockerfile | COMPLETADO | `Dockerfile` | build + run | healthy |
 | 11 | Docker Compose | COMPLETADO | `docker-compose.yml` | `--profile app up` | 3 servicios healthy, datos persisten |
 | 12 | Docker build | COMPLETADO | CI + `azure.py build` | Runs | OK |
-| 13 | Imagen optimizada | COMPLETADO | distroless (plantilla de la catedra) | Tamano, build | Base 261 MB vs 407 MB de temurin-jre; rebuild con dependencias cacheadas 29 s vs 105 s |
+| 13 | Imagen optimizada | COMPLETADO | plantilla de la catedra, base glibc-dynamic | Tamano, build | Base 261 MB vs 407 MB de temurin-jre; rebuild con dependencias cacheadas 29 s vs 105 s |
 | 14 | Versionado de imagenes | COMPLETADO | `sha-<7>`, `vX.Y.Z` | ACR | Sin `latest`; `sha-` inmutable |
 | 15 | Etiquetas OCI | COMPLETADO | `Dockerfile` | `docker inspect` | version, revision, created, source |
-| 16 | Grype | COMPLETADO | CI + `docs/vulnerabilidades.md` | Escaneos | 194 -> 70 |
+| 16 | Grype | COMPLETADO | CI + `docs/vulnerabilidades.md` | Escaneos | 194 -> 2 |
 | 17 | CVE | COMPLETADO | `docs/vulnerabilidades.md` | Analisis | Cada CVE pendiente justificado |
 | 18 | CVSS | COMPLETADO | idem | idem | Puntajes en el informe |
-| 19 | Reduccion de vulnerabilidades | COMPLETADO | Base debian13, Boot 3.5.16, parches | Grype antes/despues | Criticas 10 -> 2 (sin fix, no aplicables); `--only-fixed` vacio |
+| 19 | Reduccion de vulnerabilidades | COMPLETADO | Base glibc-dynamic, Boot 3.5.16, parches | Grype antes/despues | Criticas 10 -> 2 (sin fix, no aplicables); `--only-fixed` vacio |
 | 20 | GitHub Actions | COMPLETADO | `.github/workflows/` | Runs | Verde |
 | 21 | CI | COMPLETADO | job build + image | PR y push | OK |
 | 22 | CD | COMPLETADO | job deploy | Tag v1.0.0, v1.1.0 | Desplego y verifico la version |
@@ -325,18 +325,21 @@ de riesgo.
 (Boot 3.3 sin soporte), libc/expat de Debian 12, JRE 21.0.10.
 
 **35. Como las solucionamos?**
-Base `distroless/java21-debian13`, Spring Boot 3.3.13 -> 3.5.16, parches de
-Tomcat, Netty, Jackson, driver Postgres, commons-lang3, log4j. 194 -> 70; ya
+Spring Boot 3.3.13 -> 3.5.16, parches de Tomcat, Netty, Jackson, driver
+Postgres, commons-lang3, log4j (194 -> 70), y base de runtime Chainguard
+`glibc-dynamic` con el JRE 21 de Temurin (70 -> 2: las 68 de Debian). Ya
 no queda ninguna con fix disponible.
 
 **36. Que hacemos si no tienen solucion?**
 Se analiza si el codigo vulnerable se usa y se documenta: las 2 criticas de
-Spring afectan `XsltView` y SSE, que no usamos; las 20 altas son de
-librerias Debian que la JVM no ejerce. Mitigaciones: distroless sin shell,
+Spring afectan `XsltView` y SSE, que no usamos (el fix es Spring 7 /
+Boot 4). Antes del cambio de base, las 20 altas eran de
+librerias Debian que la JVM no ejerce. Mitigaciones: imagen sin shell,
 usuario no-root. Se revisan en cada escaneo.
 
 **37. Diferencias entre Grype y Trivy?**
-Mismo resultado total (70) y mismas criticas. Grype usa CVSS de NVD (20
+Hoy los dos dan 2 (las de Spring). Con la base Debian daban 70 y las
+mismas criticas; Grype usa CVSS de NVD (20
 altas), Trivy el rating de Debian (9 altas) e informa el fix en la rama
 siguiente. Trivy ademas detecta secretos, configuraciones y licencias.
 
@@ -386,7 +389,8 @@ Es la plantilla de la catedra adaptada a Gradle, en tres etapas. `base`
 (`gradlew resolveDependencies`, el equivalente de `mvn dependency:resolve`);
 esa capa se cachea mientras no cambie `build.gradle.kts`. `builder`: trae
 esa cache, copia el codigo y genera `app.jar` (`gradlew clean bootJar -x
-test`). `runtime` (distroless Java 21, `USER nobody`): copia solo `app.jar`.
+test`). `runtime` (sin shell: Chainguard `glibc-dynamic` con el JRE 21 de Temurin
+copiado, `USER nobody`): copia solo `app.jar`.
 El resultado no tiene compilador, Gradle, codigo fuente ni shell. Se
 saco el `"${JAVA_OPTS}"` del `ENTRYPOINT` de la plantilla: en formato JSON
 Docker no expande variables; las opciones van en `JAVA_TOOL_OPTIONS`.

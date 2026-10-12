@@ -1,0 +1,21 @@
+# Actualizaciones automaticas: cada semana Dependabot abre PRs con versiones
+# nuevas de las imagenes base del Dockerfile, de las dependencias de Gradle y
+# de las acciones de GitHub. El CI (tests + Grype) valida cada PR.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: develop
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: develop
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: develop
