@@ -413,6 +413,15 @@ Recomendado: ahi mismo **+ New client secret**, descripcion
 **Value** (se muestra una sola vez). Un secreto propio para este repo se
 puede revocar sin romper `acr-um-azure`.
 
+> **Resultado real (2026-10-11):** la cuenta de alumno recibe `401 Sin
+> acceso` en Microsoft Entra ID: el tenant de la universidad no deja a los
+> alumnos administrar el directorio. Por eso no se pudo ver el vencimiento
+> ni crear un secreto propio, y se reutiliza el secreto de la cursada.
+> Riesgo aceptado: si vence, el login del pipeline falla con
+> `AADSTS7000222` (client secret expired). Solucion: pedir un secreto nuevo
+> a quien administra el directorio y actualizar `AZURE_CREDENTIALS`; no se
+> toca codigo. OIDC tampoco es posible por el mismo motivo.
+
 **B. Cargar `AZURE_CREDENTIALS` en GitHub.** Es un JSON con este formato
 (valores reales: Client ID, Tenant ID y Subscription ID salen del `.env` de
 `acr-um-azure` o del Portal; el secreto, del paso A):
@@ -460,3 +469,8 @@ convierte `/subscriptions/...` en una ruta de Windows y Azure responde
 **D. Verificar.** GitHub > **Actions** > **azure-check** > **Run workflow** >
 rama `develop` > **Run workflow**. Tiene que terminar en verde mostrando la
 suscripcion, el grupo, el ACR y el environment.
+
+Resultado (2026-10-11): `AZURE_CREDENTIALS` cargado, `id-securepassb` con
+`AcrPull` sobre `acringenieriaum`, y `azure-check` en verde: login como
+`servicePrincipal` en Azure for Students, grupo `universidad`, ACR Basic con
+`az acr login` exitoso, environment `managedEnvironment-universidad-8a60`.
