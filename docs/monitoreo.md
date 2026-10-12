@@ -9,7 +9,7 @@ Container App diga `Running`.
 flowchart LR
     subgraph APP["Container App securepassb"]
         SB["Spring Boot<br/>Actuator + Micrometer<br/>logs JSON a stdout"]
-        AG["Agente Application Insights 3.7.10<br/>(-javaagent)"]
+        AG["Agente OpenTelemetry de Azure Monitor<br/>(Application Insights 3.7.10, -javaagent)"]
         SB --- AG
     end
     PROBES["Probes de Container Apps<br/>liveness / readiness"] -->|HTTP| SB
@@ -41,6 +41,107 @@ El agente no requiere cambios de codigo: esta en la imagen
 | `APPLICATIONINSIGHTS_ROLE_NAME` | `securepassb` |
 
 Sin esas variables (Docker Compose local) el agente no se carga.
+
+## OpenTelemetry con Application Insights
+
+**OpenTelemetry (OTel)** es el estandar abierto (CNCF) para generar
+telemetria: **trazas** (el recorrido de una request por la app y sus
+dependencias, en spans), **metricas** y **logs**, con un formato y una
+propagacion de contexto comunes (W3C `traceparent`). Application Insights es
+uno de los destinos posibles.
+
+### Como esta implementado aca
+
+El agente que corre en Azure (`applicationinsights-agent` 3.7.10, el
+`-javaagent` del `Dockerfile`) **es la distribucion de OpenTelemetry de
+Azure Monitor para Java**: el agente de OTel para Java (auto-instrumentacion)
+mas el exportador a Application Insights. Verificado sobre el jar:
+
+| Dato | Valor |
+|---|---|
+| Clases de OpenTelemetry dentro del agente | 9046 |
+| Instrumentaciones OTel incluidas | 315 |
+| Las que usa este backend | `spring-webmvc-6.0`, `tomcat-10.0`, `servlet-5.0`, `jdbc`, `hikaricp-3.0`, `lettuce-5.1` (Redis), `logback-appender-1.0` / `logback-mdc-1.0`, `micrometer-1.5`, `java-http-client` |
+
+Auto-instrumentacion: el agente engancha esas librerias al arrancar la JVM;
+**no hay codigo de OpenTelemetry en el backend** ni dependencias nuevas en
+`build.gradle.kts`. Se activa solo en Azure (`JDK_JAVA_OPTIONS` +
+`APPLICATIONINSIGHTS_CONNECTION_STRING` de la Container App).
+
+| Senal OTel | Que genera | Tabla en Log Analytics |
+|---|---|---|
+| Span de servidor | Cada request HTTP (ruta, codigo, duracion) | `AppRequests` |
+| Spans cliente | Cada consulta SQL a Postgres y cada comando a Redis | `AppDependencies` |
+| Logs | Logs de Logback con el `trace_id` de la request en curso | `AppTraces` |
+| Excepciones | Errores no manejados con stack trace | `AppExceptions` |
+| Metricas | Micrometer (Hikari, JVM, HTTP) | `AppMetrics` |
+
+Todas las piezas de una misma request comparten el **`OperationId`** (el
+trace id de OTel): asi se reconstruye la traza distribuida.
+
+### Diferencia con el proyecto de la catedra (Go)
+
+| | Catedra (Go + Fiber) | Este backend (Java + Spring) |
+|---|---|---|
+| Como se instrumenta | SDK de OTel en el codigo (`pkg/telemetry`): providers, middleware, spans a mano | Agente OTel: auto-instrumentacion, sin codigo |
+| Exportacion | OTLP / connection string | Exportador del agente directo a Application Insights |
+| Spans de la base | Simulados (`simulate_database_query`) | Reales: cada `SELECT` contra Postgres |
+
+En Go no existe un agente que instrumente sin tocar el codigo; en la JVM si,
+y es la forma recomendada por Azure para Java.
+
+### Traza real (2026-10-12)
+
+```
+GET /api/v1/me/passes                        134 ms   request (span raiz)
+ |- postgresql  SELECT securepass             27 ms
+ |- postgresql  SELECT ...signing_keys        29 ms   un span por consulta SQL
+ |- postgresql  SELECT ...invitations         27 ms
+ '- postgresql  SELECT ...signing_keys        27 ms
+trace_id (OperationId) = 5f552de69c84ad1f35794b3e5173008b
+```
+
+De paso muestra algo util: cada consulta tarda ~27 ms porque la base esta
+en `centralus` y la app en `eastus` (latencia de red, ver `docs/azure.md`).
+
+Consulta para ver una traza completa:
+
+```kusto
+let op = toscalar(AppRequests
+    | where AppRoleName == "securepassb" and Name == "GET /api/v1/me/passes"
+    | top 1 by TimeGenerated desc | project OperationId);
+union
+  (AppRequests     | where OperationId == op | project TimeGenerated, tipo="request", Name, DurationMs),
+  (AppDependencies | where OperationId == op | project TimeGenerated, tipo=DependencyType, Name, DurationMs),
+  (AppTraces       | where OperationId == op | project TimeGenerated, tipo="log", Name=Message, DurationMs=real(null))
+| order by TimeGenerated asc
+```
+
+### Como verlo en Azure
+
+Los datos quedan 30 dias aunque la app este detenida; **Live metrics** y
+datos nuevos necesitan la app encendida (ver "Antes de la defensa" en
+`docs/guia-parcial.md`).
+
+1. https://portal.azure.com > buscador **Application Insights** >
+   **appi-securepassb**.
+2. **Traza de una request (OpenTelemetry):** menu izquierdo
+   **Investigate > Search** (Transaction search). Time range: ultimos 7
+   dias. Click en una request, por ejemplo `GET /api/v1/me/passes`: abre
+   **End-to-end transaction details** con el diagrama de Gantt (request y
+   debajo cada consulta SQL con su duracion). Abajo a la derecha, **View all
+   telemetry** muestra tambien los logs de esa request.
+3. **Endpoints lentos:** **Investigate > Performance** > pestana
+   *Operations* > elegir una operacion > **Drill into... N Samples** > una
+   muestra: misma vista end-to-end.
+4. **Mapa de dependencias:** **Investigate > Application map**: el nodo
+   `securepassb` con flechas a `psql-securepassb-um.postgres.database.azure.com`
+   y a Redis (`localhost`), con cantidad de llamadas y latencia.
+5. **Errores:** **Investigate > Failures**.
+6. **En vivo (app encendida):** **Investigate > Live metrics**: requests por
+   segundo, duracion y fallas mientras se usa la app o Postman.
+7. **Consultas:** **Monitoring > Logs** > cerrar la galeria > pegar el KQL de
+   arriba > **Run**.
 
 ## Configuracion (una vez)
 
