@@ -2,33 +2,47 @@
 
 ## Imagen del backend (`Dockerfile`)
 
+Basado en la plantilla de la catedra (Maven, `base -> builder -> runtime`
+distroless), adaptada a Gradle.
+
 ```mermaid
 flowchart LR
-    subgraph build["Etapa build: eclipse-temurin:21-jdk"]
-        A[gradlew + build.gradle.kts] --> B[dependencias<br/>capa cacheada]
-        B --> C[src/main] --> D[bootJar sin tests] --> E[jar extraido en capas]
-        H[HealthCheck.java] --> I[javac]
+    subgraph base["base: eclipse-temurin:21-jdk-noble"]
+        A[gradlew + build.gradle.kts] --> B[resolveDependencies<br/>capa cacheada]
     end
-    subgraph runtime["Etapa runtime: distroless java21 nonroot"]
-        E --> F[dependencies 90 MB<br/>loader / snapshot<br/>application 3 MB]
+    subgraph builder["builder: eclipse-temurin:21-jdk-noble"]
+        B -->|/root/.gradle| C[COPY . .] --> D[gradlew clean bootJar -x test<br/>build/libs/app.jar]
+        H[HealthCheck.java] --> I[javac]
+        J[agente App Insights<br/>hash fijo]
+    end
+    subgraph runtime["runtime: distroless java21-debian13 nonroot"]
+        D --> F[/app/app.jar/]
         I --> G[HealthCheck.class]
+        J --> K[/app/applicationinsights-agent.jar/]
     end
 ```
 
-| Decision | Por que |
-|---|---|
-| Multietapa | El JDK, Gradle y el codigo fuente quedan en la etapa `build`; la imagen final solo lleva el JRE y el jar extraido |
-| `eclipse-temurin:21-jdk-jammy` para compilar | Java 21 (el toolchain del proyecto). Gradle lo detecta y no descarga otro JDK |
-| `gcr.io/distroless/java21-debian13:nonroot` para correr | Sin shell, sin gestor de paquetes, sin curl: menos superficie de ataque y menos CVEs. 261 MB contra 407 MB de `eclipse-temurin:21-jre-jammy`. Debian 13 en vez de 12: 68 vulnerabilidades contra 112 y JRE 21.0.12.1 (ver `docs/vulnerabilidades.md`) |
-| Usuario `65532` (nonroot) | El proceso no corre como root (verificado con `docker top`) |
-| Dependencias antes que el codigo | `./gradlew dependencies` en su propia capa: mientras no cambie `build.gradle.kts`, Docker la reutiliza |
-| `--mount=type=cache` | La cache de Gradle sobrevive entre builds |
-| Jar extraido en capas (`jarmode=tools`) | Un cambio de codigo solo reconstruye la capa `application` (3 MB), no los 90 MB de dependencias |
-| Tests fuera del build | Los corre el CI antes. Testcontainers necesita Docker y no hay Docker dentro de `docker build` |
-| `HEALTHCHECK` con una clase Java | Distroless no tiene curl. `docker/HealthCheck.java` pide `/actuator/health/readiness` |
-| `SPRING_PROFILES_ACTIVE=prod` por defecto | Base, Redis y secretos obligatorios por variable de entorno; logs JSON |
-| `MaxRAMPercentage=75` | El heap se ajusta a la memoria del contenedor (Azure le da 1 GiB) |
-| `ExitOnOutOfMemoryError` | Ante un OOM el proceso muere y el orquestador lo reinicia, en vez de quedar zombie |
+### Plantilla de la catedra vs este Dockerfile
+
+| Plantilla (Maven) | Aca (Gradle) | Por que |
+|---|---|---|
+| `FROM maven:3.9-eclipse-temurin-21-noble` | `FROM eclipse-temurin:21-jdk-noble` | Mismo JDK 21 sobre Ubuntu noble; Gradle llega por el wrapper (`gradlew`), no hace falta una imagen con Gradle instalado |
+| `apt-get install build-essential` | (no esta) | gcc/make no los usa Java (venia del Dockerfile de Go). No llegan a la imagen final, pero suman minutos a cada build |
+| `COPY pom.xml .` + `mvn dependency:resolve` | `COPY gradlew settings.gradle.kts build.gradle.kts gradle` + `gradlew resolveDependencies` | `resolveDependencies` (en `build.gradle.kts`) descarga los jars sin compilar; `gradlew dependencies` solo resuelve el arbol y no bajaria nada |
+| `COPY --from=base /root/.m2 /root/.m2` | `COPY --from=base /root/.gradle /root/.gradle` | Cache de dependencias de la etapa base |
+| `mvn clean package -DskipTests` | `gradlew clean bootJar -x test` | Los tests los corre el CI antes |
+| `target/app.jar` | `build/libs/app.jar` | `tasks.bootJar { archiveFileName.set("app.jar") }` |
+| `distroless/java21-debian13:nonroot`, `USER nobody`, `WORKDIR /app`, `EXPOSE 8080` | igual | |
+| `ENV SPRING_OUTPUT_ANSI_ENABLED=ALWAYS` | igual | Sin efecto en prod: los logs son JSON |
+| `ENV JAVA_OPTS=""` + `"${JAVA_OPTS}", "{0}", "{@}"` en el `ENTRYPOINT` | `ENV JAVA_TOOL_OPTIONS=...` y `ENTRYPOINT [ "java", "-Djava.security.egd=...", "-jar", "/app/app.jar" ]` | En formato JSON (exec form) Docker no expande variables y distroless no tiene shell: java recibia los textos literales `${JAVA_OPTS}`, `{0}`, `{@}` como argumentos de la app y `JAVA_OPTS` nunca se aplicaba. `JAVA_TOOL_OPTIONS` la lee la JVM sola |
+| - | `ARG VERSION/REVISION/CREATED/SOURCE` + `LABEL org.opencontainers.image.*` + `ENV APP_VERSION/APP_REVISION` | Trazabilidad: el CI pasa tag y SHA; `/actuator/info` los muestra y el job deploy los verifica |
+| - | `ENV SPRING_PROFILES_ACTIVE=prod` | Base, Redis y secretos obligatorios; logs JSON |
+| - | Agente de Application Insights (`ADD --checksum`, `COPY --chmod=444`) | Monitoreo en Azure; inactivo salvo `JDK_JAVA_OPTIONS` |
+| - | `HEALTHCHECK` con una clase Java | Distroless no tiene curl |
+
+Lo que se resigno respecto del Dockerfile anterior: el jar ya no se extrae en
+capas, asi que un cambio de codigo vuelve a subir la capa de la app entera
+(96 MB) en vez de 3 MB.
 
 Archivos relacionados: `.dockerignore` (allowlist: solo entra lo que el
 Dockerfile copia, nunca `.env`), `.gitattributes` (`gradlew` con LF: con CRLF
@@ -73,7 +87,18 @@ docker image inspect securepassb:sha-$sha --format '{{json .Config.Env}}'      #
 docker history securepassb:sha-$sha                                              # capas y tamanos
 ```
 
-### Verificacion (2026-10-11, imagen `sha-c84f086`)
+### Verificacion del Dockerfile basado en la plantilla (2026-10-12)
+
+| Prueba | Resultado |
+|---|---|
+| Build | OK, 105 s en frio |
+| Compose | `healthy`; `/actuator/info` con version y commit; readiness UP |
+| Login / endpoint protegido sin y con token | 200 / 401 y 200 |
+| Usuario del proceso | `nobody`; `docker exec ... sh`: no hay shell |
+| Agente de Application Insights activado | `Agent 3.7.10 started successfully`; Spring en 8,9 s |
+| Grype | 70 (2 criticas sin fix), igual que antes; gate `--only-fixed --fail-on critical` aprobado |
+
+### Verificacion anterior (2026-10-11, imagen `sha-c84f086`)
 
 | Prueba | Resultado |
 |---|---|

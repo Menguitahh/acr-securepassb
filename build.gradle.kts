@@ -57,6 +57,22 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// Nombre fijo para el Dockerfile (como target/app.jar en Maven).
+tasks.bootJar {
+    archiveFileName.set("app.jar")
+}
+
+// Equivalente a mvn dependency:resolve: descarga los jars sin compilar. La
+// etapa base del Dockerfile la corre con solo los archivos de build, asi esa
+// capa queda cacheada mientras no cambien las dependencias.
+tasks.register("resolveDependencies") {
+    group = "build setup"
+    description = "Descarga las dependencias de compilacion y runtime"
+    val classpaths = listOf(configurations.compileClasspath, configurations.runtimeClasspath,
+        configurations.annotationProcessor)
+    doLast { classpaths.forEach { it.get().resolve() } }
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
     // ponytail: Docker Desktop en Windows expone el engine en un pipe con nombre
