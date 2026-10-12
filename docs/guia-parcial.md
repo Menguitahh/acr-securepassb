@@ -66,7 +66,7 @@ secretos de GitHub y de la Container App, `%USERPROFILE%\.securepassb\azure-secr
 | 10 | Dockerfile | COMPLETADO | `Dockerfile` | build + run | healthy |
 | 11 | Docker Compose | COMPLETADO | `docker-compose.yml` | `--profile app up` | 3 servicios healthy, datos persisten |
 | 12 | Docker build | COMPLETADO | CI + `azure.py build` | Runs | OK |
-| 13 | Imagen optimizada | COMPLETADO | distroless + capas | Tamano | 261 MB de base vs 407 MB; cambio de codigo = 3 MB |
+| 13 | Imagen optimizada | COMPLETADO | distroless (plantilla de la catedra) | Tamano, build | Base 261 MB vs 407 MB de temurin-jre; rebuild con dependencias cacheadas 29 s vs 105 s |
 | 14 | Versionado de imagenes | COMPLETADO | `sha-<7>`, `vX.Y.Z` | ACR | Sin `latest`; `sha-` inmutable |
 | 15 | Etiquetas OCI | COMPLETADO | `Dockerfile` | `docker inspect` | version, revision, created, source |
 | 16 | Grype | COMPLETADO | CI + `docs/vulnerabilidades.md` | Escaneos | 194 -> 70 |
@@ -381,10 +381,16 @@ Run workflow con `tag=<tag viejo>` y `deploy` (solo corre el job deploy), o
 Activate. Probado: rollback a `sha-99cb750` en ~2 min.
 
 **46. Como funciona el Dockerfile multietapa?**
-Etapa `build` (JDK 21 + Gradle): descarga dependencias en una capa
-cacheada, compila y extrae el jar en capas. Etapa `runtime` (distroless):
-copia solo el JRE y las capas. El resultado no tiene compilador, Gradle,
-codigo fuente ni shell.
+Es la plantilla de la catedra adaptada a Gradle, en tres etapas. `base`
+(JDK 21): copia solo los archivos de build y descarga las dependencias
+(`gradlew resolveDependencies`, el equivalente de `mvn dependency:resolve`);
+esa capa se cachea mientras no cambie `build.gradle.kts`. `builder`: trae
+esa cache, copia el codigo y genera `app.jar` (`gradlew clean bootJar -x
+test`). `runtime` (distroless Java 21, `USER nobody`): copia solo `app.jar`.
+El resultado no tiene compilador, Gradle, codigo fuente ni shell. Se
+saco el `"${JAVA_OPTS}"` del `ENTRYPOINT` de la plantilla: en formato JSON
+Docker no expande variables; las opciones van en `JAVA_TOOL_OPTIONS`.
+Comparacion completa en `docs/docker.md`.
 
 **47. Diferencia entre Dockerfile y Docker Compose?**
 El Dockerfile describe como construir **una imagen**; Compose describe **un
