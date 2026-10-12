@@ -1,36 +1,216 @@
+# CI/CD del backend.
+#
+#   build -> image (docker build + Grype + push al ACR) -> deploy (condicionado)
+#
+# Que pasa en cada caso:
+#   pull_request a develop/main   tests + imagen + Grype. No publica ni despliega.
+#   push a develop/main           tests + imagen + Grype + push sha-<7>. NO despliega.      (caso A)
+#   push de un tag vX.Y.Z         tests + imagen + Grype + push vX.Y.Z y sha-<7> + DEPLOY.  (caso B)
+#   Run workflow (manual)         deploy=true despliega; tag=<existente> redespliega esa
+#                                 imagen sin reconstruir (rollback).                       (caso C)
+#
+# Tags de imagen: misma regla que scripts/azure.py (vX.Y.Z si el ref es un tag
+# de version, si no sha-<7>). Nunca "latest".
 name: backend-ci
 
 on:
   push:
     branches: [main, develop]
+    tags: ["v*"]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Desplegar en Azure Container Apps"
+        type: boolean
+        default: false
+      tag:
+        description: "Tag ya publicado a desplegar sin reconstruir (ej. sha-1a2b3c4 o v1.0.0). Vacio = construir el commit elegido"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Un PR nuevo cancela el run viejo; un push o un deploy no se cortan a mitad.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ${{ vars.ACR_NAME }}.azurecr.io/${{ vars.IMAGE_NAME }}
 
 jobs:
   build:
     name: build
+    # Redesplegar un tag existente no necesita compilar.
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.tag != '') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle
 
-      - name: cache gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
-
-      - name: gradle build
+      - name: gradle build (compila, tests con Testcontainers)
         run: ./gradlew build --no-daemon --stacktrace
+
+      - name: tests del script de despliegue
+        working-directory: scripts
+        run: python3 -m unittest -v test_azure.py
+
+  image:
+    name: image
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: calcular tag
+        id: meta
+        run: |
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="$SHA_TAG"; fi
+          {
+            echo "tag=$TAG"
+            echo "sha_tag=$SHA_TAG"
+            echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Imagen: $IMAGE:$TAG (commit $GITHUB_SHA)"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: docker build (linux/amd64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.sha_tag }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.tag }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ steps.meta.outputs.created }}
+            SOURCE=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: instalar grype
+        id: grype
+        uses: anchore/scan-action/download-grype@v7
+
+      - name: grype (informe completo)
+        run: |
+          ${{ steps.grype.outputs.cmd }} "$IMAGE:${{ steps.meta.outputs.tag }}" \
+            -o table -o sarif=grype.sarif -o json=grype.json
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, collections
+          m = json.load(open("grype.json"))["matches"]
+          c = collections.Counter(x["vulnerability"]["severity"] for x in m)
+          fixable = sum(1 for x in m if x["vulnerability"].get("fix", {}).get("state") == "fixed")
+          print("### Grype\n")
+          print("| Critical | High | Medium | Low | Negligible | Total | Con fix disponible |")
+          print("|---|---|---|---|---|---|---|")
+          print(f"| {c['Critical']} | {c['High']} | {c['Medium']} | {c['Low']} | {c['Negligible']} | {len(m)} | {fixable} |\n")
+          EOF
+
+      - name: grype (gate) - falla si hay una critica con fix disponible
+        run: ${{ steps.grype.outputs.cmd }} "$IMAGE:${{ steps.meta.outputs.tag }}" --only-fixed --fail-on critical -q
+
+      - name: guardar informes de grype
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: grype-${{ steps.meta.outputs.tag }}
+          path: grype.*
+
+      - name: azure login
+        if: github.event_name != 'pull_request'
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: push al ACR
+        if: github.event_name != 'pull_request'
+        run: |
+          az acr login -n "${{ vars.ACR_NAME }}"
+          docker push "$IMAGE:${{ steps.meta.outputs.tag }}"
+          docker push "$IMAGE:${{ steps.meta.outputs.sha_tag }}"
+          DIGEST=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:${{ steps.meta.outputs.tag }}")
+          {
+            echo "### Imagen publicada"
+            echo
+            echo "| Tag | Commit | Digest |"
+            echo "|---|---|---|"
+            echo "| \`${{ steps.meta.outputs.tag }}\` | \`$GITHUB_SHA\` | \`${DIGEST#*@}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: azure logout
+        if: always() && github.event_name != 'pull_request'
+        run: az logout || true
+
+  deploy:
+    name: deploy
+    needs: [build, image]
+    # Corre aunque build/image se salteen (redeploy de un tag existente), pero
+    # nunca si alguno fallo. Solo en tags vX.Y.Z o con deploy=true a mano.
+    if: >-
+      ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') &&
+          (startsWith(github.ref, 'refs/tags/v') ||
+           (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      TAG: ${{ inputs.tag || needs.image.outputs.tag }}
+    steps:
+      - name: azure login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: verificar que la imagen existe en el ACR
+        run: |
+          az acr repository show-tags -n "${{ vars.ACR_NAME }}" --repository "${{ vars.IMAGE_NAME }}" -o tsv | grep -qx "$TAG" \
+            || { echo "::error::$IMAGE:$TAG no esta en el ACR"; exit 1; }
+
+      - name: actualizar la container app
+        run: |
+          az containerapp update -g "${{ vars.AZURE_RESOURCE_GROUP }}" -n "${{ vars.CONTAINER_APP_NAME }}" \
+            --container-name backend --image "$IMAGE:$TAG" -o none
+
+      - name: esperar a que la nueva version responda
+        run: |
+          FQDN=$(az containerapp show -g "${{ vars.AZURE_RESOURCE_GROUP }}" -n "${{ vars.CONTAINER_APP_NAME }}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          for i in $(seq 1 40); do
+            VERSION=$(curl -s -m 20 "https://$FQDN/actuator/info" | python3 -c 'import sys,json;print(json.load(sys.stdin)["app"]["version"])' 2>/dev/null || true)
+            echo "intento $i: version=$VERSION"
+            if [ "$VERSION" = "$TAG" ]; then break; fi
+            sleep 10
+          done
+          [ "$VERSION" = "$TAG" ] || { echo "::error::https://$FQDN no sirve $TAG"; exit 1; }
+          READY=$(curl -s "https://$FQDN/actuator/health/readiness")
+          REVISION=$(az containerapp show -g "${{ vars.AZURE_RESOURCE_GROUP }}" -n "${{ vars.CONTAINER_APP_NAME }}" \
+            --query properties.latestRevisionName -o tsv)
+          {
+            echo "### Deploy"
+            echo
+            echo "| URL | Version | Revision | Readiness |"
+            echo "|---|---|---|---|"
+            echo "| https://$FQDN | \`$TAG\` | \`$REVISION\` | \`$READY\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: azure logout
+        if: always()
+        run: az logout || true
