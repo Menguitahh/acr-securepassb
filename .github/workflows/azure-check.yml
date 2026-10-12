@@ -1,0 +1,39 @@
+# Verifica que GitHub Actions puede autenticarse en Azure con el Service
+# Principal y ver los recursos que usa el pipeline. No construye ni despliega.
+# Se corre a mano: Actions > azure-check > Run workflow.
+name: azure-check
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: login con el service principal
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: identidad y alcance
+        run: |
+          az account show --query "{suscripcion:name, tipo_login:user.type}" -o table
+          az group show -n "${{ vars.AZURE_RESOURCE_GROUP }}" --query "{grupo:name, region:location}" -o table
+
+      - name: registro de imagenes
+        run: |
+          az acr show -n "${{ vars.ACR_NAME }}" --query "{acr:name, sku:sku.name, servidor:loginServer}" -o table
+          az acr login -n "${{ vars.ACR_NAME }}"
+          az acr repository list -n "${{ vars.ACR_NAME }}" -o table
+
+      - name: entorno de container apps
+        run: |
+          az containerapp env show -g "${{ vars.AZURE_RESOURCE_GROUP }}" -n "${{ vars.CONTAINER_APP_ENV }}" \
+            --query "{entorno:name, region:location}" -o table
+
+      - name: logout
+        if: always()
+        run: az logout || true
