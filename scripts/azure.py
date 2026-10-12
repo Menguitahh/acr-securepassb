@@ -209,7 +209,7 @@ def cmd_status(_):
 
 
 def cmd_revisions(_):
-    for r in az_json("containerapp", "revision", "list", "-g", RG, "-n", APP) or []:
+    for r in az_json("containerapp", "revision", "list", "-g", RG, "-n", APP, "--all") or []:
         p = r["properties"]
         print(f"{r['name']:32} activa={p['active']!s:5} replicas={p.get('replicas', 0)} "
               f"{p['createdTime'][:19]}  {p['template']['containers'][0]['image'].split('/')[-1]}")
@@ -226,8 +226,10 @@ def cmd_url(_):
 
 def lifecycle(action):
     app_id = az_json("containerapp", "show", "-g", RG, "-n", APP)["id"]
-    run("az", "rest", "--method", "post", "--url", f"https://management.azure.com{app_id}/{action}?api-version=2024-03-01", "-o", "none")
-    print(f"[ok] {action} enviado")
+    print(f"[cmd] az rest --method post --url .../containerApps/{APP}/{action}")
+    run("az", "rest", "--method", "post", "--url", f"https://management.azure.com{app_id}/{action}?api-version=2024-03-01",
+        "-o", "none", capture=True)
+    print(f"[ok] {action} enviado (python scripts/azure.py status para ver el estado)")
 
 
 def cmd_delete(_):
