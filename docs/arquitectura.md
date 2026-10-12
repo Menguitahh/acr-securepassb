@@ -38,7 +38,7 @@ Configurado en `src/main/resources/application.yml` (`spring.datasource.hikari`)
 
 | Parametro | Valor | Por que |
 |---|---|---|
-| `maximum-pool-size` | 10 (`DB_POOL_MAX`) | El limite de exports concurrentes (2) se calculo como ~20% de este pool. Postgres B1MS de Azure admite ~50 conexiones (algunas reservadas): 10 por replica deja margen |
+| `maximum-pool-size` | 10 (`DB_POOL_MAX`) | El limite de exports concurrentes (2) se calculo como ~20% de este pool. Postgres B1ms de Azure: `max_connections` 50 con 15 reservadas = 35 utilizables (verificado). 10 por replica deja margen |
 | `minimum-idle` | 2 | Pocas conexiones ociosas; la app escala a cero en Azure |
 | `connection-timeout` | 10 s | Si el pool se agota o la base no responde, el request falla en 10 s en vez de 30 s |
 | `keepalive-time` | 2 min | El NAT de salida de Azure corta conexiones TCP ociosas a los 4 min |
