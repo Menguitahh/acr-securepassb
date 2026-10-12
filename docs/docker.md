@@ -15,7 +15,7 @@ flowchart LR
         H[HealthCheck.java] --> I[javac]
         J[agente App Insights<br/>hash fijo]
     end
-    subgraph runtime["runtime: distroless java21-debian13 nonroot"]
+    subgraph runtime["runtime: chainguard glibc-dynamic + JRE 21 Temurin"]
         D --> F[/app/app.jar/]
         I --> G[HealthCheck.class]
         J --> K[/app/applicationinsights-agent.jar/]
@@ -32,7 +32,8 @@ flowchart LR
 | `COPY --from=base /root/.m2 /root/.m2` | `COPY --from=base /root/.gradle /root/.gradle` | Cache de dependencias de la etapa base |
 | `mvn clean package -DskipTests` | `gradlew clean bootJar -x test` | Los tests los corre el CI antes |
 | `target/app.jar` | `build/libs/app.jar` | `tasks.bootJar { archiveFileName.set("app.jar") }` |
-| `distroless/java21-debian13:nonroot`, `USER nobody`, `WORKDIR /app`, `EXPOSE 8080` | igual | |
+| `distroless/java21-debian13:nonroot` | `cgr.dev/chainguard/glibc-dynamic` (digest fijo) + `/opt/java/openjdk` copiado de `eclipse-temurin:21-jre-noble` | Misma idea (sin shell ni gestor de paquetes) pero sin los paquetes Debian: Grype 68 -> 0 en la base. Ver `docs/vulnerabilidades.md` |
+| `USER nobody`, `WORKDIR /app`, `EXPOSE 8080` | igual | |
 | `ENV SPRING_OUTPUT_ANSI_ENABLED=ALWAYS` | igual | Sin efecto en prod: los logs son JSON |
 | `ENV JAVA_OPTS=""` + `"${JAVA_OPTS}", "{0}", "{@}"` en el `ENTRYPOINT` | `ENV JAVA_TOOL_OPTIONS=...` y `ENTRYPOINT [ "java", "-Djava.security.egd=...", "-jar", "/app/app.jar" ]` | En formato JSON (exec form) Docker no expande variables y distroless no tiene shell: java recibia los textos literales `${JAVA_OPTS}`, `{0}`, `{@}` como argumentos de la app y `JAVA_OPTS` nunca se aplicaba. `JAVA_TOOL_OPTIONS` la lee la JVM sola |
 | - | `ARG VERSION/REVISION/CREATED/SOURCE` + `LABEL org.opencontainers.image.*` + `ENV APP_VERSION/APP_REVISION` | Trazabilidad: el CI pasa tag y SHA; `/actuator/info` los muestra y el job deploy los verifica |
@@ -97,6 +98,7 @@ docker history securepassb:sha-$sha                                             
 | Usuario del proceso | `nobody`; `docker exec ... sh`: no hay shell |
 | Agente de Application Insights activado | `Agent 3.7.10 started successfully`; Spring en 8,9 s |
 | Grype | 70 (2 criticas sin fix), igual que antes; gate `--only-fixed --fail-on critical` aprobado |
+| Con la base glibc-dynamic (despues) | Grype 2, Trivy 2 (Spring); export XLSX OK; agente y TLS OK |
 
 ### Verificacion anterior (2026-10-11, imagen `sha-c84f086`)
 

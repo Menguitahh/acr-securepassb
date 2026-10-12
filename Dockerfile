@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # Imagen del backend. Estructura de la plantilla de la catedra
-# (base -> builder -> runtime distroless), adaptada de Maven a Gradle.
+# (base -> builder -> runtime sin shell), adaptada de Maven a Gradle.
 #
 # Construir (desde la raiz del repo):
 #   docker build --platform linux/amd64 -t securepassb:dev .
@@ -25,8 +25,9 @@ WORKDIR /java/app/builder
 # Cache de Gradle de la etapa base (en Maven: /root/.m2).
 COPY --from=base /root/.gradle /root/.gradle
 COPY . .
-# HealthCheck.java: el HEALTHCHECK no puede usar curl (distroless no lo tiene).
-RUN ./gradlew clean bootJar -x test --no-daemon -q  && javac -d /healthcheck docker/HealthCheck.java
+# HealthCheck.java: el HEALTHCHECK no puede usar curl (la base no tiene shell ni curl).
+RUN ./gradlew clean bootJar -x test --no-daemon -q \
+ && javac -d /healthcheck docker/HealthCheck.java
 
 # Agente de Application Insights (Azure Monitor). Version y hash fijos: si el
 # archivo de Maven Central cambia, el build falla. ADD desde una URL deja el
@@ -37,8 +38,18 @@ ADD --checksum=sha256:93a70c8f5d364c7e777f6c4d1b235dba91aef8448bd3fa94359f1d7f3e
     /agent/applicationinsights-agent.jar
 
 
-# --- runtime: distroless Java 21, sin shell ni gestor de paquetes.
-FROM gcr.io/distroless/java21-debian13:nonroot AS runtime
+# --- jre: solo aporta el JRE 21 de Temurin (se copia el directorio).
+FROM eclipse-temurin:21-jre-noble AS jre
+
+# --- runtime: Chainguard glibc-dynamic, sin shell ni gestor de paquetes.
+# Reemplaza a distroless java21-debian13: esa base trae 68 vulnerabilidades
+# de paquetes Debian sin parche (libc, expat, zlib, libuuid, libstdc++);
+# glibc-dynamic trae solo glibc, certificados y usuarios (Grype: 0). El JRE
+# no viene en la base: se copia el de Temurin, asi Java queda en 21 LTS.
+# Digest fijo (build reproducible); Dependabot abre un PR cuando Chainguard
+# publica una base nueva con parches (.github/dependabot.yml).
+FROM cgr.dev/chainguard/glibc-dynamic:latest@sha256:2a3f1ec8a825dfbb1211b5835a9b8b3fb8d76c7bd22a189b1f84157ed2028293 AS runtime
+COPY --from=jre /opt/java/openjdk /opt/java/openjdk
 
 ARG VERSION=dev
 ARG REVISION=unknown
@@ -57,7 +68,9 @@ LABEL org.opencontainers.image.title="securepassb" \
 # shell. Para cambiarlas: -e JAVA_TOOL_OPTIONS="..." al correr el contenedor.
 # APP_VERSION / APP_REVISION se ven en /actuator/info; el CI las verifica al
 # desplegar.
-ENV SPRING_OUTPUT_ANSI_ENABLED=ALWAYS \
+ENV JAVA_HOME=/opt/java/openjdk \
+    PATH=/opt/java/openjdk/bin:/usr/bin:/bin \
+    SPRING_OUTPUT_ANSI_ENABLED=ALWAYS \
     SPRING_PROFILES_ACTIVE=prod \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError" \
     APP_VERSION=${VERSION} \
@@ -74,7 +87,10 @@ COPY --from=builder /healthcheck/HealthCheck.class /healthcheck/
 COPY --from=builder --chmod=444 /agent/applicationinsights-agent.jar /app/applicationinsights-agent.jar
 EXPOSE 8080
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
+# Timeout amplio: si JDK_JAVA_OPTIONS activa el agente de Application Insights,
+# la JVM del chequeo tambien lo carga (~5 s). Azure Container Apps no usa este
+# HEALTHCHECK (usa sus probes HTTP); aplica a Docker y Compose.
+HEALTHCHECK --interval=30s --timeout=20s --start-period=60s --retries=3 \
     CMD ["java", "-cp", "/healthcheck", "HealthCheck"]
 
 ENTRYPOINT [ "java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar" ]
