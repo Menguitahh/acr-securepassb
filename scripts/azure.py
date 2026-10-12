@@ -214,9 +214,13 @@ def cmd_monitor(_):
     conn = read_secrets().get("APPINSIGHTS_CONNECTION_STRING")
     if not conn:
         sys.exit(f"[error] falta APPINSIGHTS_CONNECTION_STRING en {SECRETS_FILE} (ver docs/monitoreo.md)")
+    # Fuera de run(): run() imprime el comando y, si falla, el stderr de az,
+    # que podria repetir el valor del secreto (CodeQL py/clear-text-logging).
     print("[cmd] az containerapp secret set ... appinsights-connection=<oculto>")
-    run("az", "containerapp", "secret", "set", "-g", RG, "-n", APP, "--secrets", f"appinsights-connection={conn}",
-        "-o", "none", capture=True)
+    secret_set = subprocess.run([shutil.which("az"), "containerapp", "secret", "set", "-g", RG, "-n", APP,
+                                 "--secrets", f"appinsights-connection={conn}", "-o", "none"], capture_output=True)
+    if secret_set.returncode != 0:
+        sys.exit(f"[error] fallo az containerapp secret set (exit {secret_set.returncode}); detalle omitido por contener el secreto")
     env_args = [f"{e['name']}=" + (f"secretref:{e['secretRef']}" if "secretRef" in e else e["value"]) for e in APPINSIGHTS_ENV]
     run("az", "containerapp", "update", "-g", RG, "-n", APP, "--container-name", "backend", "--set-env-vars", *env_args, "-o", "none")
     print("[ok] Application Insights activado")
