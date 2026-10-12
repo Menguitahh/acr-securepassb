@@ -11,7 +11,7 @@
 # --- base: solo descarga dependencias (equivale a pom.xml + mvn dependency:resolve).
 # Esta capa se reutiliza mientras no cambie build.gradle.kts.
 # Sin apt-get build-essential: Java no compila codigo nativo.
-FROM eclipse-temurin:21-jdk-noble AS base
+FROM eclipse-temurin:25-jdk-noble AS base
 WORKDIR /java/app/base
 
 COPY gradlew settings.gradle.kts build.gradle.kts ./
@@ -19,7 +19,7 @@ COPY gradle gradle
 RUN ./gradlew resolveDependencies --no-daemon -q
 
 # --- builder: compila el jar ejecutable (equivale a mvn clean package -DskipTests).
-FROM eclipse-temurin:21-jdk-noble AS builder
+FROM eclipse-temurin:25-jdk-noble AS builder
 WORKDIR /java/app/builder
 
 # Cache de Gradle de la etapa base (en Maven: /root/.m2).
@@ -39,7 +39,7 @@ ADD --checksum=sha256:93a70c8f5d364c7e777f6c4d1b235dba91aef8448bd3fa94359f1d7f3e
 
 
 # --- jre: solo aporta el JRE 21 de Temurin (se copia el directorio).
-FROM eclipse-temurin:21-jre-noble AS jre
+FROM eclipse-temurin:25-jre-noble AS jre
 
 # --- runtime: Chainguard glibc-dynamic, sin shell ni gestor de paquetes.
 # Reemplaza a distroless java21-debian13: esa base trae 68 vulnerabilidades
