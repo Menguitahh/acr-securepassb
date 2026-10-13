@@ -7,7 +7,7 @@ verificado; los numeros salen de corridas reales del 2026-10-11/12.
 
 **URL del backend:** https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io
 **Repo:** https://github.com/Menguitahh/acr-securepassb (publico)
-**Version en produccion:** `v1.2.0` (`/actuator/info`). Azure queda detenido entre usos: ver "Antes de la defensa"
+**Version en produccion:** `v1.2.1` (`/actuator/info`). Azure queda detenido entre usos: ver "Antes de la defensa"
 
 ## Mapa del trabajo
 
@@ -75,7 +75,7 @@ secretos de GitHub y de la Container App, `%USERPROFILE%\.securepassb\azure-secr
 | 19 | Reduccion de vulnerabilidades | COMPLETADO | Base glibc-dynamic, Boot 3.5.16, parches | Grype antes/despues | Criticas 10 -> 2 (sin fix, no aplicables); `--only-fixed` vacio |
 | 20 | GitHub Actions | COMPLETADO | `.github/workflows/` | Runs | Verde |
 | 21 | CI | COMPLETADO | job build + image | PR y push | OK |
-| 22 | CD | COMPLETADO | job deploy | Tags v1.0.0, v1.1.0, v1.2.0 | Desplego y verifico la version |
+| 22 | CD | COMPLETADO | job deploy | Tags v1.0.0, v1.1.0, v1.2.0, v1.2.1 | Desplego y verifico la version |
 | 23 | CI sin despliegue | COMPLETADO | push a develop | Caso A | Imagen en ACR, Azure sin cambios |
 | 24 | Despliegue condicionado | COMPLETADO | `if:` del job deploy | Casos A, B, C | OK |
 | 25 | GitHub Secrets | COMPLETADO | `AZURE_CREDENTIALS` | `gh secret list` | Solo ese secreto |
@@ -104,6 +104,14 @@ Pendientes conocidos (no bloquean la demo):
   la cuenta de alumno no tiene acceso a Entra ID (`docs/azure.md`).
 - Redis es por replica: escala maxima 1 (`docs/azure.md`).
 - Spring Boot 4 cerraria las 2 criticas de Spring (no aplicables).
+
+## Release v1.2.1 en Azure (2026-10-13)
+
+Tag `v1.2.1` (run 38352431557): parches de postgresql 42.7.14, logback 1.6.5,
+micrometer 1.16.7 y reactor 3.8.7 (Snyk 25 -> 16). Verificado en Azure:
+`/actuator/info` = `v1.2.1` (commit `adec973`), readiness UP, agente iniciado,
+0 errores en logs, Postman 21/21, QR `ALLOWED` y alterado `DENIED
+INVALID_SIGNATURE`.
 
 ## Release v1.2.0 en Azure (2026-10-12)
 
@@ -171,7 +179,7 @@ Entre usos todo queda detenido (sin consumo). Para encenderlo, en orden
 az postgres flexible-server start -g universidad -n psql-securepassb-um   # 2-3 min
 python scripts/azure.py start                                             # ~40 s
 az containerapp update -g universidad -n securepassb --min-replicas 1    # sin espera de arranque en frio
-python scripts/azure.py status                                            # Running, imagen v1.2.0
+python scripts/azure.py status                                            # Running, imagen v1.2.1
 curl.exe https://securepassb.proudbush-b955ebd5.eastus.azurecontainerapps.io/actuator/info
 ```
 
@@ -201,7 +209,7 @@ minutos, no el dia de la entrega."* `backend-ci.yml`, jobs `build` e
 Una version que paso la CI se publica y se pone en produccion por el
 pipeline, sin pasos manuales. Aca es condicionado: solo con un tag de
 version o a pedido. *"El mismo pipeline la deja corriendo en Azure, pero
-solo cuando lo decidimos."* Job `deploy`. Run del tag `v1.2.0`.
+solo cuando lo decidimos."* Job `deploy`. Run del tag `v1.2.1`.
 
 **3. Que sucede cuando hacemos un push a GitHub?**
 GitHub dispara `backend-ci` (y `codeql`): compila, corre 770 tests con
@@ -261,7 +269,7 @@ acringenieriaum --repository securepassb -o table`. El deploy se niega a
 usar un tag que no este.
 
 **15. Como sabemos que version corre en Azure?**
-`curl .../actuator/info` -> `{"app":{"version":"v1.2.0","revision":"<sha>"}}`.
+`curl .../actuator/info` -> `{"app":{"version":"v1.2.1","revision":"<sha>"}}`.
 Tambien `python scripts/azure.py status` (imagen) y el resumen del run.
 
 **16. Como detenemos la app?**
@@ -348,6 +356,9 @@ de riesgo.
 (SARIF/JSON como artifact) y un gate `--only-fixed --fail-on critical`.
 
 **34. Que vulnerabilidades encontramos?**
+Hoy: Grype 2, Trivy 2, Snyk CLI 16 (todas Spring, fix solo en Boot 4);
+Snyk web 0 porque solo escanea la imagen base del Dockerfile (ver
+`docs/vulnerabilidades.md`, Snyk vs Grype vs Trivy). Historia:
 194 iniciales (10 criticas, 68 altas): Tomcat, Netty, Jackson, Spring
 (Boot 3.3 sin soporte), libc/expat de Debian 12, JRE 21.0.10.
 
