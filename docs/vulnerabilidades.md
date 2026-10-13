@@ -188,3 +188,50 @@ llega con Spring Boot 4. Llegar a 0 exige migrar a Boot 4 (Jackson 3,
 Spring Security 7, Hibernate 7, springdoc 3): un cambio grande con riesgo de
 regresiones en la logica de negocio, para cerrar dos CVE sobre funciones que
 el backend no usa. Se deja documentado y no se oculta en los informes.
+
+## Snyk vs Grype vs Trivy (2026-10-13)
+
+Snyk web (app.snyk.io, importando el repo de GitHub) mostraba **0**, Grype y
+Trivy **2**. No se contradicen: miran cosas distintas con bases distintas.
+
+| Herramienta | Que escanea | Base de datos | Resultado (antes de los parches de abajo) |
+|---|---|---|---|
+| **Snyk web** (repo importado) | Lee los archivos del repo. Del `Dockerfile` toma la **imagen base** (`glibc-dynamic`: 7 paquetes). `build.gradle.kts` no tiene las versiones (las pone el plugin de Spring Boot al correr Gradle) y sin `gradle.lockfile` no puede resolverlas | Snyk | **0** |
+| **Snyk CLI** `snyk test` | Ejecuta Gradle y resuelve el arbol real (177 dependencias) | Snyk | **25** (1 critica, 15 altas, 8 medias, 1 baja) |
+| **Snyk CLI** `snyk container test --app-vulns` | La imagen construida: base (0) + los jars de `/app` (120) | Snyk | **25** (las mismas) |
+| **Grype** / **Trivy** | La imagen construida | GitHub Advisories + NVD (Grype), Aqua (Trivy) | **2** |
+
+Las 2 de Grype estan entre las 25 de Snyk. La diferencia de cantidad es de
+base de datos: Snyk tiene avisos propios que la base de GitHub (la que usa
+Grype, actualizada al 2026-10-12) todavia no incluia. Leccion: el
+resultado depende de **que** se escanea (repo vs imagen) y **contra que
+base**; por eso conviene mas de una herramienta.
+
+Comandos (requieren `npx snyk auth` una vez):
+
+```powershell
+npx snyk test                                                         # proyecto Gradle
+npx snyk container test securepassb:local --file=Dockerfile --app-vulns  # imagen completa
+```
+
+### Correcciones a partir de Snyk
+
+| Cambio (`build.gradle.kts`) | Corrige |
+|---|---|
+| `postgresql.version` 42.7.12 -> **42.7.14** | CVE-2026-107314 (alta), CVE-2026-107315 (media) |
+| `logback.version` -> **1.6.5** | CVE-2026-13006 (alta), CVE-2026-19880, CVE-2026-104721 (medias) |
+| `micrometer.version` -> **1.16.7** | CVE-2026-59295, CVE-2026-59296 (altas) |
+| `reactor-bom.version` -> **2025.0.7** (reactor-core 3.8.7, via Lettuce/Redis) | CVE-2026-47857, CVE-2026-47863 (altas) |
+
+Logback, Micrometer y Reactor son una version menor arriba de la que trae
+Boot 3.5. Verificado: 780 tests en verde, 0 warnings; contenedor en perfil
+`prod` con logs JSON (logback 1.6 + logstash encoder) sin errores, refresh
+de sesion por Redis 200, `/actuator/prometheus` 200 con metricas de Hikari,
+export XLSX 200, agente de Application Insights sin errores.
+
+Resultado: **Snyk 25 -> 16; Grype 2; Trivy 2.** Las 16 de Snyk son todas de
+la familia Spring (`spring-web`, `spring-webmvc`, `spring-beans`,
+`spring-expression`, `spring-context-support`, `spring-security-core`,
+`spring-security-crypto`, `spring-data-jpa`) y solo se corrigen en Spring
+Framework 7 / Spring Security 7 / Spring Data 4, es decir migrando a Spring
+Boot 4 (ver arriba por que no se hizo).

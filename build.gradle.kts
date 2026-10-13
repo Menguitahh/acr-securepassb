@@ -25,7 +25,13 @@ extra["testcontainers.version"] = "1.21.4"
 extra["tomcat.version"] = "10.1.60"
 extra["netty.version"] = "4.1.137.Final"
 extra["jackson-bom.version"] = "2.21.7"
-extra["postgresql.version"] = "42.7.12"
+extra["postgresql.version"] = "42.7.14"
+// Snyk (base propia, con avisos que Grype todavia no tenia): logback-core y
+// logback-classic, micrometer-core y reactor-core (via lettuce/Redis) solo
+// tienen fix en la version menor siguiente a la que trae Boot 3.5.
+extra["logback.version"] = "1.6.5"
+extra["micrometer.version"] = "1.16.7"
+extra["reactor-bom.version"] = "2025.0.7"
 extra["commons-lang3.version"] = "3.18.0"
 extra["log4j2.version"] = "2.25.5"
 
