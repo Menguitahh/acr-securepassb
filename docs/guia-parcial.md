@@ -222,10 +222,11 @@ Push a `develop` (caso A), o Run workflow sin tildar `deploy`. El job
 `deploy` queda en `skipped`. Ver Simulacro parte 1.
 
 **5. Como condicionamos el despliegue segun rama, version o commit?**
-Con el `if:` del job `deploy`: `startsWith(github.ref, 'refs/tags/v')` o
+Con el `if:` del job `deploy`: `startsWith(github.ref, 'refs/tags/v')`,
+`[deploy]` en el mensaje del ultimo commit del push
+(`contains(github.event.head_commit.message, '[deploy]')`) o
 `workflow_dispatch` con `deploy=true`. Para agregar una rama: `||
-github.ref == 'refs/heads/main'`. No usamos el texto del commit: es fragil.
-`docs/ci-cd.md`.
+github.ref == 'refs/heads/main'`. `docs/ci-cd.md`.
 
 **6. Donde queda la imagen versionada?**
 En `acringenieriaum.azurecr.io/securepassb:<tag>`. `python scripts/azure.py

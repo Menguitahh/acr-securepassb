@@ -5,6 +5,8 @@
 # Que pasa en cada caso:
 #   pull_request a develop/main   tests + imagen + Grype. No publica ni despliega.
 #   push a develop/main           tests + imagen + Grype + push sha-<7>. NO despliega.      (caso A)
+#   push con "[deploy]" en el     igual que el caso A + DEPLOY de sha-<7>. Se mira solo el
+#     ultimo commit del push      ultimo commit (head_commit).                             (caso B)
 #   push de un tag vX.Y.Z         tests + imagen + Grype + push vX.Y.Z (+ sha-<7> si no existe) + DEPLOY. (caso B)
 #   Run workflow (manual)         deploy=true despliega; tag=<existente> redespliega esa
 #                                 imagen sin reconstruir (rollback).                       (caso C)
@@ -168,10 +170,12 @@ jobs:
     name: deploy
     needs: [build, image]
     # Corre aunque build/image se salteen (redeploy de un tag existente), pero
-    # nunca si alguno fallo. Solo en tags vX.Y.Z o con deploy=true a mano.
+    # nunca si alguno fallo. Solo en tags vX.Y.Z, en un push cuyo ultimo commit
+    # dice [deploy], o con deploy=true a mano.
     if: >-
       ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') &&
           (startsWith(github.ref, 'refs/tags/v') ||
+           (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy]')) ||
            (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
     runs-on: ubuntu-latest
     concurrency:
