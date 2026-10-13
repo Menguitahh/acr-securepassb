@@ -31,7 +31,7 @@ public class ActivateAccountUseCase {
         this.users = users;
         this.encoder = encoder;
     }
-
+/** prueba de no deploy */
     @Transactional
     public Result activate(String plaintextToken, String newPassword) {
         if (newPassword == null || newPassword.length() < MIN_PASSWORD_LENGTH) return Failure.WEAK_PASSWORD;
