@@ -24,7 +24,7 @@ flowchart TD
     I["image<br/>docker build linux/amd64 + etiquetas OCI<br/>Grype: informe + gate"] --> P{pull_request?}
     P -->|si| FIN1[fin: nada se publica]
     P -->|no| PUSH["az acr login + docker push<br/>tag + sha-xxxxxxx"]
-    PUSH --> C{tag vX.Y.Z<br/>o deploy=true?}
+    PUSH --> C{"tag vX.Y.Z, [deploy]<br/>en el commit o deploy=true?"}
     C -->|no| FIN2[fin: imagen en ACR, sin deploy]
     C -->|si| DEP["deploy<br/>az containerapp update --image<br/>espera /actuator/info == tag"]
 ```
@@ -33,7 +33,7 @@ flowchart TD
 |---|---|---|
 | `build` | `./gradlew build` (compila, tests, Testcontainers) + tests de `scripts/azure.py` | Todo, salvo redeploy de un tag existente |
 | `image` | Build de la imagen, Grype, push al ACR | Todo; el push no corre en pull requests |
-| `deploy` | Actualiza la Container App y espera a que sirva la version nueva | Tag `vX.Y.Z` o ejecucion manual con `deploy=true` |
+| `deploy` | Actualiza la Container App y espera a que sirva la version nueva | Tag `vX.Y.Z`, push cuyo ultimo commit dice `[deploy]`, o ejecucion manual con `deploy=true` |
 
 Los tests no se repiten dentro del `docker build`: los corre el job `build`
 antes, y la imagen solo se construye si pasaron.
@@ -43,7 +43,8 @@ antes, y la imagen solo se construye si pasaron.
 | Caso | Como se dispara | Build y tests | Imagen en ACR | Deploy |
 |---|---|---|---|---|
 | **A**: cambio sin deploy | `git push` a `develop` | Si | `sha-<7>` | **No** |
-| **B**: cambio con deploy | `git tag v1.0.0` + `git push origin v1.0.0` | Si | `v1.0.0` (y `sha-<7>` si no existia) | **Si** |
+| **B**: cambio con deploy | `git commit -m "... [deploy]"` + `git push` a `develop` | Si | `sha-<7>` | **Si** |
+| **B'**: version | `git tag v1.0.0` + `git push origin v1.0.0` | Si | `v1.0.0` (y `sha-<7>` si no existia) | **Si** |
 | **C**: manual | Actions > backend-ci > Run workflow, `deploy` tildado | Si (o no, si se elige un tag existente) | Si | **Si** (o no, sin tildar) |
 | PR | Pull request a `develop`/`main` | Si | No (solo se construye y escanea) | No |
 
@@ -53,12 +54,14 @@ La condicion esta en el `if:` del job `deploy`:
 if: >-
   ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') &&
       (startsWith(github.ref, 'refs/tags/v') ||
+       (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy]')) ||
        (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
 ```
 
-Es explicita: depende del tipo de evento y de un input, no del texto del
-commit (el workflow de la catedra deducia el deploy de palabras como
-`chore:` o `/deploy` en el mensaje).
+`[deploy]` se busca solo en el ultimo commit del push (`head_commit`): si
+esta en un commit anterior del mismo push, no despliega. Con un merge por
+squash, el mensaje que queda es el titulo del PR: el `[deploy]` va ahi. Un
+push a una rama que no sea `develop`/`main` no dispara el workflow.
 
 Para cambiar las condiciones (por ejemplo, desplegar tambien cada push a
 `main`), se agrega una linea al `if:`:
