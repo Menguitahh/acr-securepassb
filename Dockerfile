@@ -48,7 +48,7 @@ FROM eclipse-temurin:21-jre-noble AS jre
 # no viene en la base: se copia el de Temurin, asi Java queda en 21 LTS.
 # Digest fijo (build reproducible); Dependabot abre un PR cuando Chainguard
 # publica una base nueva con parches (.github/dependabot.yml).
-FROM cgr.dev/chainguard/glibc-dynamic:latest@sha256:2a3f1ec8a825dfbb1211b5835a9b8b3fb8d76c7bd22a189b1f84157ed2028293 AS runtime
+FROM cgr.dev/chainguard/glibc-dynamic:latest@sha256:5380a8b913d0900cf44180e2205bf3ebf0e0b00a32a0f2fa4ab16cb06d7f9cdf AS runtime
 COPY --from=jre /opt/java/openjdk /opt/java/openjdk
 
 ARG VERSION=dev
